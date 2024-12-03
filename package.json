@@ -1,0 +1,24 @@
+{
+  "name": "reelix",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "webpack --watch",
+    "build": "webpack",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@fortawesome/fontawesome-free": "^6.7.1",
+    "@hotwired/stimulus": "^3.2.2",
+    "@hotwired/turbo": "^8.0.12",
+    "@tauri-apps/cli": "^2",
+    "bootstrap": "^5.3.3",
+    "css-loader": "^7.1.2",
+    "sass": "^1.81.0",
+    "sass-loader": "^16.0.3",
+    "style-loader": "^4.0.0",
+    "webpack": "^5.96.1",
+    "webpack-cli": "^5.1.4"
+  }
+}
