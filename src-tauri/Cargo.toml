@@ -1,8 +1,8 @@
 [package]
 name = "reelix"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "A tool for ripping Movies & TV Shows"
+authors = ["Brandt Lareau"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -22,3 +22,5 @@ tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+tera = "1.20.0"
+lazy_static = "1.5.0"

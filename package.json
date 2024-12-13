@@ -15,6 +15,7 @@
     "@tauri-apps/cli": "^2",
     "bootstrap": "^5.3.3",
     "css-loader": "^7.1.2",
+    "html-webpack-plugin": "^5.6.3",
     "sass": "^1.81.0",
     "sass-loader": "^16.0.3",
     "style-loader": "^4.0.0",
