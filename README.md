@@ -10,8 +10,13 @@ This template should help get you started developing with Tauri in vanilla HTML,
 ## Development
 
 1. `asdf install`
-2. `cargo tauri dev`
+2. `npm run tauri dev`
 
+
+## Build / Deployment
+
+1. `asdf install`
+2. `npm run tauri build`
 
 ## Add new Cargo Package
 
