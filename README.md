@@ -16,7 +16,7 @@ This template should help get you started developing with Tauri in vanilla HTML,
 ## Build / Deployment
 
 1. `asdf install`
-2. `npm run tauri build`
+2. `npm run tauri build -- --bundles dmg`
 
 ## Add new Cargo Package
 
