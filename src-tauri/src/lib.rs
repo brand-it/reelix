@@ -10,7 +10,6 @@ static TEMPLATES_DIR: Dir = include_dir!("templates");
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-
     let mut tera = Tera::default();
     // Takes all the template files and compiles them with the binary
     for file in TEMPLATES_DIR.files() {
