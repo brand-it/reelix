@@ -9,30 +9,32 @@
 </head>
 
 <body>
-  <a href="/about.html">about</a>
-  <div data-controller="greet">
-    <form data-action="submit->greet#greet">
-      <input data-greet-target="input" id="greet-input" type="text" placeholder="Enter your name" />
-      <button type="submit">Greet</button>
-    </form>
-    <p data-greet-target="message" id="greet-msg"></p>
-  </div>
+  <main>
+    <a href="/about.html">about</a>
+    <div data-controller="greet">
+      <form data-action="submit->greet#greet">
+        <input data-greet-target="input" id="greet-input" type="text" placeholder="Enter your name" />
+        <button type="submit">Greet</button>
+      </form>
+      <p data-greet-target="message" id="greet-msg"></p>
+    </div>
 
-  <form data-turbo-frame="videos" data-turbo-action="replace" class="simple_form row pb-4" id="new_search"
-    style="margin: auto; width: 50%;" novalidate="novalidate" action="/greet" accept-charset="UTF-8" method="get">
-    <div class='col-8 col-md-10 col-lg-10 p-0'>
-      <div class="form-group minimal-input string optional search_query">
-        <input class="string optional" autofocus="autofocus" type="text" name="search[query]" id="search_query" />
-        <label class="input-placeholder string optional" for="search_query">
-          Search for TV or
-          Movie
-        </label>
+    <form data-turbo-frame="videos" data-turbo-action="replace" class="simple_form row pb-4" id="new_search"
+      style="margin: auto;" novalidate="novalidate" action="/greet" accept-charset="UTF-8" method="get">
+      <div class='col-8 col-md-10 col-lg-10 p-0'>
+        <div class="form-group minimal-input string optional search_query">
+          <input class="string optional" autofocus="autofocus" type="text" name="search[query]" id="search_query" />
+          <label class="input-placeholder string optional" for="search_query">
+            Search for TV or
+            Movie
+          </label>
+        </div>
       </div>
-    </div>
-    <div class='col align-self-center p-0 text-center mt-2'>
-      <input type="submit" name="commit" value="Search" data-disable-with="Searching" class="btn btn-primary" />
-    </div>
-  </form>
+      <div class='col align-self-center p-0 text-center mt-2'>
+        <input type="submit" name="commit" value="Search" data-disable-with="Searching" class="btn btn-primary" />
+      </div>
+    </form>
+  </main>
 </body>
 
 </html>
