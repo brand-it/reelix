@@ -1,17 +1,19 @@
-import path, { resolve } from 'path';
-import HtmlWebpackPlugin from 'html-webpack-plugin';
+const path = require('path');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-export default {
+module.exports = {
   entry: path.resolve('src/index.js'),
+  mode: 'production',
+  optimization: {
+    splitChunks: {
+      chunks: 'all'
+    },
+  },
   module: {
     rules: [
       {
-        test: /\.s[ac]ss$/i, // Handle SASS and SCSS files
-        use: [
-          "style-loader", // Creates `style` nodes from JS strings
-          "css-loader",   // Translates CSS into CommonJS
-          "sass-loader"  // Compiles Sass to CSS
-        ]
+        test: /\.s[ac]ss$/i,
+        use: ["style-loader", "css-loader", "sass-loader"]
       },
       {
         test: /\.(png|svg|jpg|jpeg|gif|ico|webp)$/i,
@@ -25,6 +27,10 @@ export default {
       filename: 'index.html'
     })
   ],
+  resolve: {
+    extensions: ['.js', '.jsx'], // Auto-resolve .js files
+    mainFiles: ['index'] // Automatically look for index.js
+  },
   output: {
     path: path.resolve('dist'),
     clean: true,

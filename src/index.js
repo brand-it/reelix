@@ -8,4 +8,4 @@ import "./images/tauri.svg"
 // Javascripts
 import './javascripts/turbo.js'
 
-import "./javascripts/controllers"
+import "./javascripts/controllers/index.js"
