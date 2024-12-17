@@ -1,14 +1,8 @@
 @import "colors";
 @import "bootstrap/scss/bootstrap";
-@import "minimal";
 @import "checkbox_toggle";
 @import "bg_process";
 
-// @import "./custom";
-// app/javascript/packs/stylesheets/_custom.scss
-// h1 {
-//   color: red;
-// } */
 html,
 body {
   height: 100%;
@@ -19,7 +13,7 @@ body {
 
   main {
     padding: 1em;
-    padding-bottom: 20em;
+    // padding-bottom: 20em;
   }
 }
 

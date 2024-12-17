@@ -1,4 +1,4 @@
-import path from 'path';
+import path, { resolve } from 'path';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 
 export default {
@@ -29,6 +29,5 @@ export default {
     path: path.resolve('dist'),
     clean: true,
     assetModuleFilename: 'images/[hash][ext][query]'
-
   }
 };

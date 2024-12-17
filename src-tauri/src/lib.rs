@@ -23,10 +23,14 @@ pub fn run() {
     let app_state = AppState {
         tera: Arc::new(tera),
     };
+
     tauri::Builder::default()
         .manage(app_state)
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![commands::greet, commands::about])
+        .invoke_handler(tauri::generate_handler![
+            commands::greet,
+            commands::search
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Tauri application");
 }

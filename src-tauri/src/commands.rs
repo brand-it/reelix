@@ -26,8 +26,8 @@ pub fn greet(name: &str, state: State<'_, AppState>) -> String {
 }
 
 #[tauri::command]
-pub fn about(state: State<'_, AppState>) -> String {
-    match state.tera.render("about.html", &Context::new()) {
+pub fn search(state: State<'_, AppState>) -> String {
+    match state.tera.render("search.html", &Context::new()) {
         Ok(result) => result,
         Err(e) => {
             eprintln!("Template rendering error: {e}");
@@ -35,3 +35,14 @@ pub fn about(state: State<'_, AppState>) -> String {
         }
     }
 }
+
+// #[tauri::command]
+// pub fn about(state: State<'_, AppState>) -> String {
+//     match state.tera.render("about.html", &Context::new()) {
+//         Ok(result) => result,
+//         Err(e) => {
+//             eprintln!("Template rendering error: {e}");
+//             format!("An error occurred: {e}")
+//         }
+//     }
+// }
