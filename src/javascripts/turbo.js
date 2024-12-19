@@ -1,15 +1,15 @@
 import * as Turbo from "@hotwired/turbo"
 
-window.__TAURI_INTERNALS__.transformCallback = function(event, n = !1) {
-  console.log("event: transformCallback", event, n);
-    const t = window.crypto.getRandomValues(new Uint32Array(1))[0],
-        i = `_${t}`;
-    return Object.defineProperty(window, i, {
-        value: t => (n && Reflect.deleteProperty(window, i), event && event(t)),
-        writable: !1,
-        configurable: !0
-    }), t
-}
+// window.__TAURI_INTERNALS__.transformCallback = function(event, n = !1) {
+//   console.log("event: transformCallback", event, n);
+//     const t = window.crypto.getRandomValues(new Uint32Array(1))[0],
+//         i = `_${t}`;
+//     return Object.defineProperty(window, i, {
+//         value: t => (n && Reflect.deleteProperty(window, i), event && event(t)),
+//         writable: !1,
+//         configurable: !0
+//     }), t
+// }
 // document.addEventListener('turbo:before-fetch-request', (event) => {
 //     const { fetchOptions, url } = event.detail;
 //     console.log('Intercepting Turbo request:', url, fetchOptions);
@@ -21,7 +21,6 @@ window.__TAURI_INTERNALS__.transformCallback = function(event, n = !1) {
 //         event.detail.url = new URL(url.href.replace(/^http:/, 'ipc:'));
 //     }
 // });
-
 
 function addHasValue(input) {
   if (input.value.trim() !== '') {

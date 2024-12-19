@@ -9,6 +9,11 @@ struct Greeting {
     name: String,
 }
 
+#[derive(Serialize)]
+struct Search {
+    search: String,
+}
+
 #[tauri::command]
 pub fn greet(name: &str, state: State<'_, AppState>) -> String {
     let greeting = Greeting {
@@ -26,8 +31,13 @@ pub fn greet(name: &str, state: State<'_, AppState>) -> String {
 }
 
 #[tauri::command]
-pub fn search(state: State<'_, AppState>) -> String {
-    match state.tera.render("search/index.html", &Context::new()) {
+pub fn search(search: &str, state: State<'_, AppState>) -> String {
+    let search = Search {
+        search: search.to_string(),
+    };
+    let context = Context::from_serialize(&search).expect("Failed to retrieve the value");
+
+    match state.tera.render("search/results.html", &context) {
         Ok(result) => result,
         Err(e) => {
             eprintln!("Template rendering error: {e}");

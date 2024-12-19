@@ -1,7 +1,7 @@
 <form data-turbo-frame="videos" data-turbo-action="replace" class="simple_form row" id="new_search" action="/search"
-  accept-charset="UTF-8" method="get" data-controller="submit-on-keyup">
+  accept-charset="UTF-8" method="post" data-controller="submit-on-keyup">
   <div class="input-group input-group-lg">
-    <input type="text" class="form-control" placeholder="TV or Movie Title" aria-label="TV or Movie Title"
+    <input type="text" class="form-control" placeholder="TV or Movie Title" aria-label="TV or Movie Title" name="search"
       aria-describedby="basic-addon2" data-action="keyup->submit-on-keyup#submitWithDebounce"
       data-submit-on-keyup-target="input">
     <button class="btn btn-outline-primary" type="button" id="button-addon2">Search</button>
