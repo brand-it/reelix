@@ -2,8 +2,8 @@ const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
-  entry: path.resolve('src/index.js'),
-  mode: 'production',
+  entry: [path.resolve('src/setup.js'), path.resolve('src/index.js')],
+  mode: 'development',
   optimization: {
     splitChunks: {
       chunks: 'all'

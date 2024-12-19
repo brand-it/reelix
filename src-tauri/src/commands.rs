@@ -27,7 +27,7 @@ pub fn greet(name: &str, state: State<'_, AppState>) -> String {
 
 #[tauri::command]
 pub fn search(state: State<'_, AppState>) -> String {
-    match state.tera.render("search.html", &Context::new()) {
+    match state.tera.render("search/index.html", &Context::new()) {
         Ok(result) => result,
         Err(e) => {
             eprintln!("Template rendering error: {e}");

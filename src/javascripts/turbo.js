@@ -1,24 +1,24 @@
 import * as Turbo from "@hotwired/turbo"
 
+window.__TAURI_INTERNALS__.transformCallback = function(event, n = !1) {
+  console.log("event: transformCallback", event, n);
+    const t = window.crypto.getRandomValues(new Uint32Array(1))[0],
+        i = `_${t}`;
+    return Object.defineProperty(window, i, {
+        value: t => (n && Reflect.deleteProperty(window, i), event && event(t)),
+        writable: !1,
+        configurable: !0
+    }), t
+}
+// document.addEventListener('turbo:before-fetch-request', (event) => {
+//     const { fetchOptions, url } = event.detail;
+//     console.log('Intercepting Turbo request:', url, fetchOptions);
+//     fetchOptions.method = 'POST';
 
-// document.addEventListener("turbo:before-fetch-request", async (event) => {
-//     const { fetchOptions } = event.detail;
-
-//     // Prevent the default network request
-//     event.preventDefault();
-
-//     // Use IPC to handle the request
-//     const response = await window.ipc.invoke("fetch", {
-//         url: fetchOptions.url,
-//         method: fetchOptions.method,
-//         headers: fetchOptions.headers,
-//         body: fetchOptions.body,
-//     });
-
-//     // Manually update the Turbo frame with the IPC response
-//     const frame = document.querySelector("turbo-frame");
-//     if (frame) {
-//         frame.innerHTML = response.body;
+//     // Modify the protocol for specific URLs
+//     if (url.protocol === 'http:') {
+//         console.log("changing protocol from http: to ipc:")
+//         event.detail.url = new URL(url.href.replace(/^http:/, 'ipc:'));
 //     }
 // });
 
