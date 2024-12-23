@@ -1,6 +1,6 @@
-# Tauri + Vanilla
+https://github.com/user-attachments/assets/bfdc89c3-582b-44fe-8609-568c67ce92b8
 
-This template should help get you started developing with Tauri in vanilla HTML, CSS and Javascript.
+
 
 ## Recommended IDE Setup
 
