@@ -20,10 +20,12 @@ function uuid() {
 window.fetch = async (url, options = {}) => {
     let parsedUrl = new URL(url);
     // TODO: Improve to better ID what requests are Tauri & localhost requests
-    if (parsedUrl.protocol == 'http:') {
+    if (parsedUrl.protocol == 'http:' || parsedUrl.protocol == 'tauri:') {
       let command = new URL(url).pathname.replace("/", "");
       let commandArgs = Object.fromEntries(options.body.entries())
-      const tauriResponse = await window.__TAURI__.core.invoke(command, commandArgs);
+      const tauriResponse = await window.__TAURI__.core.invoke(command, commandArgs).catch((err) => {
+        document.getElementById('error').innerHTML = err.message
+      });
 
       console.log('Intercepted fetch call:', url, command, commandArgs);
 

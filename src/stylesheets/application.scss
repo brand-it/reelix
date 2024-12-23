@@ -1,7 +1,7 @@
-@use "colors" as *;
-@use "bootstrap/scss/bootstrap" as *;
-@use "checkbox_toggle";
-@use "bg_process";
+@import "colors";
+@import "bootstrap/scss/bootstrap";
+@import "checkbox_toggle";
+@import "bg_process";
 
 html,
 body {

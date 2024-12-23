@@ -1,6 +1,5 @@
-use reqwest::{blocking::Client, Error};
+use tauri_plugin_http::reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::collections::HashMap;
 // Struct for the TMDB Client
 pub struct TheMovieDb {
