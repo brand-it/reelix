@@ -1,6 +1,6 @@
-use tauri_plugin_http::reqwest::blocking::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tauri_plugin_http::reqwest::blocking::Client;
 // Struct for the TMDB Client
 pub struct TheMovieDb {
     api_key: String,
@@ -10,6 +10,10 @@ pub struct TheMovieDb {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SearchResult {
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    original_name: String,
     adult: bool,
     backdrop_path: Option<String>,
     #[serde(default)]
@@ -24,6 +28,7 @@ pub struct SearchResult {
     popularity: f64,
     poster_path: Option<String>,
     release_date: Option<String>,
+    first_air_date: Option<String>,
     title: Option<String>,
     #[serde(default)]
     video: bool,
@@ -89,9 +94,21 @@ impl TheMovieDb {
             ));
         }
 
-        // Parse the response body into a SearchResponse struct
-        response
-            .json::<SearchResponse>()
-            .map_err(|e| format!("Failed to parse response JSON: {:?}", e))
+        // 1) Read the entire response body as text.
+        let text_body = response
+            .text()
+            .map_err(|e| format!("Request error reading text: {:?}", e))?;
+
+        // 2) Print (debug) the raw JSON string.
+        dbg!(&text_body);
+
+        // 3) Manually parse the JSON string into SearchResponse.
+        let parsed_response: SearchResponse = serde_json::from_str(&text_body)
+            .map_err(|e| format!("Failed to parse response JSON: {:?}", e))?;
+
+        // 4) Also debug the parsed response if you like.
+        dbg!(&parsed_response);
+
+        Ok(parsed_response)
     }
 }

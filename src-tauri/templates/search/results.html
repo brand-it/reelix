@@ -1,45 +1,46 @@
-<turbo-stream action="replace" target="videos">
-  <template>
-    <div class="display-flex" id="videos">
-      {% if search.results | length == 0 %}
-      <div class="col-md-12 text-center">
-        <div class="text-warning">
-          <h4 class="display-8">No Results Found For "{{ query }}"</h4>
-        </div>
-      </div>
-      {% else %}
-      <div class="display-flex">
-        {% for result in search.results %}
-        <div class="width-225 m-1">
-          <a class="btn img-poster-btn p-1 mb-2" data-turbo="false" data-disable-with="Loading..."
-            href="https://www.themoviedb.org/{{ result.media_type }}/{{ result.id }}" target="blank">
-            {% if result.poster_path %}
-            <img class="img-poster" width="200" loading="lazy"
-              src="https://image.tmdb.org/t/p/w200{{ result.poster_path }}"
-              alt="{{ result.title | default(value=result.original_title | default(value='Unknown')) }}">
-            {% else %}
-            <img class="img-poster" width="200" loading="lazy" src="/images/placeholder_poster.jpg"
-              alt="{{ result.title | default(value=result.original_title | default(value='Unknown')) }}">
-            {% endif %}
-          </a>
-          <h6 class="card-title height-60">
-            {% if result.media_type == "tv" %}
-            <i class="fa fa-tv" data-prefix="fas" data-icon="tv"></i>
-            {% elif result.media_type == "movie" %}
-            <i class="fa fa-film" data-prefix="fas" data-icon="film"></i>
-            {% endif %}
-            <a target="blank" href="https://www.themoviedb.org/{{ result.media_type }}/{{ result.id }}">
-              {{ result.title | default(value=result.original_title | default(value='Unknown')) }} ({{
-              result.release_date | default(value="") |
-              truncate(length=4,
-              end="") |
-              default(value="N/A") }})
-            </a>
-          </h6>
-        </div>
-        {% endfor %}
-      </div>
-      {% endif %}
+{% import "search/result.html" as macros %}
+<div class="display-flex" id="videos">
+  {% if query | default(value="") == "" %}
+  <div class="col-md-12">
+    <div class="text-white">
+      <h1 class="display-4">To Getting Started</h1>
+      <p class="lead">Type in the name of the movie or TV show you're looking for into the search bar above.</p>
     </div>
-  </template>
-</turbo-stream>
+  </div>
+  {% elif search.results | length == 0 %}
+  <div class="col-md-12 text-center">
+    <div class="text-warning">
+      <h4 class="display-8">No Results Found For "{{ query }}"</h4>
+    </div>
+  </div>
+  {% else %}
+  <div class="display-flex">
+    {% for result in search.results %}
+    <div class="width-225 m-1">
+      <a class="btn img-poster-btn p-1 mb-2" data-turbo="false" data-disable-with="Loading..."
+        href="https://www.themoviedb.org/{{ result.media_type }}/{{ result.id }}" target="blank">
+        {% if result.media_type == "tv" %}
+        {{ macros::result(poster_path=result.poster_path, name=result.name, original_name=result.original_name) }}
+        {% elif result.media_type == "movie" %}
+        {{ macros::result(poster_path=result.poster_path, name=result.title, original_name=result.original_title) }}
+        {% else %}
+        {{ macros::result(poster_path=result.poster_path, name=result.name, original_name=result.original_name) }}
+        {% endif %}
+      </a>
+      <h6 class="card-title height-60">
+        {% if result.media_type == "tv" %}
+        <i class="fa fa-tv" data-prefix="fas" data-icon="tv"></i>
+        {% elif result.media_type == "movie" %}
+        <i class="fa fa-film" data-prefix="fas" data-icon="film"></i>
+        {% endif %}
+        <a target="blank" href="https://www.themoviedb.org/{{ result.media_type }}/{{ result.id }}">
+          {{ result.title | default(value=result.name | default(value='Unknown')) }} ({{
+          result.release_date | default(value=result.first_air_date | default(value='')) |
+          truncate(length=4, end="") | default(value="N/A") }})
+        </a>
+      </h6>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>

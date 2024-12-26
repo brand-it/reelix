@@ -1,0 +1,5 @@
+<turbo-stream action="replace" target="videos">
+  <template>
+    {% include "search/results.html" %}
+  </template>
+</turbo-stream>

@@ -3,8 +3,6 @@ mod state;
 
 use include_dir::{include_dir, Dir};
 use state::AppState;
-use std::fs;
-use std::path::Path;
 use std::sync::Arc;
 use tera::Tera;
 

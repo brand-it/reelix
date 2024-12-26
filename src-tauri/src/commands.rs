@@ -84,7 +84,7 @@ pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, ApiErr
 
     let context = Context::from_serialize(&search).expect("Failed to retrieve the value");
 
-    match state.tera.render("search/results.html", &context) {
+    match state.tera.render("search/results.html.turbo", &context) {
         Ok(result) => Ok(result),
         Err(e) => {
             eprintln!("Template rendering error: {:#?}", e);

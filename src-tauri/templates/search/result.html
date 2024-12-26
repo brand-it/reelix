@@ -1,0 +1,9 @@
+{% macro result(poster_path, name, original_name) %}
+{% if poster_path %}
+<img class="img-poster" width="200" loading="lazy" src="https://image.tmdb.org/t/p/w200{{ poster_path }}"
+  alt="{{ name | default(value=original_name | default(value='Unknown')) }}">
+{% else %}
+<img class="img-poster" width="200" loading="lazy" src="/images/placeholder_poster.jpg"
+  alt="{{ name | default(value=original_name | default(value='Unknown')) }}">
+{% endif %}
+{% endmacro input %}
