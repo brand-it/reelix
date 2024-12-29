@@ -4,6 +4,9 @@ mod state;
 use include_dir::{include_dir, Dir};
 use state::AppState;
 use std::sync::Arc;
+use std::sync::Mutex;
+use tauri::Manager;
+use tauri_plugin_store::StoreExt;
 use tera::Tera;
 
 // Embed the `templates` directory into the binary
@@ -33,14 +36,36 @@ pub fn run() {
 
     add_templates_from_dir(&mut tera, &TEMPLATES_DIR);
 
-    let app_state = AppState {
+    let app_state: AppState = AppState {
         tera: Arc::new(tera),
+        the_movie_db_key: Arc::new(Mutex::new(String::new())),
     };
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_http::init())
         .manage(app_state)
-        .invoke_handler(tauri::generate_handler![commands::greet, commands::search])
+        .setup(|app| {
+            let app_handle = app.handle();
+            let state = app_handle.state::<AppState>();
+            let store = app.store("store.json")?;
+            let value = store.get("the_movie_db_key");
+
+            if let Some(key) = value {
+                if let Some(key_str) = key.as_str() {
+                    let mut movie_db_key = state.the_movie_db_key.lock().unwrap();
+                    *movie_db_key = key_str.to_string();
+                }
+            }
+            store.close_resource();
+
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            commands::index,
+            commands::search,
+            commands::the_movie_db
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Tauri application");
 }

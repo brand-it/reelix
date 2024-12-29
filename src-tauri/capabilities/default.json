@@ -11,11 +11,17 @@
     {
       "identifier": "http:default",
       "allow": [
-        { "url": "https://api.themoviedb.org" },
-        { "url": "https://*.themoviedb.org" }
+        {
+          "url": "https://api.themoviedb.org"
+        },
+        {
+          "url": "https://*.themoviedb.org"
+        }
       ],
       "deny": []
-    }
+    },
+    "store:default",
+    "store:default"
   ],
   "platforms": [
     "macOS"

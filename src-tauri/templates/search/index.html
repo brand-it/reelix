@@ -1,10 +1,8 @@
-<form data-turbo-frame="videos" data-turbo-action="replace" class="mb-3 simple_form row" id="new_search"
-  action="/search" accept-charset="UTF-8" method="post" data-controller="submit-on-keyup">
+<form class="mb-3 simple_form row" action="/search" method="post" data-controller="submit-on-keyup">
   <div class="input-group input-group-lg">
     <input type="text" class="form-control" placeholder="TV or Movie Title" aria-label="TV or Movie Title" name="search"
-      aria-describedby="basic-addon2" data-action="keyup->submit-on-keyup#submitWithDebounce"
-      data-submit-on-keyup-target="input">
-    <button class="btn btn-outline-primary" type="button" id="button-addon2">Search</button>
+      data-action="keyup->submit-on-keyup#submitWithDebounce" data-submit-on-keyup-target="input">
+    <button class="btn btn-outline-primary" type="submit" id="button-addon2">Search</button>
   </div>
 </form>
 {% include "search/results.html" %}

@@ -1,0 +1,9 @@
+<form class="mb-3 simple_form row" id="new_the_movie_db" action="/the_movie_db" data-controller="submit-on-keyup"
+  method="post">
+  <div class="input-group input-group-lg">
+    <input value="{{ api_key }}" type="text" class="form-control" placeholder="The Movie DB API Key"
+      aria-label="The Movie DB API Key" name="key" aria-describedby="basic-addon2"
+      data-action="keyup->submit-on-keyup#submitWithDebounce" data-submit-on-keyup-target="input">
+    <button class="btn btn-outline-primary" type="submit" id="button-addon2">Save</button>
+  </div>
+</form>

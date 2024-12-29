@@ -76,8 +76,8 @@ impl TheMovieDb {
         params.insert("language", self.language.as_str());
         params.insert("query", query);
         params.insert("page", &page_string);
-
-        // Perform the GET request
+        dbg!(&params.clone());
+        // Perform the GET request & Error handling
         let response = self
             .client
             .get(url)
@@ -85,7 +85,6 @@ impl TheMovieDb {
             .send()
             .map_err(|e| format!("Request error: {:?}", e))?;
 
-        // Check the response status
         if !response.status().is_success() {
             return Err(format!(
                 "Error: HTTP {} - {}",
@@ -93,21 +92,12 @@ impl TheMovieDb {
                 response.text().unwrap_or_else(|_| "No details".to_string())
             ));
         }
-
-        // 1) Read the entire response body as text.
         let text_body = response
             .text()
             .map_err(|e| format!("Request error reading text: {:?}", e))?;
 
-        // 2) Print (debug) the raw JSON string.
-        dbg!(&text_body);
-
-        // 3) Manually parse the JSON string into SearchResponse.
         let parsed_response: SearchResponse = serde_json::from_str(&text_body)
             .map_err(|e| format!("Failed to parse response JSON: {:?}", e))?;
-
-        // 4) Also debug the parsed response if you like.
-        dbg!(&parsed_response);
 
         Ok(parsed_response)
     }

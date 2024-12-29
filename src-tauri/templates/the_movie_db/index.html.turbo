@@ -1,0 +1,13 @@
+<turbo-stream action="replace" target="main-content">
+  <template>
+    <main id="main-content">
+      {% include "the_movie_db/index.html" %}
+    </main>
+  </template>
+</turbo-stream>
+
+<turbo-stream action="replace" target="error">
+  <template>
+    <div id="error"></div>
+  </template>
+</turbo-stream> 

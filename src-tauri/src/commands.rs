@@ -3,10 +3,10 @@ mod the_movie_db;
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use crate::state::AppState;
 use serde::{Deserialize, Serialize};
-use std::fmt;
-use tauri::ipc::InvokeError;
+use serde_json::json;
 use tauri::State;
-use tera::Context;
+use tauri_plugin_store::StoreExt;
+use tera::{Context, Tera};
 use the_movie_db::TheMovieDb;
 
 // Define your error
@@ -32,10 +32,10 @@ pub struct ApiError {
 //         InvokeError::from(err.to_string())
 //     }
 // }
-#[derive(Serialize)]
-struct Greeting {
-    name: String,
-}
+// #[derive(Serialize)]
+// struct Greeting {
+//     name: String,
+// }
 
 #[derive(Serialize)]
 struct Search {
@@ -43,27 +43,133 @@ struct Search {
     search: the_movie_db::SearchResponse,
 }
 
-#[tauri::command]
-pub fn greet(name: &str, state: State<'_, AppState>) -> String {
-    let greeting = Greeting {
-        name: name.to_string(),
-    };
-    let context = Context::from_serialize(&greeting).expect("Failed to retrieve the value");
+#[derive(Serialize)]
+struct MovieDb {
+    api_key: String,
+}
 
-    match state.tera.render("greet.html", &context) {
-        Ok(result) => result,
+type ErrorHandler = fn(&tera::Error) -> ApiError;
+
+// Usage and example code
+// let result = render_template(
+//     &state.tera,
+//     "the_movie_db/index.html.turbo",
+//     &Context::new(),
+//     None, // No custom error handler
+// );
+//
+// fn my_custom_error(e: &tera::Error) -> ApiError {
+//     ApiError {
+//         code: 404,
+//         message: format!("Template not found or rendering failed: {e}"),
+//     }
+// }
+//
+// let result = render_template(
+//     &state.tera,
+//     "the_movie_db/index.html.turbo",
+//     &Context::new(),
+//     Some(my_custom_error),
+// );
+fn render_template(
+    tera: &Tera,
+    template_path: &str,
+    context: &Context,
+    on_error: Option<ErrorHandler>,
+) -> Result<String, ApiError> {
+    match tera.render(template_path, context) {
+        Ok(result) => Ok(result),
         Err(e) => {
-            eprintln!("Template rendering error: {e}");
-            format!("An error occurred: {e}")
+            eprintln!("Template rendering error: {:#?}", e);
+            // Custom Error handler if provided
+            if let Some(handler) = on_error {
+                return Err(handler(&e));
+            } else {
+                return Err(ApiError {
+                    code: 500,
+                    message: format!("An error occurred: {e}"),
+                });
+            }
         }
     }
+}
+// This is the entry point, basically it decide what to first show the user
+#[tauri::command]
+pub fn index(state: State<'_, AppState>) -> Result<String, ApiError> {
+    let api_key: String = {
+        let locked_key = state.the_movie_db_key.lock().unwrap();
+        locked_key.clone()
+    };
+    let language = "en-US".to_string();
+    let movie_db = TheMovieDb::new(api_key.clone(), language);
+    let response: Result<the_movie_db::SearchResponse, String> =
+        movie_db.search_multi("Martian", 1);
+
+    match response {
+        Ok(resp) => resp,
+        Err(e) => {
+            eprintln!("Error from TMDB: {e}");
+            let movie_db = MovieDb { api_key: api_key };
+            let context = Context::from_serialize(&movie_db).expect("Failed to retrieve the value");
+            return render_template(&state.tera, "the_movie_db/index.html.turbo", &context, None);
+        }
+    };
+
+    render_template(
+        &state.tera,
+        "search/index.html.turbo",
+        &Context::new(),
+        None,
+    )
+}
+
+#[tauri::command]
+pub fn the_movie_db(
+    key: &str,
+    state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<String, ApiError> {
+    let mut movie_db_key: std::sync::MutexGuard<'_, String> =
+        state.the_movie_db_key.lock().unwrap();
+    *movie_db_key = key.to_string();
+    let api_key = key.to_string();
+    let language = "en-US".to_string();
+    let movie_db = TheMovieDb::new(api_key, language);
+    let response: Result<the_movie_db::SearchResponse, String> =
+        movie_db.search_multi("Avengers", 1);
+    match response {
+        Ok(resp) => resp,
+        Err(e) => {
+            eprintln!("Error from TMDB: {e}");
+            // Instead of panic, return an ApiError with code=500
+            return Err(ApiError {
+                code: 500,
+                message: format!("Error from TMDB: {e}"),
+            });
+        }
+    };
+    let store = app_handle
+        .store("store.json")
+        .expect("Failed to load store.json");
+    store.set("the_movie_db_key", json!(key));
+    store.save().expect("Failed to save");
+
+    render_template(
+        &state.tera,
+        "search/index.html.turbo",
+        &Context::new(),
+        None,
+    )
 }
 
 #[tauri::command]
 pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, ApiError> {
-    let api_key = "token".to_string();
-    let language = "en-US".to_string();
-    let movie_db = TheMovieDb::new(api_key, language);
+    let api_key: String = {
+        let locked_key = state.the_movie_db_key.lock().unwrap();
+        locked_key.clone()
+    };
+    let language: String = "en-US".to_string();
+    let movie_db: TheMovieDb = TheMovieDb::new(api_key, language);
     let response: Result<the_movie_db::SearchResponse, String> = movie_db.search_multi(search, 1);
     let response = match response {
         Ok(resp) => resp,
@@ -84,15 +190,5 @@ pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, ApiErr
 
     let context = Context::from_serialize(&search).expect("Failed to retrieve the value");
 
-    match state.tera.render("search/results.html.turbo", &context) {
-        Ok(result) => Ok(result),
-        Err(e) => {
-            eprintln!("Template rendering error: {:#?}", e);
-            // Instead of panic, return an ApiError with code=500
-            return Err(ApiError {
-                code: 500,
-                message: format!("An error occurred: {e}"),
-            });
-        }
-    }
+    render_template(&state.tera, "search/results.html.turbo", &context, None)
 }
