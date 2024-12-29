@@ -1,7 +1,7 @@
 {
   "name": "reelix",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "scripts": {
     "watch": "webpack --watch",
     "dev": "webpack --watch",
@@ -23,7 +23,7 @@
     "webpack": "^5.97.1",
     "webpack-cli": "^5.1.4"
   },
-  "packageManager": "npm@10.9.0",
+  "packageManager": "npm@1.22.22",
   "dependencies": {
     "@tauri-apps/plugin-http": "^2.2.0",
     "@tauri-apps/plugin-store": "^2.2.0"
