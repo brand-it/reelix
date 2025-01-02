@@ -8,34 +8,11 @@ use tauri::State;
 use tauri_plugin_store::StoreExt;
 use tera::{Context, Tera};
 use the_movie_db::TheMovieDb;
-
-// Define your error
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ApiError {
     pub code: u16,
     pub message: String,
 }
-
-// impl std::error::Error for ApiError {}
-
-// // Implement `Display` and `Error` so we can convert it to a string
-// impl fmt::Display for ApiError {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         write!(f, "Error {}: {}", self.code, self.message)
-//     }
-// }
-
-// // The critical part: convert our `ApiError` into Tauri's `InvokeError`
-// impl From<ApiError> for InvokeError {
-//     fn from(err: ApiError) -> Self {
-//         // Tauri expects an `InvokeError::from(String)`, so just convert `err` to a string
-//         InvokeError::from(err.to_string())
-//     }
-// }
-// #[derive(Serialize)]
-// struct Greeting {
-//     name: String,
-// }
 
 #[derive(Serialize)]
 struct Search {
