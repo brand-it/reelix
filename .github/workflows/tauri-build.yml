@@ -54,9 +54,19 @@ jobs:
         if: matrix.platform == 'macos-latest'
         run: |
           CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Apple Development")
+          if [[ -z "$CERT_INFO" ]]; then
+            echo "No signing certificates found in the keychain."
+            exit 1
+          fi
+
           CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
+          if [[ -z "$CERT_ID" ]]; then
+            echo "Failed to extract CERT_ID from CERT_INFO."
+            exit 1
+          fi
+
           echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
-          echo "Certificate imported."
+          echo "Certificate imported successfully."
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
         run: |
