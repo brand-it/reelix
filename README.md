@@ -1,5 +1,3 @@
-https://github.com/user-attachments/assets/bfdc89c3-582b-44fe-8609-568c67ce92b8
-
 [![publish](https://github.com/brand-it/reelix/actions/workflows/tauri-build.yml/badge.svg?branch=release)](https://github.com/brand-it/reelix/actions/workflows/tauri-build.yml)
 
 ## Recommended IDE Setup
