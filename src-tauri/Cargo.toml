@@ -1,6 +1,6 @@
 [package]
 name = "reelix"
-version = "0.1.2"
+version = "0.2.0"
 description = "A tool for ripping Movies & TV Shows"
 authors = ["Brandt Lareau"]
 edition = "2021"
