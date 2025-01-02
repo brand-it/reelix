@@ -50,9 +50,7 @@ jobs:
           security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning build.keychain
-      - name: Verify Certificate
-        if: matrix.platform == 'macos-latest'
-        run: |
+          echo "Verifying Cert"
           CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Apple Development")
           if [[ -z "$CERT_INFO" ]]; then
             echo "No signing certificates found in the keychain."
