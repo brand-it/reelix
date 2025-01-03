@@ -76,7 +76,7 @@ impl TheMovieDb {
         params.insert("language", self.language.as_str());
         params.insert("query", query);
         params.insert("page", &page_string);
-        dbg!(&params.clone());
+        // dbg!(&params.clone());
         // Perform the GET request & Error handling
         let response = self
             .client
