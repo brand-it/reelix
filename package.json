@@ -26,6 +26,7 @@
   "packageManager": "npm@1.22.22",
   "dependencies": {
     "@tauri-apps/plugin-http": "^2.2.0",
+    "@tauri-apps/plugin-shell": "^2.2.0",
     "@tauri-apps/plugin-store": "^2.2.0"
   }
 }

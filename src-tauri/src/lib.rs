@@ -1,4 +1,5 @@
 mod commands;
+mod services;
 mod state;
 
 use include_dir::{include_dir, Dir};
@@ -42,6 +43,7 @@ pub fn run() {
     };
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_http::init())
         .manage(app_state)
@@ -63,6 +65,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::index,
+            commands::open_browser,
             commands::search,
             commands::the_movie_db
         ])

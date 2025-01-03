@@ -21,7 +21,8 @@
       "deny": []
     },
     "store:default",
-    "store:default"
+    "store:default",
+    "shell:default"
   ],
   "platforms": [
     "macOS"

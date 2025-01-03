@@ -141,6 +141,11 @@ body {
   height: 300px;
   width: 200px;
   display: inline-block;
+  border-radius: 4px;
+}
+
+.width-200 {
+  width: 200px;
 }
 
 .width-225 {
@@ -154,10 +159,10 @@ body {
 
 .img-poster-btn {
   --bs-btn-color: #f8f9fa;
-  --bs-btn-border-color: #77797a;
+  // --bs-btn-border-color: #77797a;
   --bs-btn-hover-color: #000;
-  --bs-btn-hover-bg: #f8f9fa;
-  --bs-btn-hover-border-color: #f8f9fa;
+  --bs-btn-hover-bg: #e5a00d;
+  // --bs-btn-hover-border-color: #f8f9fa;
   --bs-btn-focus-shadow-rgb: 248, 249, 250;
   --bs-btn-active-color: #000;
   --bs-btn-active-bg: #f8f9fa;
@@ -167,7 +172,7 @@ body {
   --bs-btn-disabled-bg: transparent;
   --bs-btn-disabled-border-color: #f8f9fa;
   --bs-gradient: none;
-  border-radius: 0.1rem;
+
 }
 
 .mini-console {

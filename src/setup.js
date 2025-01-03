@@ -1,19 +1,4 @@
 const originalFetch = window.fetch;
-function uuid() {
-  return Array.from({ length: 36 })
-    .map((_, i) => {
-      if (i == 8 || i == 13 || i == 18 || i == 23) {
-        return "-";
-      } else if (i == 14) {
-        return "4";
-      } else if (i == 19) {
-        return (Math.floor(Math.random() * 4) + 8).toString(16);
-      } else {
-        return Math.floor(Math.random() * 15).toString(16);
-      }
-    })
-    .join("");
-}
 
 async function turboInvoke(command, commandArgs) {
   console.log("turboInvoke", command, commandArgs);
@@ -42,6 +27,13 @@ async function turboInvoke(command, commandArgs) {
 
 document.addEventListener("DOMContentLoaded", (event) => {
   turboInvoke("index");
+});
+
+document.addEventListener("click", function (event) {
+  if (event.target.tagName === "A" && event.target.href != undefined) {
+    event.preventDefault();
+    turboInvoke("open_browser", { url: event.target.href });
+  }
 });
 
 window.fetch = async (url, options = {}) => {

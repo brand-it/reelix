@@ -1,13 +1,13 @@
-mod the_movie_db;
-
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+use crate::services::the_movie_db;
+use crate::services::the_movie_db::TheMovieDb;
 use crate::state::AppState;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tauri::State;
+use tauri_plugin_shell::ShellExt;
 use tauri_plugin_store::StoreExt;
 use tera::{Context, Tera};
-use the_movie_db::TheMovieDb;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ApiError {
     pub code: u16,
@@ -70,6 +70,33 @@ fn render_template(
         }
     }
 }
+
+#[tauri::command]
+pub fn open_browser(url: &str, app_handle: tauri::AppHandle) -> String {
+    let shell = app_handle.shell();
+
+    #[cfg(target_os = "macos")]
+    let browser_cmd = "open";
+
+    #[cfg(target_os = "windows")]
+    let browser_cmd = "cmd /C start";
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let browser_cmd = "xdg-open";
+
+    tauri::async_runtime::block_on(async move {
+        match shell.command(browser_cmd).args([url]).output().await {
+            Ok(resp) => {
+                return format!("Result: {:?}", String::from_utf8(resp.stdout));
+            }
+            Err(e) => {
+                eprintln!("Open URL Error: {e}");
+                return format!("Open URL Error: {}", e);
+            }
+        }
+    })
+}
+
 // This is the entry point, basically it decide what to first show the user
 #[tauri::command]
 pub fn index(state: State<'_, AppState>) -> Result<String, ApiError> {

@@ -16,8 +16,8 @@
   {% else %}
   <div class="display-flex">
     {% for result in search.results %}
-    <div class="width-225 m-1">
-      <a class="btn img-poster-btn p-1 mb-2" data-turbo="false" data-disable-with="Loading..."
+    <div class="width-200 m-1 text-center">
+      <a class="btn img-poster-btn p-0 mb-2 m-0" data-turbo="false" data-disable-with="Loading..."
         href="https://www.themoviedb.org/{{ result.media_type }}/{{ result.id }}" target="blank">
         {% if result.media_type == "tv" %}
         {{ macros::result(poster_path=result.poster_path, name=result.name, original_name=result.original_name) }}
@@ -27,17 +27,20 @@
         {{ macros::result(poster_path=result.poster_path, name=result.name, original_name=result.original_name) }}
         {% endif %}
       </a>
-      <h6 class="card-title height-60">
-        {% if result.media_type == "tv" %}
-        <i class="fa fa-tv" data-prefix="fas" data-icon="tv"></i>
-        {% elif result.media_type == "movie" %}
-        <i class="fa fa-film" data-prefix="fas" data-icon="film"></i>
-        {% endif %}
-        <a target="blank" href="https://www.themoviedb.org/{{ result.media_type }}/{{ result.id }}">
-          {{ result.title | default(value=result.name | default(value='Unknown')) }} ({{
-          result.release_date | default(value=result.first_air_date | default(value='')) |
-          truncate(length=4, end="") | default(value="N/A") }})
+      <h6 class="card-title overflow-hidden text-start height-60">
+        <a class="link-light link-opacity-50-hover link-underline-opacity-25 pb-1"
+          href="https://www.themoviedb.org/{{ result.media_type }}/{{ result.id }}">
+          {% if result.media_type == "tv" %}
+          <i class="fa fa-tv" data-prefix="fas" data-icon="tv"></i>
+          {% elif result.media_type == "movie" %}
+          <i class="fa fa-film" data-prefix="fas" data-icon="film"></i>
+          {% endif %}
+          {{ result.title | default(value=result.name | default(value='Unknown')) }}
         </a>
+        <div class="text-secondary">
+          {{result.release_date | default(value=result.first_air_date | default(value='')) |
+          truncate(length=4, end="") | default(value="N/A") }}
+        </div>
       </h6>
     </div>
     {% endfor %}
