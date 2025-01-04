@@ -5,6 +5,7 @@ import "./stylesheets/application.scss";
 import "./images/javascript.svg";
 import "./images/tauri.svg";
 import "./images/placeholder.jpg";
+import "./images/help-001.jpg";
 
 // Javascripts
 import "./javascripts/turbo.js";
