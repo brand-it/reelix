@@ -26,6 +26,7 @@ pub struct SearchResult {
     #[serde(default)]
     overview: String,
     popularity: f64,
+    profile_path: Option<String>,
     poster_path: Option<String>,
     release_date: Option<String>,
     first_air_date: Option<String>,
