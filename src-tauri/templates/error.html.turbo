@@ -1,0 +1,5 @@
+<turbo-stream action="replace" target="error">
+  <template>
+    {% include "error.html" %}
+  </template>
+</turbo-stream>
