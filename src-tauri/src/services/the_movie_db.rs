@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+// use tauri::http::response;
 use tauri_plugin_http::reqwest::blocking::Client;
 // Struct for the TMDB Client
 pub struct TheMovieDb {
@@ -7,8 +8,20 @@ pub struct TheMovieDb {
     language: String,
     client: Client,
 }
+#[derive(Serialize, Deserialize)]
+pub struct Error {
+    pub code: u16,
+    pub message: String,
+}
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
+pub struct SearchError {
+    status_code: u16,
+    status_message: String,
+    success: bool,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct SearchResult {
     #[serde(default)]
     name: String,
@@ -40,7 +53,7 @@ pub struct SearchResult {
 }
 
 // Struct to represent the full response
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct SearchResponse {
     page: u32,
     results: Vec<SearchResult>,
@@ -67,7 +80,7 @@ impl TheMovieDb {
     //     Ok(results) => println!("Results: {:#?}", results),
     //     Err(err) => eprintln!("Error: {:?}", err),
     // }
-    pub fn search_multi(&self, query: &str, page: u32) -> Result<SearchResponse, String> {
+    pub fn search_multi(&self, query: &str, page: u32) -> Result<SearchResponse, Error> {
         let url = "https://api.themoviedb.org/3/search/multi";
         let page_string = page.to_string();
 
@@ -84,22 +97,41 @@ impl TheMovieDb {
             .get(url)
             .query(&params)
             .send()
-            .map_err(|e| format!("Request error: {:?}", e))?;
+            .map_err(|e| Error {
+                code: 500,
+                message: format!("Request error: {:?}", e),
+            })?;
+        let status = response.status();
+        let text_body = response.text().map_err(|e| Error {
+            code: 500,
+            message: format!("Request error reading text: {:?}", e),
+        })?;
 
-        if !response.status().is_success() {
-            return Err(format!(
-                "Error: HTTP {} - {}",
-                response.status(),
-                response.text().unwrap_or_else(|_| "No details".to_string())
-            ));
-        }
-        let text_body = response
-            .text()
-            .map_err(|e| format!("Request error reading text: {:?}", e))?;
+        if !status.is_success() {
+            match self.parse_error(&text_body) {
+                Ok(response) => {
+                    return Err(Error {
+                        code: response.status_code,
+                        message: response.status_message,
+                    });
+                }
+                Err(err) => return Err(err),
+            };
+        };
+        self.parse_response(&text_body)
+    }
 
-        let parsed_response: SearchResponse = serde_json::from_str(&text_body)
-            .map_err(|e| format!("Failed to parse response JSON: {:?}", e))?;
+    fn parse_response(&self, text_body: &str) -> Result<SearchResponse, Error> {
+        serde_json::from_str(&text_body).map_err(|e| Error {
+            code: 500,
+            message: format!("Failed to parse response JSON: {:?}", e),
+        })
+    }
 
-        Ok(parsed_response)
+    fn parse_error(&self, text_body: &str) -> Result<SearchError, Error> {
+        serde_json::from_str(&text_body).map_err(|e| Error {
+            code: 500,
+            message: format!("Failed to parse response JSON: {:?}", e),
+        })
     }
 }
