@@ -2,13 +2,13 @@
 use crate::services::the_movie_db;
 use crate::services::the_movie_db::TheMovieDb;
 use crate::state::AppState;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::json;
 use tauri::State;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_store::StoreExt;
 use tera::{Context, Tera};
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct ApiError {
     pub code: u16,
     pub message: String,
@@ -114,8 +114,9 @@ pub fn index(state: State<'_, AppState>) -> Result<String, ApiError> {
         Ok(resp) => resp,
         Err(e) => {
             eprintln!("Error from TMDB: {}", e.message);
-            let movie_db = MovieDb { api_key: api_key };
-            let context = Context::from_serialize(&movie_db).expect("Failed to retrieve the value");
+            let mut context = Context::new();
+            context.insert("api_key", &api_key);
+            // let context = Context::from_serialize(&movie_db).expect("Failed to retrieve the value");
             return render_template(&state.tera, "the_movie_db/index.html.turbo", &context, None);
         }
     };
@@ -185,14 +186,11 @@ pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, ApiErr
                 let locked_key = state.the_movie_db_key.lock().unwrap();
                 locked_key.clone()
             };
-            let api_error = ApiError {
-                code: 500,
-                message: format!("Error from TMDB: {}", e.message),
-                api_key: Some(api_key),
-            };
 
-            let context =
-                Context::from_serialize(&api_error).expect("Failed to serialize api error");
+            let mut context = Context::new();
+            context.insert("code", "500");
+            context.insert("message", &format!("Error from TMDB: {}", e.message));
+            context.insert("api_key", &api_key);
             return render_template(&state.tera, "the_movie_db/index.html.turbo", &context, None);
         }
     };

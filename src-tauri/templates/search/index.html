@@ -1,8 +1,2 @@
-<form class="mb-3 simple_form row" action="/search" method="post" data-controller="submit-on-keyup">
-  <div class="input-group input-group-lg">
-    <input type="text" class="form-control" placeholder="TV or Movie Title" aria-label="TV or Movie Title" name="search"
-      data-action="keyup->submit-on-keyup#submitWithDebounce" data-submit-on-keyup-target="input">
-    <button class="btn btn-outline-primary" type="submit" id="button-addon2">Search</button>
-  </div>
-</form>
+{% include "search/form.html" %}
 {% include "search/results.html" %}
