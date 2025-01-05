@@ -6,8 +6,4 @@
   </template>
 </turbo-stream>
 
-<turbo-stream action="replace" target="error">
-  <template>
-    <div id="error"></div>
-  </template>
-</turbo-stream>
+{% include "error.html.turbo" %}

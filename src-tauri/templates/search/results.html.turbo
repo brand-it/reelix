@@ -3,3 +3,6 @@
     {% include "search/results.html" %}
   </template>
 </turbo-stream>
+
+
+{% include "error.html.turbo" %}

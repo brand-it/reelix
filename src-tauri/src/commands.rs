@@ -12,6 +12,7 @@ use tera::{Context, Tera};
 pub struct ApiError {
     pub code: u16,
     pub message: String,
+    pub api_key: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -65,6 +66,7 @@ fn render_template(
                 return Err(ApiError {
                     code: 500,
                     message: format!("An error occurred: {e}"),
+                    api_key: None,
                 });
             }
         }
@@ -106,13 +108,12 @@ pub fn index(state: State<'_, AppState>) -> Result<String, ApiError> {
     };
     let language = "en-US".to_string();
     let movie_db = TheMovieDb::new(api_key.clone(), language);
-    let response: Result<the_movie_db::SearchResponse, String> =
-        movie_db.search_multi("Martian", 1);
+    let response = movie_db.search_multi("Martian", 1);
 
     match response {
         Ok(resp) => resp,
         Err(e) => {
-            eprintln!("Error from TMDB: {e}");
+            eprintln!("Error from TMDB: {}", e.message);
             let movie_db = MovieDb { api_key: api_key };
             let context = Context::from_serialize(&movie_db).expect("Failed to retrieve the value");
             return render_template(&state.tera, "the_movie_db/index.html.turbo", &context, None);
@@ -139,17 +140,19 @@ pub fn the_movie_db(
     let api_key = key.to_string();
     let language = "en-US".to_string();
     let movie_db = TheMovieDb::new(api_key, language);
-    let response: Result<the_movie_db::SearchResponse, String> =
-        movie_db.search_multi("Avengers", 1);
+    let response = movie_db.search_multi("Avengers", 1);
     match response {
         Ok(resp) => resp,
         Err(e) => {
-            eprintln!("Error from TMDB: {e}");
-            // Instead of panic, return an ApiError with code=500
-            return Err(ApiError {
+            let api_error = ApiError {
                 code: 500,
-                message: format!("Error from TMDB: {e}"),
-            });
+                message: e.message,
+                api_key: None,
+            };
+
+            let context =
+                Context::from_serialize(&api_error).expect("Failed to serialize api error");
+            return render_template(&state.tera, "error.html.turbo", &context, None);
         }
     };
     let store = app_handle
@@ -174,16 +177,23 @@ pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, ApiErr
     };
     let language: String = "en-US".to_string();
     let movie_db: TheMovieDb = TheMovieDb::new(api_key, language);
-    let response: Result<the_movie_db::SearchResponse, String> = movie_db.search_multi(search, 1);
+    let response = movie_db.search_multi(search, 1);
     let response = match response {
         Ok(resp) => resp,
         Err(e) => {
-            eprintln!("Error from TMDB: {e}");
-            // Instead of panic, return an ApiError with code=500
-            return Err(ApiError {
+            let api_key = {
+                let locked_key = state.the_movie_db_key.lock().unwrap();
+                locked_key.clone()
+            };
+            let api_error = ApiError {
                 code: 500,
-                message: format!("Error from TMDB: {e}"),
-            });
+                message: format!("Error from TMDB: {}", e.message),
+                api_key: Some(api_key),
+            };
+
+            let context =
+                Context::from_serialize(&api_error).expect("Failed to serialize api error");
+            return render_template(&state.tera, "the_movie_db/index.html.turbo", &context, None);
         }
     };
 
