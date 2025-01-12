@@ -1,5 +1,5 @@
 {% import "search/result.html" as macros %}
-<div class="display-flex" id="videos">
+<div class="display-flex">
   {% if query | default(value="") == "" %}
   <div class="col-md-12">
     <div class="text-white">
@@ -24,7 +24,7 @@
       {% set poster_element = "a" %}
       {% set poster_classes = "btn img-poster-btn"%}
       {% endif %}
-      <{{ poster_element }} class="{{ poster_classes }} p-0 mb-2 m-0" href="#">
+      <{{ poster_element }} class="{{ poster_classes }} p-0 mb-2 m-0" href="/movie/{{result.id}}?query={{ query }}">
         {% if result.media_type == "tv" %}
         {{ macros::result(poster_path=result.poster_path, name=result.name, original_name=result.original_name) }}
         {% elif result.media_type == "movie" %}

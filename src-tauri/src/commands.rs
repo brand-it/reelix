@@ -21,11 +21,6 @@ struct Search {
     search: the_movie_db::SearchResponse,
 }
 
-#[derive(Serialize)]
-struct MovieDb {
-    api_key: String,
-}
-
 type ErrorHandler = fn(&tera::Error) -> ApiError;
 
 // Usage and example code
@@ -97,6 +92,37 @@ pub fn open_browser(url: &str, app_handle: tauri::AppHandle) -> String {
             }
         }
     })
+}
+
+#[tauri::command]
+pub fn movie(id: u32, query: &str, state: State<'_, AppState>) -> Result<String, ApiError> {
+    let api_key: String = {
+        let locked_key = state.the_movie_db_key.lock().unwrap();
+        locked_key.clone()
+    };
+    let language: String = "en-US".to_string();
+    let movie_db: TheMovieDb = TheMovieDb::new(api_key, language);
+    let response = movie_db.movie(id);
+    let movie = match response {
+        Ok(resp) => resp,
+        Err(e) => {
+            let api_key = {
+                let locked_key = state.the_movie_db_key.lock().unwrap();
+                locked_key.clone()
+            };
+
+            let mut context = Context::new();
+            context.insert("code", "500");
+            context.insert("message", &format!("Error from TMDB: {}", e.message));
+            context.insert("api_key", &api_key);
+            return render_template(&state.tera, "the_movie_db/index.html.turbo", &context, None);
+        }
+    };
+
+    let mut context = Context::new();
+    context.insert("movie", &movie);
+    context.insert("query", query);
+    render_template(&state.tera, "movies/index.html.turbo", &context, None)
 }
 
 // This is the entry point, basically it decide what to first show the user
