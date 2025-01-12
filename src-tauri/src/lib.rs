@@ -65,6 +65,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::index,
+            commands::movie,
             commands::open_browser,
             commands::search,
             commands::the_movie_db

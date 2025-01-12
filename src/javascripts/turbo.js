@@ -1,4 +1,146 @@
-import * as Turbo from "@hotwired/turbo"
+import * as Turbo from "@hotwired/turbo";
+
+function splitPath(location) {
+  return location.pathname.split("/").filter((element) => element !== "");
+}
+
+window.turboInvoke = async function turboInvoke(command, commandArgs) {
+  const tauriResponse = await window.__TAURI__.core
+    .invoke(command, commandArgs)
+    .catch((error) => {
+      console.log("error", command, commandArgs, error);
+      if (error.message == undefined) {
+        document.getElementById("error").innerHTML = error;
+      } else {
+        document.getElementById("error").innerHTML = error.message;
+      }
+    });
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(tauriResponse, "text/html");
+  doc.querySelectorAll("turbo-stream").forEach((stream) => {
+    Turbo.renderStreamMessage(stream.outerHTML);
+  });
+  return new Response(tauriResponse, {
+    status: 200,
+  });
+};
+
+function findClosestRecursively(element, selector) {
+  if (element instanceof Element) {
+    return (
+      element.closest(selector) ||
+      findClosestRecursively(
+        element.assignedSlot || element.getRootNode()?.host,
+        selector
+      )
+    );
+  }
+}
+
+function findLinkFromClickTarget(target) {
+  return findClosestRecursively(
+    target,
+    "a[href]:not([target^=_]):not([download])"
+  );
+}
+
+function getLocationForLink(link) {
+  return expandURL(link.getAttribute("href") || "");
+}
+
+function expandURL(locatable) {
+  return new URL(locatable.toString(), document.baseURI);
+}
+
+function doesNotTargetIFrame(name) {
+  if (name === "_blank") {
+    return false;
+  } else if (name) {
+    for (const element of document.getElementsByName(name)) {
+      if (element instanceof HTMLIFrameElement) return false;
+    }
+
+    return true;
+  } else {
+    return true;
+  }
+}
+class LinkClickObserver {
+  started = false;
+
+  constructor(delegate, eventTarget) {
+    this.delegate = delegate;
+    this.eventTarget = eventTarget;
+  }
+
+  start() {
+    if (!this.started) {
+      this.eventTarget.addEventListener("click", this.clickCaptured, true);
+      this.started = true;
+    }
+  }
+
+  stop() {
+    if (this.started) {
+      this.eventTarget.removeEventListener("click", this.clickCaptured, true);
+      this.started = false;
+    }
+  }
+
+  clickCaptured = () => {
+    this.eventTarget.removeEventListener("click", this.clickBubbled, false);
+    this.eventTarget.addEventListener("click", this.clickBubbled, false);
+  };
+
+  clickBubbled = (event) => {
+    if (event instanceof MouseEvent && this.clickEventIsSignificant(event)) {
+      const target =
+        (event.composedPath && event.composedPath()[0]) || event.target;
+      const link = findLinkFromClickTarget(target);
+      if (link && doesNotTargetIFrame(link.target)) {
+        const location = getLocationForLink(link);
+        if (this.delegate.willFollowLinkToLocation(link, location, event)) {
+          const [command, id] = splitPath(location);
+          const searchParams = Object.fromEntries(
+            location.searchParams.entries()
+          );
+          turboInvoke(command, {
+            ...Object.fromEntries(location.searchParams.entries()),
+            id: parseInt(id),
+          });
+        }
+      }
+    }
+  };
+
+  clickEventIsSignificant(event) {
+    return !(
+      (event.target && event.target.isContentEditable) ||
+      event.which > 1 ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.shiftKey
+    );
+  }
+}
+
+LinkClickObserver = new LinkClickObserver(Turbo.session, window);
+
+LinkClickObserver.start();
+
+document.addEventListener("DOMContentLoaded", (event) => {
+  turboInvoke("index");
+});
+
+window.addEventListener("click", function (event) {
+  event.preventDefault();
+  // Rework this to make it be powered by turbo.js
+  if (event.target.tagName === "A" && event.target.href != undefined) {
+    turboInvoke("open_browser", { url: event.target.href });
+  }
+});
 
 // window.__TAURI_INTERNALS__.transformCallback = function(event, n = !1) {
 //   console.log("event: transformCallback", event, n);
