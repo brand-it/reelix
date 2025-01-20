@@ -25,6 +25,12 @@
     "active": true,
     "targets": "all",
     "resources": [],
+    "externalBin": [
+      "binaries/makemkvcon",
+      "binaries/libmakemkv.dylib",
+      "binaries/libdriveio.dylib",
+      "binaries/libffm.dylib"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
