@@ -5,6 +5,7 @@ use crate::state::AppState;
 use serde::Serialize;
 use serde_json::json;
 use tauri::State;
+use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_store::StoreExt;
 use tera::{Context, Tera};
@@ -229,4 +230,45 @@ pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, ApiErr
     let context = Context::from_serialize(&search).expect("Failed to retrieve the value");
 
     render_template(&state.tera, "search/results.html.turbo", &context, None)
+}
+
+#[tauri::command]
+pub fn mkvcommand(
+    state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<String, ApiError> {
+    let sidecar_command = app_handle.shell().sidecar("makemkvcon").unwrap();
+    let (mut rx, mut _child) = sidecar_command.spawn().expect("Failed to spawn sidecar");
+    println!("mkvcommand");
+
+    tauri::async_runtime::spawn(async move {
+        // read events such as stdout
+        while let Some(event) = rx.recv().await {
+            match event {
+                CommandEvent::Stdout(line_bytes) => {
+                    let line = String::from_utf8_lossy(&line_bytes);
+                    eprintln!("Stdout: {}", line);
+                }
+                CommandEvent::Stderr(line_bytes) => {
+                    let line = String::from_utf8_lossy(&line_bytes);
+                    eprintln!("Stderr: {}", line);
+                }
+                other => {
+                    eprintln!("Other command event: {:?}", other);
+                }
+            }
+            // if let CommandEvent::Stdout(line_bytes) = event {
+            //     let line = String::from_utf8_lossy(&line_bytes);
+            //     eprintln!("commandEvent line {:#?}", line);
+            //     // write to stdin
+            //     // child.write("message from Rust\n".as_bytes()).unwrap();
+            // }
+        }
+    });
+    render_template(
+        &state.tera,
+        "search/index.html.turbo",
+        &Context::new(),
+        None,
+    )
 }

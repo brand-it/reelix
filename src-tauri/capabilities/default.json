@@ -9,6 +9,15 @@
     "core:default",
     "shell:allow-open",
     {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "binaries/makemkvcon",
+          "sidecar": true
+        }
+      ]
+    },
+    {
       "identifier": "http:default",
       "allow": [
         {

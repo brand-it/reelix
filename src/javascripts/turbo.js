@@ -16,6 +16,8 @@ window.turboInvoke = async function turboInvoke(command, commandArgs) {
       }
     });
 
+  console.log("tauriResponse", command, tauriResponse);
+
   const parser = new DOMParser();
   const doc = parser.parseFromString(tauriResponse, "text/html");
   doc.querySelectorAll("turbo-stream").forEach((stream) => {
@@ -101,14 +103,21 @@ class LinkClickObserver {
       if (link && doesNotTargetIFrame(link.target)) {
         const location = getLocationForLink(link);
         if (this.delegate.willFollowLinkToLocation(link, location, event)) {
-          const [command, id] = splitPath(location);
-          const searchParams = Object.fromEntries(
-            location.searchParams.entries()
-          );
-          turboInvoke(command, {
-            ...Object.fromEntries(location.searchParams.entries()),
-            id: parseInt(id),
-          });
+          let command = undefined;
+          let params = {};
+          if (event.target.target == "_blank") {
+            command = "open_browser";
+            params = { url: event.target.href };
+          } else {
+            let id = undefined;
+            [command, id] = splitPath(location);
+            params = {
+              ...Object.fromEntries(location.searchParams.entries()),
+              id: parseInt(id),
+            };
+          }
+
+          turboInvoke(command, params);
         }
       }
     }
@@ -136,10 +145,10 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
 window.addEventListener("click", function (event) {
   event.preventDefault();
-  // Rework this to make it be powered by turbo.js
-  if (event.target.tagName === "A" && event.target.href != undefined) {
-    turboInvoke("open_browser", { url: event.target.href });
-  }
+  // // Rework this to make it be powered by turbo.js
+  // if (event.target.tagName === "A" && event.target.href != undefined) {
+  //   turboInvoke("open_browser", { url: event.target.href });
+  // }
 });
 
 // window.__TAURI_INTERNALS__.transformCallback = function(event, n = !1) {
