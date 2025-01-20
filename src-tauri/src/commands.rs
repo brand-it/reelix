@@ -1,9 +1,11 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+use crate::services::makemkvcon_parser;
 use crate::services::the_movie_db;
 use crate::services::the_movie_db::TheMovieDb;
 use crate::state::AppState;
 use serde::Serialize;
 use serde_json::json;
+use sysinfo::Disks;
 use tauri::State;
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
@@ -238,7 +240,10 @@ pub fn mkvcommand(
     app_handle: tauri::AppHandle,
 ) -> Result<String, ApiError> {
     let sidecar_command = app_handle.shell().sidecar("makemkvcon").unwrap();
-    let (mut rx, mut _child) = sidecar_command.spawn().expect("Failed to spawn sidecar");
+    let (mut rx, mut _child) = sidecar_command
+        .args(["-r", "--cache=1", "info", "disc:9999"])
+        .spawn()
+        .expect("Failed to spawn sidecar");
     println!("mkvcommand");
 
     tauri::async_runtime::spawn(async move {
@@ -247,7 +252,8 @@ pub fn mkvcommand(
             match event {
                 CommandEvent::Stdout(line_bytes) => {
                     let line = String::from_utf8_lossy(&line_bytes);
-                    eprintln!("Stdout: {}", line);
+                    let parsed_stdout = makemkvcon_parser::parse_mkv_string(&line);
+                    eprintln!("Stdout: {:?}", parsed_stdout);
                 }
                 CommandEvent::Stderr(line_bytes) => {
                     let line = String::from_utf8_lossy(&line_bytes);
@@ -265,6 +271,22 @@ pub fn mkvcommand(
             // }
         }
     });
+
+    let disks = Disks::new_with_refreshed_list();
+    for disk in disks.list() {
+        let fs_bytes = disk.file_system();
+        let fs_str = fs_bytes.to_str().unwrap();
+
+        // Check if removable + known optical file system
+        if disk.is_removable() && (fs_str.contains("udf") || fs_str.contains("iso9660")) {
+            println!("Likely optical media:");
+            println!("  Name:        {:?}", disk.name());
+            println!("  Mount point: {:?}", disk.mount_point());
+            println!("  File system: {}", fs_str);
+        } else {
+            println!("Non-optical or unrecognized: {:?}", disk);
+        }
+    }
     render_template(
         &state.tera,
         "search/index.html.turbo",
