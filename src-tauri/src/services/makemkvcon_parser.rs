@@ -201,7 +201,7 @@ fn define_type<I: IntoIterator<Item = String>>(type_str: &str, fields: I) -> Mkv
 }
 
 pub fn parse_mkv_string(stdout_str: &str) -> Vec<MkvData> {
-    let mut results = Vec::new();
+    let mut results: Vec<MkvData> = Vec::new();
 
     // split by lines
     for line in stdout_str.lines() {
