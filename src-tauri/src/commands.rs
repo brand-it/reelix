@@ -1,4 +1,5 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+use crate::disk;
 use crate::services::shell;
 use crate::services::the_movie_db;
 use crate::services::the_movie_db::TheMovieDb;
@@ -238,7 +239,7 @@ pub fn mkvcommand(
     state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, ApiError> {
-    shell::list_disks();
+    disk::list();
 
     render_template(
         &state.tera,

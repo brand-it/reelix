@@ -1,27 +1,9 @@
 use crate::services::makemkvcon_parser;
-use crate::state::AppState;
+// use crate::state::AppState;
 use sysinfo::Disks;
-use tauri::State;
+// use tauri::State;
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
-
-pub fn list_disks() {
-    println!("=> disks:");
-    let disks = Disks::new_with_refreshed_list();
-    println!("#--------------------------------#");
-    for disk in &disks {
-        println!("Name: {:?}", disk.name());
-        println!("Mount Point: {:?}", disk.mount_point());
-        println!("Available Space: {}", disk.available_space());
-        println!("Total Space: {}", disk.total_space());
-        println!("Kind: {}", disk.kind());
-        println!("File System: {:?}", disk.file_system());
-        println!("Is Removable: {}", disk.is_removable());
-        println!("Is Read Only: {}", disk.is_read_only());
-        println!("Usage: {:?}", disk.usage());
-        println!("#--------------------------------#");
-    }
-}
 
 pub fn makemkvcon(app_handle: tauri::AppHandle) {
     let sidecar_command = app_handle.shell().sidecar("makemkvcon").unwrap();
@@ -56,20 +38,4 @@ pub fn makemkvcon(app_handle: tauri::AppHandle) {
             // }
         }
     });
-
-    let disks = Disks::new_with_refreshed_list();
-    for disk in disks.list() {
-        let fs_bytes = disk.file_system();
-        let fs_str = fs_bytes.to_str().unwrap();
-
-        // Check if removable + known optical file system
-        if disk.is_removable() && (fs_str.contains("udf") || fs_str.contains("iso9660")) {
-            println!("Likely optical media:");
-            println!("  Name:        {:?}", disk.name());
-            println!("  Mount point: {:?}", disk.mount_point());
-            println!("  File system: {}", fs_str);
-        } else {
-            println!("Non-optical or unrecognized: {:?}", disk);
-        }
-    }
 }

@@ -1,17 +1,15 @@
 mod commands;
+mod disk;
 mod services;
 mod state;
-mod disk;
 
 use include_dir::{include_dir, Dir};
 use state::AppState;
-use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::{atomic::AtomicBool, Arc};
 use tauri::Manager;
 use tauri_plugin_store::StoreExt;
 use tera::Tera;
-
-
 
 // Embed the `templates` directory into the binary
 static TEMPLATES_DIR: Dir = include_dir!("templates");
@@ -44,7 +42,12 @@ pub fn run() {
         tera: Arc::new(tera),
         the_movie_db_key: Arc::new(Mutex::new(String::new())),
     };
-    disk::watch_for_changes();
+    let runtime: tokio::runtime::Runtime =
+        tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
+    let change_flag = Arc::new(AtomicBool::new(false));
+    runtime.spawn(async {
+        disk::watch_for_changes(change_flag).await;
+    });
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
