@@ -30,4 +30,5 @@ tauri-plugin-http = { version = "2", features = ["blocking", "json"] }
 tauri-plugin-shell = "2"
 tauri-plugin-store = "2"
 tera = "1.20.0"
+tokio = "1.43.0"
 url = "2.5.4"

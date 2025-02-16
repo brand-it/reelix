@@ -1,6 +1,7 @@
 mod commands;
 mod services;
 mod state;
+mod disk;
 
 use include_dir::{include_dir, Dir};
 use state::AppState;
@@ -9,6 +10,8 @@ use std::sync::Mutex;
 use tauri::Manager;
 use tauri_plugin_store::StoreExt;
 use tera::Tera;
+
+
 
 // Embed the `templates` directory into the binary
 static TEMPLATES_DIR: Dir = include_dir!("templates");
@@ -41,6 +44,7 @@ pub fn run() {
         tera: Arc::new(tera),
         the_movie_db_key: Arc::new(Mutex::new(String::new())),
     };
+    disk::watch_for_changes();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())

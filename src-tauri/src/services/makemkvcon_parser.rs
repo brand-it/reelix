@@ -223,8 +223,8 @@ pub fn parse_mkv_string(stdout_str: &str) -> Vec<MkvData> {
         // The Ruby code does: type, id = line.shift.split(':')
         // Then puts the rest in `line`.
         let first_part: String = parts.remove(0);
-        let mut first_split = first_part.splitn(2, ':');
-        let type_str: str = first_split.next().unwrap_or("").to_string();
+        let mut first_split: std::str::SplitN<'_, char> = first_part.splitn(2, ':');
+        let type_str: String = first_split.next().unwrap_or("").to_string();
         let id_part: String = first_split.next().unwrap_or("").to_string();
 
         // Now we want to unify [id_part] + parts
