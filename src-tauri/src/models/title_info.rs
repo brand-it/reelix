@@ -1,3 +1,4 @@
+
 #[derive(Debug, Default)]
 pub struct TitleInfo {
     pub id: i32,

@@ -1,3 +1,4 @@
+use crate::models::title_info;
 use crate::services::makemkvcon;
 use std::path::PathBuf;
 use sysinfo::{Disk, DiskKind, Disks};
@@ -95,7 +96,7 @@ pub async fn watch_for_changes(sender: broadcast::Sender<()>) {
 /// A separate async task that listens for changes and reacts to them.
 pub async fn handle_changes(mut receiver: broadcast::Receiver<()>, app_handle: AppHandle) {
     loop {
-        println!("Listing for changes on Disk");
+        println!("Waiting for changes on Disk");
         match receiver.recv().await {
             Ok(()) => {
                 println!("Message received");
@@ -108,7 +109,19 @@ pub async fn handle_changes(mut receiver: broadcast::Receiver<()>, app_handle: A
                     println!("File System: {:?}", disk.file_system);
                     println!("Is Removable: {}", disk.is_removable);
                     println!("Is Read Only: {}", disk.is_read_only);
-                    makemkvcon::info(&app_handle, &disk.mount_point.to_string_lossy().to_string());
+                    match makemkvcon::info(
+                        &app_handle,
+                        &disk.mount_point.to_string_lossy().to_string(),
+                    )
+                    .await
+                    {
+                        Ok(tinfo) => {
+                            println!("Title info {:?}", tinfo);
+                        }
+                        Err(e) => {
+                            println!("Loading title info error {}", e)
+                        }
+                    }
                 }
             }
             Err(broadcast::error::RecvError::Lagged(count)) => {

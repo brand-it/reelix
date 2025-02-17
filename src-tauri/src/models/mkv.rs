@@ -1,7 +1,7 @@
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct CINFO {
-    pub id: String,
+    pub id: i32,
     pub type_: String,
     pub code: String,
     pub value: String,
@@ -9,7 +9,7 @@ pub struct CINFO {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct TINFO {
-    pub id: String,
+    pub id: i32,
     pub type_code: String,
     pub code: String,
     pub value: String,
@@ -17,7 +17,7 @@ pub struct TINFO {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct SINFO {
-    pub id: String,
+    pub id: i32,
     pub type_: String,
     pub code: String,
     pub value: String,
@@ -49,14 +49,14 @@ pub struct PRGV {
 #[derive(Debug)]
 pub struct PRGT {
     pub code: String,
-    pub id: String,
+    pub id: i32,
     pub name: String,
 }
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct PRGC {
     pub code: String,
-    pub id: String,
+    pub id: i32,
     pub name: String,
 }
 #[allow(dead_code)]
