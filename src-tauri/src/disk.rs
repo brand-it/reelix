@@ -1,11 +1,9 @@
+use crate::services::makemkvcon;
 use std::path::PathBuf;
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
-
-use sysinfo::{Disk, Disks};
-
+use sysinfo::{Disk, DiskKind, Disks};
+use tauri::AppHandle;
+use tokio::sync::broadcast;
+use tokio::time::{sleep, Duration};
 #[derive(Debug)]
 pub struct OpticalDiskInfo {
     pub name: String,
@@ -15,6 +13,7 @@ pub struct OpticalDiskInfo {
     pub file_system: String,
     pub is_removable: bool,
     pub is_read_only: bool,
+    pub kind: DiskKind,
 }
 
 pub fn list() {
@@ -57,6 +56,7 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
             file_system: disk.file_system().to_string_lossy().to_string(),
             is_removable: disk.is_removable(),
             is_read_only: disk.is_removable(),
+            kind: disk.kind(),
         })
         .collect()
 }
@@ -68,33 +68,55 @@ fn is_optical_disk(disk: &Disk) -> bool {
     disk.is_removable() && (fs_str.contains("udf") || fs_str.contains("iso9660"))
 }
 
-pub async fn watch_for_changes(change_flag: Arc<AtomicBool>) {
-    // let listener = TcpListener::bind("127.0.0.1:8080").await?;
-    println!("Watching for changes");
-    tokio::spawn(async move {
-        let mut previous_opticals = Vec::new();
-        loop {
-            let current_opticals = opticals()
-                .iter()
-                .map(|disk| disk.name.to_string())
-                .collect();
+pub async fn watch_for_changes(sender: broadcast::Sender<()>) {
+    let mut previous_opticals = Vec::new();
+    println!("Watching for changes on Disk");
+    loop {
+        let current_opticals = opticals()
+            .iter()
+            .map(|disk| disk.name.to_string())
+            .collect();
 
-            if current_opticals != previous_opticals {
-                println!(
-                    "Change detected: old={:?}, new={:?}",
-                    previous_opticals, current_opticals
-                );
-                // Send 'true' to indicate a change occurred
-                change_flag.store(true, Ordering::SeqCst);
-                previous_opticals = current_opticals;
-            } else {
-                println!(
-                    "Nothing Changed detected: old={:?}, new={:?}",
-                    previous_opticals, current_opticals
-                );
+        if current_opticals != previous_opticals {
+            println!(
+                "Change detected: old={:?}, new={:?}",
+                previous_opticals, current_opticals
+            );
+            match sender.send(()) {
+                Ok(num_receivers) => println!("Broadcast sent to {} receivers", num_receivers),
+                Err(err) => eprintln!("Broadcast send failed: {:?}", err),
             }
-
-            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            previous_opticals = current_opticals;
         }
-    });
+        sleep(Duration::from_secs(1)).await;
+    }
+}
+
+/// A separate async task that listens for changes and reacts to them.
+pub async fn handle_changes(mut receiver: broadcast::Receiver<()>, app_handle: AppHandle) {
+    loop {
+        println!("Listing for changes on Disk");
+        match receiver.recv().await {
+            Ok(()) => {
+                println!("Message received");
+                for disk in opticals() {
+                    println!("Name: {:?}", disk.name);
+                    println!("Mount Point: {:?}", disk.mount_point);
+                    println!("Available Space: {}", disk.available_space);
+                    println!("Total Space: {}", disk.total_space);
+                    println!("Kind: {}", disk.kind);
+                    println!("File System: {:?}", disk.file_system);
+                    println!("Is Removable: {}", disk.is_removable);
+                    println!("Is Read Only: {}", disk.is_read_only);
+                    makemkvcon::info(&app_handle, &disk.mount_point.to_string_lossy().to_string());
+                }
+            }
+            Err(broadcast::error::RecvError::Lagged(count)) => {
+                println!("Dropped {} messages due to lag.", count);
+            }
+            Err(broadcast::error::RecvError::Closed) => {
+                println!("Channel has closed.");
+            }
+        }
+    }
 }

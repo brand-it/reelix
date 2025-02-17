@@ -1,14 +1,13 @@
 use crate::services::makemkvcon_parser;
-// use crate::state::AppState;
-use sysinfo::Disks;
-// use tauri::State;
+use tauri::AppHandle;
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 
-pub fn makemkvcon(app_handle: tauri::AppHandle) {
+pub fn info(app_handle: &AppHandle, path: &str) {
     let sidecar_command = app_handle.shell().sidecar("makemkvcon").unwrap();
+    let disc_arg = format!("disc:{}", path);
     let (mut rx, mut _child) = sidecar_command
-        .args(["-r", "--cache=1", "info", "disc:9999"])
+        .args(["-r", "--cache=1", "info", &disc_arg])
         .spawn()
         .expect("Failed to spawn sidecar");
     println!("mkvcommand");
