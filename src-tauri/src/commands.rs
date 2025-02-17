@@ -1,5 +1,4 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-use crate::disk;
 use crate::services::the_movie_db;
 use crate::services::the_movie_db::TheMovieDb;
 use crate::state::AppState;
