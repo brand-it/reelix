@@ -233,14 +233,14 @@ pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, ApiErr
     render_template(&state.tera, "search/results.html.turbo", &context, None)
 }
 
-#[tauri::command]
-pub fn mkvcommand(state: State<'_, AppState>) -> Result<String, ApiError> {
-    disk::list();
+// #[tauri::command]
+// pub fn mkvcommand(state: State<'_, AppState>) -> Result<String, ApiError> {
+//     disk::list();
 
-    render_template(
-        &state.tera,
-        "search/index.html.turbo",
-        &Context::new(),
-        None,
-    )
-}
+//     render_template(
+//         &state.tera,
+//         "search/index.html.turbo",
+//         &Context::new(),
+//         None,
+//     )
+// }

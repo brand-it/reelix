@@ -24,7 +24,7 @@ pub struct SearchError {
 #[derive(Serialize, Deserialize)]
 pub struct MovieResponse {
     pub adult: bool,
-    pub backdrop_path: String,
+    pub backdrop_path: Option<String>,
     pub genres: Vec<MovieGenre>,
     pub homepage: String,
     pub id: u32,
@@ -34,8 +34,8 @@ pub struct MovieResponse {
     pub original_title: String,
     pub overview: String,
     pub popularity: f32,
-    pub poster_path: String,
-    pub release_date: String,
+    pub poster_path: Option<String>,
+    pub release_date: Option<String>,
     pub revenue: i32,
     pub runtime: i32,
     pub title: String,
@@ -146,7 +146,7 @@ impl TheMovieDb {
         };
         serde_json::from_str(&text_body).map_err(|e| Error {
             code: 500,
-            message: format!("Failed to parse response JSON: {:?}", e),
+            message: format!("Failed to parse response JSON: {:?}, {:?}", e, text_body),
         })
     }
 
@@ -186,14 +186,14 @@ impl TheMovieDb {
         };
         serde_json::from_str(&text_body).map_err(|e| Error {
             code: 500,
-            message: format!("Failed to parse response JSON: {:?}", e),
+            message: format!("Failed to parse response JSON: {:?}, {:?}", e, text_body),
         })
     }
 
     fn parse_error(&self, text_body: &str) -> Result<SearchError, Error> {
         serde_json::from_str(&text_body).map_err(|e| Error {
             code: 500,
-            message: format!("Failed to parse response JSON: {:?}", e),
+            message: format!("Failed to parse response JSON: {:?}, {:?}", e, text_body),
         })
     }
 }

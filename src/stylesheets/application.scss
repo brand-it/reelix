@@ -207,3 +207,10 @@ body {
     }
   }
 }
+.navbar {
+.simple_form {
+    height: calc(3.5rem + calc(var(--bs-border-width) * 2));
+    min-height: calc(3.5rem + calc(var(--bs-border-width) * 2));
+    line-height: 1.25;
+  }
+}

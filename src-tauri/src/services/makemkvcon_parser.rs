@@ -44,20 +44,20 @@ fn define_type<I: IntoIterator<Item = String>>(type_str: &str, fields: I) -> Mkv
         "DRV" => {
             let mut iter = fields.into_iter();
             MkvData::DRV(DRV {
-                index: iter.next().unwrap(),
-                visible: iter.next().unwrap(),
-                unknown: iter.next().unwrap(),
-                enabled: iter.next().unwrap(),
+                index: cast_to_i32(iter.next().unwrap()),
+                visible: cast_to_i32(iter.next().unwrap()),
+                unknown: cast_to_i32(iter.next().unwrap()),
+                enabled: cast_to_i32(iter.next().unwrap()),
                 flags: iter.next().unwrap(),
                 drive_name: iter.next().unwrap(),
-                disc_name: iter.collect::<Vec<String>>().join(","),
+                disc_name: iter.next().unwrap(),
             })
         }
         "PRGV" => {
             let mut iter = fields.into_iter();
             MkvData::PRGV(PRGV {
-                current: iter.next().unwrap(),
-                total: iter.next().unwrap(),
+                current: cast_to_i32(iter.next().unwrap()),
+                total: cast_to_i32(iter.next().unwrap()),
                 pmax: iter.collect::<Vec<String>>().join(","),
             })
         }
@@ -129,7 +129,6 @@ pub fn parse_mkv_string(stdout_str: &str) -> Vec<MkvData> {
         combined.extend(parts);
 
         // pass to define_type
-        println!("type_str {} {:?}", type_str, combined);
         let parsed: MkvData = define_type(&type_str, combined);
         results.push(parsed);
     }

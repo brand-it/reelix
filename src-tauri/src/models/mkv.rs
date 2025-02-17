@@ -30,10 +30,10 @@ pub struct TCOUNT {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct DRV {
-    pub index: String,
-    pub visible: String,
-    pub unknown: String,
-    pub enabled: String,
+    pub index: i32,
+    pub visible: i32,
+    pub unknown: i32,
+    pub enabled: i32,
     pub flags: String,
     pub drive_name: String,
     pub disc_name: String,
@@ -41,8 +41,8 @@ pub struct DRV {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct PRGV {
-    pub current: String,
-    pub total: String,
+    pub current: i32,
+    pub total: i32,
     pub pmax: String,
 }
 #[allow(dead_code)]
