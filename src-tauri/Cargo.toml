@@ -1,5 +1,5 @@
 [package]
-name = "reelix"
+name = "Reelix"
 version = "0.6.0"
 description = "A tool for ripping Movies & TV Shows"
 authors = ["Brandt Lareau"]
@@ -30,4 +30,5 @@ tauri-plugin-http = { version = "2", features = ["blocking", "json"] }
 tauri-plugin-shell = "2"
 tauri-plugin-store = "2"
 tera = "1.20.0"
+tokio = "1.43.0"
 url = "2.5.4"
