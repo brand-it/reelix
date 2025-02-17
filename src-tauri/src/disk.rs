@@ -1,11 +1,11 @@
-use crate::models::title_info;
 use crate::services::makemkvcon;
+use crate::state::AppState;
 use std::path::PathBuf;
 use sysinfo::{Disk, DiskKind, Disks};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use tokio::sync::broadcast;
 use tokio::time::{sleep, Duration};
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct OpticalDiskInfo {
     pub name: String,
     pub mount_point: PathBuf,
@@ -69,21 +69,34 @@ fn is_optical_disk(disk: &Disk) -> bool {
     disk.is_removable() && (fs_str.contains("udf") || fs_str.contains("iso9660"))
 }
 
-pub async fn watch_for_changes(sender: broadcast::Sender<()>) {
+fn changes(
+    current_opticals: &Vec<OpticalDiskInfo>,
+    previous_opticals: &Vec<OpticalDiskInfo>,
+) -> Vec<diff::Result<OpticalDiskInfo>> {
+    diff::slice(previous_opticals, current_opticals)
+        .into_iter()
+        .map(|result| match result {
+            diff::Result::Left(info) => diff::Result::Left(info.clone()),
+            diff::Result::Both(info, _) => diff::Result::Both(info.clone(), info.clone()),
+            diff::Result::Right(info) => diff::Result::Right(info.clone()),
+        })
+        .collect()
+}
+
+pub async fn watch_for_changes(sender: broadcast::Sender<Vec<diff::Result<OpticalDiskInfo>>>) {
     let mut previous_opticals = Vec::new();
     println!("Watching for changes on Disk");
     loop {
-        let current_opticals = opticals()
-            .iter()
-            .map(|disk| disk.name.to_string())
-            .collect();
+        let current_opticals = opticals();
 
         if current_opticals != previous_opticals {
+            let diff_result = changes(&current_opticals, &previous_opticals);
+
             println!(
                 "Change detected: old={:?}, new={:?}",
                 previous_opticals, current_opticals
             );
-            match sender.send(()) {
+            match sender.send(diff_result) {
                 Ok(num_receivers) => println!("Broadcast sent to {} receivers", num_receivers),
                 Err(err) => eprintln!("Broadcast send failed: {:?}", err),
             }
@@ -94,32 +107,58 @@ pub async fn watch_for_changes(sender: broadcast::Sender<()>) {
 }
 
 /// A separate async task that listens for changes and reacts to them.
-pub async fn handle_changes(mut receiver: broadcast::Receiver<()>, app_handle: AppHandle) {
+pub async fn handle_changes(
+    mut receiver: broadcast::Receiver<Vec<diff::Result<OpticalDiskInfo>>>,
+    app_handle: AppHandle,
+) {
     loop {
         println!("Waiting for changes on Disk");
         match receiver.recv().await {
-            Ok(()) => {
+            Ok(event) => {
                 println!("Message received");
-                for disk in opticals() {
-                    println!("Name: {:?}", disk.name);
-                    println!("Mount Point: {:?}", disk.mount_point);
-                    println!("Available Space: {}", disk.available_space);
-                    println!("Total Space: {}", disk.total_space);
-                    println!("Kind: {}", disk.kind);
-                    println!("File System: {:?}", disk.file_system);
-                    println!("Is Removable: {}", disk.is_removable);
-                    println!("Is Read Only: {}", disk.is_read_only);
-                    match makemkvcon::info(
-                        &app_handle,
-                        &disk.mount_point.to_string_lossy().to_string(),
-                    )
-                    .await
-                    {
-                        Ok(tinfo) => {
-                            println!("Title info {:?}", tinfo);
+                for result in event {
+                    match result {
+                        diff::Result::Left(disk) => {
+                            println!("- {:?}", disk);
+                            let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
+                            let mut optical_disks = state.optical_disks.lock().unwrap();
+                            optical_disks.retain(|x| *x != disk);
+                            println!("optical_disks: {:?}", optical_disks);
                         }
-                        Err(e) => {
-                            println!("Loading title info error {}", e)
+                        diff::Result::Both(disk, _) => {
+                            println!("  {:?}", disk);
+                        }
+                        diff::Result::Right(disk) => {
+                            println!("+ {:?}", disk);
+                            println!("Name: {:?}", disk.name);
+                            println!("Mount Point: {:?}", disk.mount_point);
+                            println!("Available Space: {}", disk.available_space);
+                            println!("Total Space: {}", disk.total_space);
+                            println!("Kind: {}", disk.kind);
+                            println!("File System: {:?}", disk.file_system);
+                            println!("Is Removable: {}", disk.is_removable);
+                            println!("Is Read Only: {}", disk.is_read_only);
+                            match makemkvcon::info(
+                                &app_handle,
+                                &disk.mount_point.to_string_lossy().to_string(),
+                            )
+                            .await
+                            {
+                                Ok(results) => {
+                                    if results.drives.into_iter().any(|x| x.enabled > 0) {
+                                        let state: tauri::State<'_, AppState> =
+                                            app_handle.state::<AppState>();
+                                        let mut optical_disks = state.optical_disks.lock().unwrap();
+                                        if !optical_disks.contains(&disk) {
+                                            optical_disks.push(disk);
+                                        }
+                                        println!("optical_disks: {:?}", optical_disks);
+                                    }
+                                }
+                                Err(e) => {
+                                    println!("Loading title info error {}", e)
+                                }
+                            }
                         }
                     }
                 }

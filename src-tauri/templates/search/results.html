@@ -1,7 +1,7 @@
 {% import "search/result.html" as macros %}
 <div class="display-flex">
   {% if query | default(value="") == "" %}
-  <div class="col-md-12">
+  <div class="col-md-12 mt-3">
     <div class="text-white">
       <h1 class="display-4">To Getting Started</h1>
       <p class="lead">Type in the name of the movie or TV show you're looking for into the search bar above.</p>
@@ -35,7 +35,7 @@
       </{{ poster_element }}>
       <h6 class="card-title overflow-hidden text-start height-60">
         <a class="link-light link-opacity-50-hover link-underline-opacity-25 pb-1"
-          href="https://www.themoviedb.org/{{ result.media_type }}/{{ result.id }}">
+          href="https://www.themoviedb.org/{{ result.media_type }}/{{ result.id }}" target="_blank">
           {% if result.media_type == "tv" %}
           <i class="fa fa-tv" data-prefix="fas" data-icon="tv"></i>
           {% elif result.media_type == "movie" %}
