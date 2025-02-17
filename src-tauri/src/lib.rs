@@ -4,6 +4,7 @@ mod models;
 mod services;
 mod state;
 
+use disk::OpticalDiskInfo;
 use include_dir::{include_dir, Dir};
 use state::AppState;
 use std::sync::Arc;
@@ -35,7 +36,7 @@ fn add_templates_from_dir(tera: &mut Tera, dir: &Dir) {
 }
 
 fn spawn_disk_listener(app: &mut App) {
-    let (sender, receiver) = broadcast::channel(16);
+    let (sender, receiver) = broadcast::channel::<Vec<diff::Result<disk::OpticalDiskInfo>>>(16);
     tauri::async_runtime::spawn(async move {
         disk::watch_for_changes(sender).await;
     });
@@ -48,7 +49,7 @@ fn spawn_disk_listener(app: &mut App) {
 
 fn setup_store(app: &mut App) {
     let app_handle = app.handle();
-    let state = app_handle.state::<AppState>();
+    let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
     let store = app.store("store.json").unwrap();
     let value = store.get("the_movie_db_key");
 
@@ -66,10 +67,10 @@ pub fn run() {
     let mut tera = Tera::default();
 
     add_templates_from_dir(&mut tera, &TEMPLATES_DIR);
-
     let app_state: AppState = AppState {
         tera: Arc::new(tera),
         the_movie_db_key: Arc::new(Mutex::new(String::new())),
+        optical_disks: Arc::new(Mutex::new(Vec::<OpticalDiskInfo>::new())),
     };
 
     tauri::Builder::default()
@@ -87,8 +88,7 @@ pub fn run() {
             commands::movie,
             commands::open_browser,
             commands::search,
-            commands::the_movie_db,
-            commands::mkvcommand
+            commands::the_movie_db
         ])
         .run(tauri::generate_context!())
         .expect("error while running Tauri application");
