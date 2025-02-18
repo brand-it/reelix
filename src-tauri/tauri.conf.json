@@ -26,10 +26,11 @@
     "targets": "all",
     "resources": [],
     "externalBin": [
-      "binaries/makemkvcon",
-      "binaries/libmakemkv.dylib",
       "binaries/libdriveio.dylib",
-      "binaries/libffm.dylib"
+      "binaries/libffm.dylib",
+      "binaries/libmakemkv.dll",
+      "binaries/libmakemkv.dylib",
+      "binaries/makemkvcon"
     ],
     "icon": [
       "icons/32x32.png",
