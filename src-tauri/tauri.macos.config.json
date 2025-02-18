@@ -1,0 +1,10 @@
+{
+  "bundle": {
+    "externalBin": [
+      "binaries/libdriveio.dylib",
+      "binaries/libffm.dylib",
+      "binaries/libmakemkv.dylib",
+      "binaries/makemkvcon"
+    ]
+  }
+}
