@@ -1,0 +1,10 @@
+{
+  "bundle": {
+    "externalBin": [
+      "binaries/libdriveio.dll",
+      "binaries/libffm.dll",
+      "binaries/libmakemkv.dll",
+      "binaries/makemkvcon"
+    ]
+  }
+}

@@ -25,15 +25,7 @@
     "active": true,
     "targets": "all",
     "resources": [],
-    "externalBin": [
-      "binaries/libdriveio.dll",
-      "binaries/libdriveio.dylib",
-      "binaries/libffm.dll",
-      "binaries/libffm.dylib",
-      "binaries/libmakemkv.dll",
-      "binaries/libmakemkv.dylib",
-      "binaries/makemkvcon"
-    ],
+    "externalBin": [],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
