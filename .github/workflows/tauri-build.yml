@@ -9,7 +9,7 @@ on:
       - opened
       - synchronize
 jobs:
-  publish-tauri:
+  build-tauri:
     permissions:
       contents: write
     strategy:
