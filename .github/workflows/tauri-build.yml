@@ -1,9 +1,13 @@
-name: "publish"
+name: "build"
 
 on:
   push:
     branches:
-      - release-test
+      - release
+  pull_request:
+    types:
+      - opened
+      - synchronize
 jobs:
   publish-tauri:
     permissions:
@@ -93,6 +97,13 @@ jobs:
       - name: install frontend dependencies
         run: npm install # change this to npm, pnpm or bun depending on which one you use.
       - uses: tauri-apps/tauri-action@v0
+        if: github.ref_name != 'release'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: ${{ matrix.args }}
+      - uses: tauri-apps/tauri-action@v0
+        if: github.ref_name == 'release'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -102,6 +113,6 @@ jobs:
           tagName: reelix-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: "Reelix v__VERSION__"
           releaseBody: "See the assets to download this version and install."
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
