@@ -1,5 +1,7 @@
 {
   "bundle": {
-    "externalBin": []
+    "externalBin": [
+      "binaries/makemkvcon"
+    ]
   }
 }
