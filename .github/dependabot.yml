@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # Rust dependencies (Cargo) inside src-tauri
+  - package-ecosystem: "cargo"
+    directory: "/src-tauri" # Location of Cargo.toml
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+
+  # JavaScript/TypeScript dependencies (for the frontend, if applicable)
+  - package-ecosystem: "npm" # Change to "yarn" if using Yarn
+    directory: "/" # Tauri places package.json inside src-tauri
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
