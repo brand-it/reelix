@@ -1,10 +1,10 @@
 {
   "bundle": {
-    "resources": [
-      "windows-x86_64/libdriveio.dll",
-      "windows-x86_64/libffm.dll",
-      "windows-x86_64/libmakemkv.dll"
-    ],
+    "resources": {
+      "windows-x86_64/libdriveio.dll": "libdriveio.dll",
+      "windows-x86_64/libffm.dll": "libffm.dll",
+      "windows-x86_64/libmakemkv.dll": "libmakemkv.dll"
+    },
     "externalBin": [
       "binaries/makemkvcon"
     ]
