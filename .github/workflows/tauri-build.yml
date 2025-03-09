@@ -54,6 +54,7 @@ jobs:
           echo "First line: $first_line"
           if [[ "$first_line" != "-----BEGIN PRIVATE KEY-----" ]]; then
             echo "Error: Private key does not start with '-----BEGIN PRIVATE KEY-----'."
+            echo $first_line
             exit 1
           fi
           echo "APPLE_API_KEY_PATH=$PWD/AuthKey_78LZT6863R.p8" >> $GITHUB_ENV
