@@ -87,6 +87,28 @@ pub struct SearchResult {
     vote_count: u32,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct MovieReleaseDatesResponse {
+    pub id: u32,
+    pub results: Vec<CountryReleaseDates>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CountryReleaseDates {
+    pub iso_3166_1: String,
+    pub release_dates: Vec<ReleaseDate>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ReleaseDate {
+    pub certification: String,
+    pub descriptors: Vec<String>,
+    pub iso_639_1: String,
+    pub note: String,
+    pub release_date: String,
+    #[serde(rename = "type")]
+    pub release_type: u32,
+}
 impl TheMovieDb {
     pub fn new(api_key: String, language: String) -> Self {
         TheMovieDb {
@@ -184,6 +206,48 @@ impl TheMovieDb {
                 Err(err) => return Err(err),
             };
         };
+        println!("text_body {:?}", &text_body);
+        serde_json::from_str(&text_body).map_err(|e| Error {
+            code: 500,
+            message: format!("Failed to parse response JSON: {:?}, {:?}", e, text_body),
+        })
+    }
+
+    pub fn release_dates(&self, id: u32) -> Result<MovieReleaseDatesResponse, Error> {
+        let url = format!("https://api.themoviedb.org/3/movie/{}/release_dates", id);
+
+        // Build the query parameters
+        let mut params: HashMap<&str, &str> = HashMap::new();
+        params.insert("api_key", self.api_key.as_str());
+        // dbg!(&params.clone());
+        // Perform the GET request & Error handling
+        let response = self
+            .client
+            .get(url)
+            .query(&params)
+            .send()
+            .map_err(|e| Error {
+                code: 500,
+                message: format!("Request error: {:?}", e),
+            })?;
+        let status = response.status();
+        let text_body = response.text().map_err(|e| Error {
+            code: 500,
+            message: format!("Request error reading text: {:?}", e),
+        })?;
+
+        if !status.is_success() {
+            match self.parse_error(&text_body) {
+                Ok(response) => {
+                    return Err(Error {
+                        code: response.status_code,
+                        message: response.status_message,
+                    });
+                }
+                Err(err) => return Err(err),
+            };
+        };
+        println!("text_body {:?}", &text_body);
         serde_json::from_str(&text_body).map_err(|e| Error {
             code: 500,
             message: format!("Failed to parse response JSON: {:?}, {:?}", e, text_body),
