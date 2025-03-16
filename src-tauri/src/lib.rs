@@ -4,14 +4,17 @@ mod models;
 mod services;
 mod state;
 
+use chrono::NaiveDate;
+use chrono::{DateTime, FixedOffset};
 use disk::OpticalDiskInfo;
 use include_dir::{include_dir, Dir};
 use state::AppState;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 use tauri::{App, Manager};
 use tauri_plugin_store::StoreExt;
-use tera::Tera;
+use tera::{to_value, Result as TeraResult, Tera, Value};
 use tokio::sync::broadcast;
 
 // Embed the `templates` directory into the binary
@@ -62,10 +65,29 @@ fn setup_store(app: &mut App) {
     store.close_resource();
 }
 
+/// Custom filter that formats a datetime string into "YYYY"
+pub fn to_year(value: &Value, _args: &HashMap<String, Value>) -> TeraResult<Value> {
+    let date_str = value
+        .as_str()
+        .ok_or("format_date filter: expected a string")?;
+
+    // Try parsing the string as an RFC3339 datetime.
+    let formatted = if let Ok(dt) = DateTime::parse_from_rfc3339(date_str) {
+        dt.format("%Y").to_string()
+    } else if let Ok(date) = NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
+        // Fallback: if it's already just a date, use it.
+        date.format("%Y").to_string()
+    } else {
+        return Err(format!("format_date filter: failed to parse date: {}", date_str).into());
+    };
+
+    to_value(formatted).map_err(Into::into)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut tera = Tera::default();
-
+    tera.register_filter("to_year", to_year);
     add_templates_from_dir(&mut tera, &TEMPLATES_DIR);
     let app_state: AppState = AppState {
         tera: Arc::new(tera),

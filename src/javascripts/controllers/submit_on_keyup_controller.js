@@ -1,9 +1,9 @@
-import { Controller } from "@hotwired/stimulus"
+import { Controller } from "@hotwired/stimulus";
 import debounce from "lodash/debounce";
 
 // Connects to data-controller="submit-on-keyup"
 export default class extends Controller {
-  static targets = ["input"]
+  static targets = ["input"];
 
   connect() {
     this.lastSubmittedValue = this.inputTarget.value;
@@ -11,9 +11,8 @@ export default class extends Controller {
   }
 
   submitWithDebounce(event) {
-    event.preventDefault();
-
     if (this.inputTarget.value !== this.lastSubmittedValue) {
+      event.preventDefault();
       this.lastSubmittedValue = this.inputTarget.value;
       this.element.requestSubmit();
     }
