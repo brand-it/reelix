@@ -1,7 +1,7 @@
 <turbo-stream action="replace" target="main-content">
   <template>
     <main id="main-content">
-      {% include "the_movie_db/index.html" %}
+      {% include "the_movie_db/show.html" %}
     </main>
   </template>
 </turbo-stream>

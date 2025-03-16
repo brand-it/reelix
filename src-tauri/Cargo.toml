@@ -26,6 +26,7 @@ tauri-build = { version = ">=2", features = [] }
 tera = ">=1.20.0"
 
 [dependencies]
+chrono = ">=0.4.40"
 diff = ">=0.1.13"
 include_dir = ">=0.7.4"
 lazy_static = ">=1.5.0"

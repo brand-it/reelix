@@ -100,6 +100,7 @@ class LinkClickObserver {
       const target =
         (event.composedPath && event.composedPath()[0]) || event.target;
       const link = findLinkFromClickTarget(target);
+
       if (link && doesNotTargetIFrame(link.target)) {
         const location = getLocationForLink(link);
         if (this.delegate.willFollowLinkToLocation(link, location, event)) {
@@ -116,7 +117,6 @@ class LinkClickObserver {
               id: parseInt(id),
             };
           }
-
           turboInvoke(command, params);
         }
       }
@@ -144,8 +144,11 @@ document.addEventListener("DOMContentLoaded", (event) => {
 });
 
 window.addEventListener("click", function (event) {
-  event.preventDefault();
-  // // Rework this to make it be powered by turbo.js
+  if (event.target.tagName !== "BUTTON") {
+    console.log("preventDefault", event.target.tagName);
+    event.preventDefault();
+  }
+  // Rework this to make it be powered by turbo.js
   // if (event.target.tagName === "A" && event.target.href != undefined) {
   //   turboInvoke("open_browser", { url: event.target.href });
   // }
