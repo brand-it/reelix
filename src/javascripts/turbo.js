@@ -15,16 +15,18 @@ window.turboInvoke = async function turboInvoke(command, commandArgs) {
         document.getElementById("error").innerHTML = error.message;
       }
     });
-
   console.log("tauriResponse", command, tauriResponse);
-
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(tauriResponse, "text/html");
-  doc.querySelectorAll("turbo-stream").forEach((stream) => {
-    Turbo.renderStreamMessage(stream.outerHTML);
-  });
+  processTurboResponse(tauriResponse);
   return new Response(tauriResponse, {
     status: 200,
+  });
+};
+
+window.processTurboResponse = function processTurboResponse(turboResponse) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(turboResponse, "text/html");
+  doc.querySelectorAll("turbo-stream").forEach((stream) => {
+    Turbo.renderStreamMessage(stream.outerHTML);
   });
 };
 

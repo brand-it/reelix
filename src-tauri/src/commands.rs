@@ -69,6 +69,33 @@ fn render_template(
     }
 }
 
+// This is the entry point, basically it decide what to first show the user
+#[tauri::command]
+pub fn index(state: State<'_, AppState>) -> Result<String, ApiError> {
+    let api_key: String = {
+        let locked_key = state.the_movie_db_key.lock().unwrap();
+        locked_key.clone()
+    };
+    let language = "en-US".to_string();
+    let movie_db = TheMovieDb::new(api_key.clone(), language);
+    let response = movie_db.search_multi("Martian", 1);
+
+    match response {
+        Ok(resp) => resp,
+        Err(e) => {
+            eprintln!("Error from TMDB: {}", e.message);
+            let mut context = Context::new();
+            context.insert("api_key", &api_key);
+            // let context = Context::from_serialize(&movie_db).expect("Failed to retrieve the value");
+            return render_template(&state.tera, "the_movie_db/show.html.turbo", &context, None);
+        }
+    };
+    let mut context = Context::new();
+    context.insert("optical_disks", &state.optical_disks);
+
+    render_template(&state.tera, "search/index.html.turbo", &context, None)
+}
+
 #[tauri::command]
 pub fn open_browser(url: &str, app_handle: tauri::AppHandle) -> String {
     let shell = app_handle.shell();
@@ -146,36 +173,6 @@ pub fn movie(id: u32, query: &str, state: State<'_, AppState>) -> Result<String,
     context.insert("query", query);
     context.insert("certification", &certification);
     render_template(&state.tera, "movies/show.html.turbo", &context, None)
-}
-
-// This is the entry point, basically it decide what to first show the user
-#[tauri::command]
-pub fn index(state: State<'_, AppState>) -> Result<String, ApiError> {
-    let api_key: String = {
-        let locked_key = state.the_movie_db_key.lock().unwrap();
-        locked_key.clone()
-    };
-    let language = "en-US".to_string();
-    let movie_db = TheMovieDb::new(api_key.clone(), language);
-    let response = movie_db.search_multi("Martian", 1);
-
-    match response {
-        Ok(resp) => resp,
-        Err(e) => {
-            eprintln!("Error from TMDB: {}", e.message);
-            let mut context = Context::new();
-            context.insert("api_key", &api_key);
-            // let context = Context::from_serialize(&movie_db).expect("Failed to retrieve the value");
-            return render_template(&state.tera, "the_movie_db/show.html.turbo", &context, None);
-        }
-    };
-
-    render_template(
-        &state.tera,
-        "search/index.html.turbo",
-        &Context::new(),
-        None,
-    )
 }
 
 #[tauri::command]

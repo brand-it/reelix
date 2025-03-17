@@ -1,4 +1,4 @@
-{% import "search/result.html" as macros %}
+{% import "_poster.html" as macros %}
 <div class="display-flex">
   {% if query | default(value="") == "" %}
   <div class="col-md-12 mt-3">
@@ -26,11 +26,11 @@
       {% endif %}
       <{{ poster_element }} class="{{ poster_classes }} p-0 mb-2 m-0" href="/movie/{{result.id}}?query={{ query }}">
         {% if result.media_type == "tv" %}
-        {{ macros::result(poster_path=result.poster_path, name=result.name, original_name=result.original_name) }}
+        {{ macros::poster(poster_path=result.poster_path, name=result.name, original_name=result.original_name) }}
         {% elif result.media_type == "movie" %}
-        {{ macros::result(poster_path=result.poster_path, name=result.title, original_name=result.original_title) }}
+        {{ macros::poster(poster_path=result.poster_path, name=result.title, original_name=result.original_title) }}
         {% elif result.media_type == "person" %}
-        {{ macros::result(poster_path=result.profile_path, name=result.name, original_name=result.original_name) }}
+        {{ macros::poster(poster_path=result.profile_path, name=result.name, original_name=result.original_name) }}
         {% endif %}
       </{{ poster_element }}>
       <h6 class="card-title overflow-hidden text-start height-60">

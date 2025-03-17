@@ -40,6 +40,12 @@ async fn run(mut receiver: Receiver<CommandEvent>) -> RunResults {
                 let line = String::from_utf8_lossy(&line_bytes);
                 eprintln!("Stderr: {}", line);
             }
+            CommandEvent::Error(error) => {
+                eprintln!("Error: {}", error);
+            }
+            CommandEvent::Terminated(payload) => {
+                eprintln!("Terminated: {:?}", payload);
+            }
             other => {
                 eprintln!("Other command event: {:?}", other);
             }
@@ -52,11 +58,11 @@ async fn run(mut receiver: Receiver<CommandEvent>) -> RunResults {
     }
 }
 
-pub async fn info(app_handle: &AppHandle, path: &str) -> Result<RunResults, tauri::Error> {
+pub async fn title_info(app_handle: &AppHandle, path: &str) -> Result<RunResults, tauri::Error> {
     let sidecar_command = app_handle.shell().sidecar("makemkvcon").unwrap();
-    let disc_arg = format!("disc:{}", path);
+    let disc_arg = format!("file:{}", path);
     let (receiver, mut _child) = sidecar_command
-        .args(["-r", "--cache=1", "info", &disc_arg])
+        .args(["-r", "info", &disc_arg])
         .spawn()
         .expect("Failed to spawn sidecar");
     println!("mkvcommand {}", disc_arg);

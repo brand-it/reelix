@@ -1,11 +1,23 @@
 use crate::services::makemkvcon;
 use crate::state::AppState;
+use serde::Serialize;
 use std::path::PathBuf;
-use sysinfo::{Disk, DiskKind, Disks};
-use tauri::{AppHandle, Manager};
+use std::sync::{Arc, Mutex};
+use sysinfo::{Disk, Disks};
+use tauri::{AppHandle, Emitter, Manager};
+use tera::{Context, Tera};
 use tokio::sync::broadcast;
 use tokio::time::{sleep, Duration};
-#[derive(Debug, PartialEq, Clone)]
+
+type ErrorHandler = fn(&tera::Error) -> ApiError;
+#[derive(Debug, Clone)]
+pub struct ApiError {
+    pub code: u16,
+    pub message: String,
+    pub api_key: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Clone, Serialize)]
 pub struct OpticalDiskInfo {
     pub name: String,
     pub mount_point: PathBuf,
@@ -14,7 +26,7 @@ pub struct OpticalDiskInfo {
     pub file_system: String,
     pub is_removable: bool,
     pub is_read_only: bool,
-    pub kind: DiskKind,
+    pub kind: String,
 }
 
 pub fn list() {
@@ -57,7 +69,7 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
             file_system: disk.file_system().to_string_lossy().to_string(),
             is_removable: disk.is_removable(),
             is_read_only: disk.is_removable(),
-            kind: disk.kind(),
+            kind: format!("{:?}", disk.kind()),
         })
         .collect()
 }
@@ -106,6 +118,93 @@ pub async fn watch_for_changes(sender: broadcast::Sender<Vec<diff::Result<Optica
     }
 }
 
+fn render_template(
+    tera: &Tera,
+    template_path: &str,
+    context: &Context,
+    on_error: Option<ErrorHandler>,
+) -> Result<String, ApiError> {
+    match tera.render(template_path, context) {
+        Ok(result) => Ok(result),
+        Err(e) => {
+            eprintln!("Template rendering error: {:#?}", e);
+            // Custom Error handler if provided
+            if let Some(handler) = on_error {
+                return Err(handler(&e));
+            } else {
+                return Err(ApiError {
+                    code: 500,
+                    message: format!("An error occurred: {e}"),
+                    api_key: None,
+                });
+            }
+        }
+    }
+}
+
+fn emit_disk_change(app_handle: &AppHandle) {
+    let state = app_handle.state::<AppState>();
+    let mut context = Context::new();
+    let optical_disks = &state.optical_disks.lock().unwrap().to_vec();
+    context.insert("optical_disks", &unwrap_disks(optical_disks));
+    let result = render_template(&state.tera, "disks/options.html.turbo", &context, None)
+        .expect("Failed to render disks/options.html.turbo");
+    app_handle
+        .emit("disks-changed", result)
+        .expect("Failed to emit disks-changed");
+}
+
+fn unwrap_disk(disk: &Arc<Mutex<OpticalDiskInfo>>) -> OpticalDiskInfo {
+    disk.lock().expect("Failed to lock").clone()
+}
+
+fn unwrap_disks(disks: &Vec<Arc<Mutex<OpticalDiskInfo>>>) -> Vec<OpticalDiskInfo> {
+    disks.iter().map(|disk| unwrap_disk(disk)).collect()
+}
+
+fn contains(
+    optical_disks: &Vec<Arc<Mutex<OpticalDiskInfo>>>,
+    disk: &Arc<Mutex<OpticalDiskInfo>>,
+) -> bool {
+    optical_disks
+        .iter()
+        .any(|optical_disk| unwrap_disk(optical_disk) == unwrap_disk(disk))
+}
+
+async fn load_titles(app_handle: &AppHandle, disk: &OpticalDiskInfo) {
+    println!("loading disk titles");
+
+    let path = &disk.mount_point.to_string_lossy().to_string();
+    println!("loading disk titles {}", path);
+
+    match makemkvcon::title_info(app_handle, path).await {
+        Ok(results) => {
+            println!("title info {:?}", results.title_info);
+            println!("messages {:?}", results.messages);
+        }
+        Err(e) => {
+            println!("Loading title info error {}", e)
+        }
+    }
+}
+
+fn add_optical_disk(app_handle: &AppHandle, disk: &OpticalDiskInfo) {
+    let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
+    let optical_disk = Arc::new(Mutex::new(disk.clone()));
+    let mut optical_disks = state.optical_disks.lock().unwrap();
+    if !contains(&optical_disks, &optical_disk) {
+        optical_disks.push(optical_disk);
+    }
+    println!("optical_disks: {:?}", optical_disks);
+}
+
+fn remove_optical_disks(app_handle: &AppHandle, disk: OpticalDiskInfo) {
+    let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
+    let mut optical_disks = state.optical_disks.lock().unwrap().to_vec();
+    optical_disks.retain(|x| *x.lock().unwrap() != disk);
+    println!("optical_disks: {:?}", optical_disks);
+}
+
 /// A separate async task that listens for changes and reacts to them.
 pub async fn handle_changes(
     mut receiver: broadcast::Receiver<Vec<diff::Result<OpticalDiskInfo>>>,
@@ -120,10 +219,8 @@ pub async fn handle_changes(
                     match result {
                         diff::Result::Left(disk) => {
                             println!("- {:?}", disk);
-                            let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
-                            let mut optical_disks = state.optical_disks.lock().unwrap();
-                            optical_disks.retain(|x| *x != disk);
-                            println!("optical_disks: {:?}", optical_disks);
+                            remove_optical_disks(&app_handle, disk);
+                            emit_disk_change(&app_handle);
                         }
                         diff::Result::Both(disk, _) => {
                             println!("  {:?}", disk);
@@ -138,27 +235,9 @@ pub async fn handle_changes(
                             println!("File System: {:?}", disk.file_system);
                             println!("Is Removable: {}", disk.is_removable);
                             println!("Is Read Only: {}", disk.is_read_only);
-                            match makemkvcon::info(
-                                &app_handle,
-                                &disk.mount_point.to_string_lossy().to_string(),
-                            )
-                            .await
-                            {
-                                Ok(results) => {
-                                    if results.drives.into_iter().any(|x| x.enabled > 0) {
-                                        let state: tauri::State<'_, AppState> =
-                                            app_handle.state::<AppState>();
-                                        let mut optical_disks = state.optical_disks.lock().unwrap();
-                                        if !optical_disks.contains(&disk) {
-                                            optical_disks.push(disk);
-                                        }
-                                        println!("optical_disks: {:?}", optical_disks);
-                                    }
-                                }
-                                Err(e) => {
-                                    println!("Loading title info error {}", e)
-                                }
-                            }
+                            add_optical_disk(&app_handle, &disk);
+                            emit_disk_change(&app_handle);
+                            load_titles(&app_handle, &disk).await;
                         }
                     }
                 }

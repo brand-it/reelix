@@ -5,5 +5,5 @@ use tera::Tera;
 pub struct AppState {
     pub tera: Arc<Tera>,
     pub the_movie_db_key: Arc<Mutex<String>>,
-    pub optical_disks: Arc<Mutex<Vec<OpticalDiskInfo>>>,
+    pub optical_disks: Arc<Mutex<Vec<Arc<Mutex<OpticalDiskInfo>>>>>,
 }

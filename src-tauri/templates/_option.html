@@ -1,0 +1,11 @@
+{% macro option(selected, name, value) %}
+{% if selected and value %}
+<option selected value="{{ value }}">{{ name }}</option>
+{% elif selected %}
+<option selected>{{ name }}</option>
+{% elif value %}
+<option value="{{ value }}">{{ name }}</option>
+{% else %}
+<option>{{ name }}</option>
+{% endif %}
+{% endmacro input %}
