@@ -200,7 +200,7 @@ fn add_optical_disk(app_handle: &AppHandle, disk: &OpticalDiskInfo) {
 
 fn remove_optical_disks(app_handle: &AppHandle, disk: OpticalDiskInfo) {
     let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
-    let mut optical_disks = state.optical_disks.lock().unwrap().to_vec();
+    let mut optical_disks = state.optical_disks.lock().unwrap();
     optical_disks.retain(|x| *x.lock().unwrap() != disk);
     println!("optical_disks: {:?}", optical_disks);
 }
