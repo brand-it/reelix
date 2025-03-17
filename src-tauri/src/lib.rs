@@ -4,14 +4,13 @@ mod models;
 mod services;
 mod state;
 
+use chrono::DateTime;
 use chrono::NaiveDate;
-use chrono::{DateTime, FixedOffset};
 use disk::OpticalDiskInfo;
 use include_dir::{include_dir, Dir};
 use state::AppState;
 use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::{App, Manager};
 use tauri_plugin_store::StoreExt;
 use tera::{to_value, Result as TeraResult, Tera, Value};
@@ -92,7 +91,7 @@ pub fn run() {
     let app_state: AppState = AppState {
         tera: Arc::new(tera),
         the_movie_db_key: Arc::new(Mutex::new(String::new())),
-        optical_disks: Arc::new(Mutex::new(Vec::<OpticalDiskInfo>::new())),
+        optical_disks: Arc::new(Mutex::new(Vec::<Arc<Mutex<OpticalDiskInfo>>>::new())),
     };
 
     tauri::Builder::default()

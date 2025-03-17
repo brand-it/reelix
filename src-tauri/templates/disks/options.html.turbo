@@ -1,0 +1,7 @@
+<turbo-stream action="replace" target="disk-selector">
+  <template>
+    {% include "disks/options.html" %}
+  </template>
+</turbo-stream>
+
+{% include "error.html.turbo" %}

@@ -1,0 +1,11 @@
+{% import "_option.html" as macros %}
+
+<select class="form-select" id="disk-selector" aria-label="Floating label select example">
+  {% if optical_disks %}
+  {% for optical_disk in optical_disks %}
+  {{ macros::option(selected=false, name=optical_disk.name, value=optical_disk.mount_point) }}
+  {% endfor %}
+  {% else %}
+  {{ macros::option(selected=true, name='No Optical Drive Detected', value='') }}
+  {% endif %}
+</select>
