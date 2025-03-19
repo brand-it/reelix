@@ -2,6 +2,25 @@ use crate::models::mkv::{
     MkvData, ParseError, CINFO, DRV, MSG, PRGC, PRGT, PRGV, SINFO, TCOUNT, TINFO,
 };
 
+fn tinfo_code_legend(code: String) -> String {
+    match cast_to_i32(code) {
+        2 => "name",
+        8 => "chapter_count",
+        9 => "duration",
+        10 => "size",
+        11 => "bytes",
+        15 => "angle",
+        16 => "source_file_name",
+        25 => "segment_count",
+        26 => "segment_map",
+        27 => "filename",
+        28 => "lang",
+        29 => "language",
+        30 => "description",
+        _ => "",
+    }
+    .to_string()
+}
 fn cast_to_i32(number_string: String) -> i32 {
     match number_string.parse::<i32>() {
         Ok(num) => num,
@@ -24,7 +43,7 @@ fn define_type<I: IntoIterator<Item = String>>(type_str: &str, fields: I) -> Mkv
             let mut iter = fields.into_iter();
             MkvData::TINFO(TINFO {
                 id: cast_to_i32(iter.next().unwrap()),
-                type_code: iter.next().unwrap(),
+                type_code: tinfo_code_legend(iter.next().unwrap()),
                 code: iter.next().unwrap(),
                 value: iter.collect::<Vec<String>>().join(","),
             })
@@ -102,9 +121,11 @@ pub fn parse_mkv_string(stdout_str: &str) -> Vec<MkvData> {
     // split by lines
     for line in stdout_str.lines() {
         let trimmed: &str = line.trim();
+
         if trimmed.is_empty() {
             continue;
         }
+        println!("{}", trimmed);
         // split by commas, remove surrounding quotes/backslashes from each piece
         let mut parts: Vec<String> = trimmed
             .split(',')

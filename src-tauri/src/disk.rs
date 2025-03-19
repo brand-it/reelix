@@ -179,8 +179,7 @@ async fn load_titles(app_handle: &AppHandle, disk: &OpticalDiskInfo) {
 
     match makemkvcon::title_info(app_handle, path).await {
         Ok(results) => {
-            println!("title info {:?}", results.title_info);
-            println!("messages {:?}", results.messages);
+            println!("title info {:#?}", results.title_info);
         }
         Err(e) => {
             println!("Loading title info error {}", e)
