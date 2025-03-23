@@ -1,3 +1,4 @@
+use crate::models::title_info;
 use crate::services::makemkvcon;
 use crate::state::AppState;
 use serde::Serialize;
@@ -17,7 +18,7 @@ pub struct ApiError {
     pub api_key: Option<String>,
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize)]
+#[derive(Debug, Serialize)]
 pub struct OpticalDiskInfo {
     pub name: String,
     pub mount_point: PathBuf,
@@ -27,6 +28,49 @@ pub struct OpticalDiskInfo {
     pub is_removable: bool,
     pub is_read_only: bool,
     pub kind: String,
+    pub titles: Mutex<Vec<title_info::TitleInfo>>,
+}
+
+// Can't clone a Mutex so I'm going to do it my self because I need to be
+// able to clone this object to use in the state management.
+impl Clone for OpticalDiskInfo {
+    fn clone(&self) -> Self {
+        // Clone the titles by locking the mutex and cloning the inner vector.
+        // Note: This will panic if the mutex is poisoned.
+        // Code will try to recover from the poisoned state assuming the data is still usable
+        let cloned_titles = self
+            .titles
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone();
+        OpticalDiskInfo {
+            name: self.name.clone(),
+            mount_point: self.mount_point.clone(),
+            available_space: self.available_space,
+            total_space: self.total_space,
+            file_system: self.file_system.clone(),
+            is_removable: self.is_removable,
+            is_read_only: self.is_read_only,
+            kind: self.kind.clone(),
+            titles: Mutex::new(cloned_titles),
+        }
+    }
+}
+
+// Manually implement PartialEq
+// I don't want to compair the titles because they can change state later on
+// in the process
+impl PartialEq for OpticalDiskInfo {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+            && self.mount_point == other.mount_point
+            && self.available_space == other.available_space
+            && self.total_space == other.total_space
+            && self.file_system == other.file_system
+            && self.is_removable == other.is_removable
+            && self.is_read_only == other.is_read_only
+            && self.kind == other.kind
+    }
 }
 
 pub fn list() {
@@ -57,21 +101,24 @@ pub fn list() {
 
 pub fn opticals() -> Vec<OpticalDiskInfo> {
     let disks = Disks::new_with_refreshed_list();
-
+    let mut opticals = Vec::new();
     disks
         .iter()
         .filter(|disk| is_optical_disk(disk))
-        .map(|disk| OpticalDiskInfo {
-            name: disk.name().to_string_lossy().to_string(),
-            mount_point: disk.mount_point().to_path_buf(),
-            available_space: disk.available_space(),
-            total_space: disk.total_space(),
-            file_system: disk.file_system().to_string_lossy().to_string(),
-            is_removable: disk.is_removable(),
-            is_read_only: disk.is_removable(),
-            kind: format!("{:?}", disk.kind()),
-        })
-        .collect()
+        .for_each(|disk| {
+            opticals.push(OpticalDiskInfo {
+                name: disk.name().to_string_lossy().to_string(),
+                mount_point: disk.mount_point().to_path_buf(),
+                available_space: disk.available_space(),
+                total_space: disk.total_space(),
+                file_system: disk.file_system().to_string_lossy().to_string(),
+                is_removable: disk.is_removable(),
+                is_read_only: disk.is_removable(),
+                kind: format!("{:?}", disk.kind()),
+                titles: Mutex::new(Vec::new()),
+            })
+        });
+    opticals
 }
 
 fn is_optical_disk(disk: &Disk) -> bool {
@@ -85,14 +132,17 @@ fn changes(
     current_opticals: &Vec<OpticalDiskInfo>,
     previous_opticals: &Vec<OpticalDiskInfo>,
 ) -> Vec<diff::Result<OpticalDiskInfo>> {
+    let mut optics = Vec::new();
     diff::slice(previous_opticals, current_opticals)
         .into_iter()
-        .map(|result| match result {
-            diff::Result::Left(info) => diff::Result::Left(info.clone()),
-            diff::Result::Both(info, _) => diff::Result::Both(info.clone(), info.clone()),
-            diff::Result::Right(info) => diff::Result::Right(info.clone()),
-        })
-        .collect()
+        .for_each(|result| match result {
+            diff::Result::Left(info) => optics.push(diff::Result::Left(info.clone())),
+            diff::Result::Both(info, _) => {
+                optics.push(diff::Result::Both(info.clone(), info.clone()))
+            }
+            diff::Result::Right(info) => optics.push(diff::Result::Right(info.clone())),
+        });
+    optics
 }
 
 pub async fn watch_for_changes(sender: broadcast::Sender<Vec<diff::Result<OpticalDiskInfo>>>) {
@@ -154,6 +204,23 @@ fn emit_disk_change(app_handle: &AppHandle) {
         .expect("Failed to emit disks-changed");
 }
 
+fn emit_disk_titles_change(app_handle: &AppHandle) {
+    let state = app_handle.state::<AppState>();
+    let mut context = Context::new();
+    let optical_disks = &state.optical_disks.lock().unwrap().to_vec();
+    context.insert("optical_disks", &unwrap_disks(optical_disks));
+    let result = render_template(
+        &state.tera,
+        "disk_titles/options.html.turbo",
+        &context,
+        None,
+    )
+    .expect("Failed to render disk_titles/options.html.turbo");
+    app_handle
+        .emit("disks-changed", result)
+        .expect("Failed to emit emit_disk_titles_change");
+}
+
 fn unwrap_disk(disk: &Arc<Mutex<OpticalDiskInfo>>) -> OpticalDiskInfo {
     disk.lock().expect("Failed to lock").clone()
 }
@@ -172,14 +239,27 @@ fn contains(
 }
 
 async fn load_titles(app_handle: &AppHandle, disk: &OpticalDiskInfo) {
-    println!("loading disk titles");
-
     let path = &disk.mount_point.to_string_lossy().to_string();
-    println!("loading disk titles {}", path);
+    let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
 
     match makemkvcon::title_info(app_handle, path).await {
         Ok(results) => {
-            println!("title info {:#?}", results.title_info);
+            let optical_disks = state.optical_disks.lock().unwrap();
+            if let Some(disk_arc) = optical_disks.iter().find(|disk_arc| {
+                let d = disk_arc.lock().unwrap();
+                d.mount_point == disk.mount_point
+            }) {
+                disk_arc
+                    .lock()
+                    .unwrap()
+                    .titles
+                    .lock()
+                    .unwrap()
+                    .extend(results.title_infos);
+                println!("Updated Titles: {:?}", disk_arc.lock().unwrap().titles);
+            } else {
+                println!("Disk not found in state.");
+            }
         }
         Err(e) => {
             println!("Loading title info error {}", e)
@@ -197,10 +277,10 @@ fn add_optical_disk(app_handle: &AppHandle, disk: &OpticalDiskInfo) {
     println!("optical_disks: {:?}", optical_disks);
 }
 
-fn remove_optical_disks(app_handle: &AppHandle, disk: OpticalDiskInfo) {
+fn remove_optical_disks(app_handle: &AppHandle, disk: &OpticalDiskInfo) {
     let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
     let mut optical_disks = state.optical_disks.lock().unwrap();
-    optical_disks.retain(|x| *x.lock().unwrap() != disk);
+    optical_disks.retain(|x| *x.lock().unwrap() != *disk);
     println!("optical_disks: {:?}", optical_disks);
 }
 
@@ -218,7 +298,7 @@ pub async fn handle_changes(
                     match result {
                         diff::Result::Left(disk) => {
                             println!("- {:?}", disk);
-                            remove_optical_disks(&app_handle, disk);
+                            remove_optical_disks(&app_handle, &disk);
                             emit_disk_change(&app_handle);
                         }
                         diff::Result::Both(disk, _) => {
@@ -237,6 +317,7 @@ pub async fn handle_changes(
                             add_optical_disk(&app_handle, &disk);
                             emit_disk_change(&app_handle);
                             load_titles(&app_handle, &disk).await;
+                            emit_disk_titles_change(&app_handle);
                         }
                     }
                 }

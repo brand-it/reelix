@@ -172,6 +172,7 @@ pub fn movie(id: u32, query: &str, state: State<'_, AppState>) -> Result<String,
     context.insert("movie", &movie);
     context.insert("query", query);
     context.insert("certification", &certification);
+    context.insert("optical_disks", &state.optical_disks);
     render_template(&state.tera, "movies/show.html.turbo", &context, None)
 }
 

@@ -206,7 +206,7 @@ impl TheMovieDb {
                 Err(err) => return Err(err),
             };
         };
-        println!("text_body {:?}", &text_body);
+        // println!("text_body {:?}", &text_body);
         serde_json::from_str(&text_body).map_err(|e| Error {
             code: 500,
             message: format!("Failed to parse response JSON: {:?}, {:?}", e, text_body),

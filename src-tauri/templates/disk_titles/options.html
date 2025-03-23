@@ -1,0 +1,44 @@
+<div id="disk-title-selector" class="container my-4">
+  {% for optical_disk in optical_disks %}
+  <h3 class="mb-3">{{ optical_disk.name }}</h3>
+  <div class="table-responsive">
+    <table class="table table-striped table-bordered align-middle">
+      <thead class="table-dark">
+        <tr>
+
+          <th>Chapter Count</th>
+          <th>Duration</th>
+          <th>Size</th>
+          <th>Lang</th>
+          <!-- Extra details hidden on smaller screens -->
+          <th class="d-none d-lg-table-cell overflow-hidden">Description</th>
+          <th class="d-none d-lg-table-cell">Bytes</th>
+          <th class="d-none d-lg-table-cell">Angle</th>
+          <th class="d-none d-lg-table-cell">Seg Count</th>
+          <th class="d-none d-lg-table-cell">Seg Map</th>
+          <th class="d-none d-lg-table-cell">Filename</th>
+          <th class="d-none d-lg-table-cell">ID</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for title in optical_disk.titles %}
+        <tr>
+          <td>{{ title.chapter_count | default(value="") }}</td>
+          <td>{{ title.duration | default(value="") }}</td>
+          <td>{{ title.size | default(value="") }}</td>
+          <td>{{ title.lang | default(value="") }}</td>
+          <!-- Extra details -->
+          <td class="d-none d-lg-table-cell overflow-hidden">{{ title.description | default(value="") }}</td>
+          <td class="d-none d-lg-table-cell">{{ title.bytes | default(value="") }}</td>
+          <td class="d-none d-lg-table-cell">{{ title.angle | default(value="") }}</td>
+          <td class="d-none d-lg-table-cell">{{ title.segment_count | default(value="") }}</td>
+          <td class="d-none d-lg-table-cell">{{ title.segment_map | default(value="") }}</td>
+          <td class="d-none d-lg-table-cell">{{ title.filename | default(value="") }}</td>
+          <td class="d-none d-lg-table-cell">{{ title.id }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endfor %}
+</div>
