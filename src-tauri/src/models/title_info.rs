@@ -1,4 +1,6 @@
-#[derive(Debug, Default)]
+use serde::Serialize;
+
+#[derive(Debug, Default, Serialize, Clone, PartialEq)]
 pub struct TitleInfo {
     pub id: i32,
     pub name: Option<String>,

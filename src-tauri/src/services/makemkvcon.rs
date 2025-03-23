@@ -7,13 +7,13 @@ use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 #[derive(Debug)]
 pub struct RunResults {
-    pub title_info: HashMap<i32, title_info::TitleInfo>,
+    pub title_infos: Vec<title_info::TitleInfo>,
     pub drives: Vec<mkv::DRV>,
     pub messages: Vec<mkv::MSG>,
 }
 
 async fn run(mut receiver: Receiver<CommandEvent>) -> RunResults {
-    let mut title_info: HashMap<i32, title_info::TitleInfo> = HashMap::new();
+    let mut title_infos: Vec<title_info::TitleInfo> = Vec::new();
     let mut drives: Vec<mkv::DRV> = Vec::new();
     let mut messages: Vec<mkv::MSG> = Vec::new();
     while let Some(event) = receiver.recv().await {
@@ -24,9 +24,14 @@ async fn run(mut receiver: Receiver<CommandEvent>) -> RunResults {
                 for mkv_data in parsed_stdout {
                     match mkv_data {
                         mkv::MkvData::TINFO(tinfo) => {
-                            let title_info = title_info
-                                .entry(tinfo.id)
-                                .or_insert_with(|| title_info::TitleInfo::new(tinfo.id));
+                            let title_info: &mut title_info::TitleInfo =
+                                match title_infos.iter_mut().find(|t| t.id == tinfo.id) {
+                                    Some(title) => title,
+                                    None => {
+                                        title_infos.push(title_info::TitleInfo::new(tinfo.id));
+                                        title_infos.last_mut().unwrap()
+                                    }
+                                };
                             title_info.set_field(&tinfo.type_code, tinfo.value)
                         }
                         mkv::MkvData::DRV(drv) => drives.push(drv),
@@ -52,7 +57,7 @@ async fn run(mut receiver: Receiver<CommandEvent>) -> RunResults {
         }
     }
     RunResults {
-        title_info: title_info,
+        title_infos: title_infos,
         drives: drives,
         messages: messages,
     }
