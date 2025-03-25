@@ -1,3 +1,5 @@
+use serde::Serialize;
+
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct CINFO {
@@ -39,7 +41,7 @@ pub struct DRV {
     pub disc_name: String,
 }
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, Serialize, Clone)]
 pub struct PRGV {
     pub current: i32,
     pub total: i32,

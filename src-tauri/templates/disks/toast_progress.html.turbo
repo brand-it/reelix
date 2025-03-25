@@ -1,0 +1,5 @@
+<turbo-stream action="replace" target="disk-progress">
+  <template>
+    {% include "disks/toast_progress.html" %}
+  </template>
+</turbo-stream>

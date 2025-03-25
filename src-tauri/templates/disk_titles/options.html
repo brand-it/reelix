@@ -5,7 +5,7 @@
     <table class="table table-striped table-bordered align-middle">
       <thead class="table-dark">
         <tr>
-
+          <th></th>
           <th>Chapter Count</th>
           <th>Duration</th>
           <th>Size</th>
@@ -23,6 +23,10 @@
       <tbody>
         {% for title in optical_disk.titles %}
         <tr>
+          <td><a class="btn"
+              href="/rip_one?mountPoint={{ optical_disk.mount_point | escape }}&titleId={{ title.id }}">RIP
+              ONE</a>
+          </td>
           <td>{{ title.chapter_count | default(value="") }}</td>
           <td>{{ title.duration | default(value="") }}</td>
           <td>{{ title.size | default(value="") }}</td>

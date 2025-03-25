@@ -8,6 +8,7 @@ version = "0.11.0"
 dependencies = [
  "chrono",
  "diff",
+ "dirs",
  "include_dir",
  "lazy_static",
  "serde",

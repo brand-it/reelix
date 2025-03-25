@@ -109,7 +109,8 @@ pub fn run() {
             commands::movie,
             commands::open_browser,
             commands::search,
-            commands::the_movie_db
+            commands::the_movie_db,
+            commands::rip_one
         ])
         .run(tauri::generate_context!())
         .expect("error while running Tauri application");
