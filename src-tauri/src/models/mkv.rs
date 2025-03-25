@@ -45,7 +45,7 @@ pub struct DRV {
 pub struct PRGV {
     pub current: i32,
     pub total: i32,
-    pub pmax: String,
+    pub pmax: i32,
 }
 #[allow(dead_code)]
 #[derive(Debug)]

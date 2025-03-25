@@ -161,18 +161,8 @@ async fn run(mut receiver: Receiver<CommandEvent>, app_handle: AppHandle) -> Run
                             drives.push(drv);
                         }
                         mkv::MkvData::PRGV(prgv) => {
-                            let optical_disks = app_state
-                                .optical_disks
-                                .lock()
-                                .expect("Failed to capture optical_disks for PRGV");
-                            if let Some(disk_arc) = optical_disks.first() {
-                                let disk = disk_arc.lock().expect("Failed to lock disk for PRGV");
-                                *disk
-                                    .progress
-                                    .lock()
-                                    .expect("Failed to capture progress for PRGV") = Some(prgv);
-                                emit_progress(&app_handle);
-                            }
+                            update_disk_progress_state(prgv, &app_handle);
+                            emit_progress(&app_handle);
                         }
                         mkv::MkvData::MSG(msg) => messages.push(msg),
                         _ => {}
@@ -250,37 +240,54 @@ pub async fn title_info(app_handle: &AppHandle, path: &str) -> Result<RunResults
     tauri::async_runtime::spawn(run(receiver, app_handle_clone)).await
 }
 
-fn emit_progress(app_handle: &AppHandle) {
+fn update_disk_progress_state(prgv: mkv::PRGV, app_handle: &AppHandle) {
     let state = app_handle.state::<AppState>();
-
-    // Bind the lock guard to a variable.
     let optical_disks = state
         .optical_disks
         .lock()
-        .expect("Failure to lock optical_disks in emit_progress");
+        .expect("Failed to capture optical_disks for PRGV");
+    if let Some(disk_arc) = optical_disks.first() {
+        let disk = disk_arc.lock().expect("Failed to lock disk for PRGV");
+        *disk
+            .progress
+            .lock()
+            .expect("Failed to capture progress for PRGV") = Some(prgv);
+    }
+}
+fn emit_progress(app_handle: &AppHandle) {
+    let state = app_handle.state::<AppState>();
 
-    // Now borrow the first optical disk.
-    let optical_disk = optical_disks.first().expect("Failure to capture disk");
+    let progress = {
+        let optical_disks = state
+            .optical_disks
+            .lock()
+            .expect("Failure to lock optical_disks in emit_progress");
 
-    let progress = optical_disk
-        .lock()
-        .expect("failure to lock disk")
-        .progress
-        .lock()
-        .expect("failure to lock progress")
-        .clone();
+        if let Some(optical_disk) = optical_disks.first() {
+            optical_disk
+                .lock()
+                .expect("failed to lock disk")
+                .progress
+                .lock()
+                .expect("failure to lock progress")
+                .clone()
+        } else {
+            None
+        }
+    };
+    if progress.is_some() {
+        let mut context = Context::new();
+        context.insert("progress", &progress);
 
-    let mut context = Context::new();
-    context.insert("progress", &progress);
-
-    let result = template::render(
-        &state.tera,
-        "disks/toast_progress.html.turbo",
-        &context,
-        None,
-    )
-    .expect("Failed to render disks/toast_progress.html.turbo");
-    app_handle
-        .emit("disks-changed", result)
-        .expect("Failed to emit disks-changed");
+        let result = template::render(
+            &state.tera,
+            "disks/toast_progress.html.turbo",
+            &context,
+            None,
+        )
+        .expect("Failed to render disks/toast_progress.html.turbo");
+        app_handle
+            .emit("disks-changed", result)
+            .expect("Failed to emit disks-changed");
+    }
 }
