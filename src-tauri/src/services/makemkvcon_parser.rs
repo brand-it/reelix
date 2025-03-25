@@ -125,6 +125,7 @@ pub fn parse_mkv_string(stdout_str: &str) -> Vec<MkvData> {
         if trimmed.is_empty() {
             continue;
         }
+        // standard output info
         println!("{}", trimmed);
         // split by commas, remove surrounding quotes/backslashes from each piece
         let mut parts: Vec<String> = trimmed

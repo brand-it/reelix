@@ -1,22 +1,15 @@
+use crate::models::mkv::PRGV;
 use crate::models::title_info;
-use crate::services::makemkvcon;
+use crate::services::{makemkvcon, template};
 use crate::state::AppState;
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use sysinfo::{Disk, Disks};
 use tauri::{AppHandle, Emitter, Manager};
-use tera::{Context, Tera};
+use tera::Context;
 use tokio::sync::broadcast;
 use tokio::time::{sleep, Duration};
-
-type ErrorHandler = fn(&tera::Error) -> ApiError;
-#[derive(Debug, Clone)]
-pub struct ApiError {
-    pub code: u16,
-    pub message: String,
-    pub api_key: Option<String>,
-}
 
 #[derive(Debug, Serialize)]
 pub struct OpticalDiskInfo {
@@ -28,7 +21,9 @@ pub struct OpticalDiskInfo {
     pub is_removable: bool,
     pub is_read_only: bool,
     pub kind: String,
+    pub disc_name: Mutex<String>,
     pub titles: Mutex<Vec<title_info::TitleInfo>>,
+    pub progress: Mutex<Option<PRGV>>,
 }
 
 // Can't clone a Mutex so I'm going to do it my self because I need to be
@@ -43,6 +38,16 @@ impl Clone for OpticalDiskInfo {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clone();
+        let cloned_disk_name = self
+            .disc_name
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone();
+        let cloned_progress = self
+            .progress
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone();
         OpticalDiskInfo {
             name: self.name.clone(),
             mount_point: self.mount_point.clone(),
@@ -52,7 +57,9 @@ impl Clone for OpticalDiskInfo {
             is_removable: self.is_removable,
             is_read_only: self.is_read_only,
             kind: self.kind.clone(),
+            disc_name: Mutex::new(cloned_disk_name),
             titles: Mutex::new(cloned_titles),
+            progress: Mutex::new(cloned_progress),
         }
     }
 }
@@ -78,7 +85,7 @@ pub fn list() {
 
     for disk in &disks {
         let fs_bytes = disk.file_system();
-        let fs_str = fs_bytes.to_str().unwrap();
+        let fs_str = fs_bytes.to_str().expect("Failed to load fs_bytes");
         println!("#-------------------DISK---------------------#");
         // Check if removable + known optical file system
         if disk.is_removable() && (fs_str.contains("udf") || fs_str.contains("iso9660")) {
@@ -115,7 +122,9 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
                 is_removable: disk.is_removable(),
                 is_read_only: disk.is_removable(),
                 kind: format!("{:?}", disk.kind()),
+                disc_name: Mutex::new(String::new()),
                 titles: Mutex::new(Vec::new()),
+                progress: Mutex::new(None),
             })
         });
     opticals
@@ -147,48 +156,22 @@ fn changes(
 
 pub async fn watch_for_changes(sender: broadcast::Sender<Vec<diff::Result<OpticalDiskInfo>>>) {
     let mut previous_opticals = Vec::new();
-    println!("Watching for changes on Disk");
+    println!("Stared watching for changes to optical Disks....");
     loop {
         let current_opticals = opticals();
 
         if current_opticals != previous_opticals {
             let diff_result = changes(&current_opticals, &previous_opticals);
 
-            println!(
-                "Change detected: old={:?}, new={:?}",
-                previous_opticals, current_opticals
-            );
             match sender.send(diff_result) {
                 Ok(num_receivers) => println!("Broadcast sent to {} receivers", num_receivers),
                 Err(err) => eprintln!("Broadcast send failed: {:?}", err),
             }
             previous_opticals = current_opticals;
         }
+        // Failure to sleep ever second means we use 100% of our CPU DUH
+        // Hey future "human" improve this scanner system...or don't if it works why change it
         sleep(Duration::from_secs(1)).await;
-    }
-}
-
-fn render_template(
-    tera: &Tera,
-    template_path: &str,
-    context: &Context,
-    on_error: Option<ErrorHandler>,
-) -> Result<String, ApiError> {
-    match tera.render(template_path, context) {
-        Ok(result) => Ok(result),
-        Err(e) => {
-            eprintln!("Template rendering error: {:#?}", e);
-            // Custom Error handler if provided
-            if let Some(handler) = on_error {
-                return Err(handler(&e));
-            } else {
-                return Err(ApiError {
-                    code: 500,
-                    message: format!("An error occurred: {e}"),
-                    api_key: None,
-                });
-            }
-        }
     }
 }
 
@@ -197,7 +180,7 @@ fn emit_disk_change(app_handle: &AppHandle) {
     let mut context = Context::new();
     let optical_disks = &state.optical_disks.lock().unwrap().to_vec();
     context.insert("optical_disks", &unwrap_disks(optical_disks));
-    let result = render_template(&state.tera, "disks/options.html.turbo", &context, None)
+    let result = template::render(&state.tera, "disks/options.html.turbo", &context, None)
         .expect("Failed to render disks/options.html.turbo");
     app_handle
         .emit("disks-changed", result)
@@ -209,7 +192,7 @@ fn emit_disk_titles_change(app_handle: &AppHandle) {
     let mut context = Context::new();
     let optical_disks = &state.optical_disks.lock().unwrap().to_vec();
     context.insert("optical_disks", &unwrap_disks(optical_disks));
-    let result = render_template(
+    let result = template::render(
         &state.tera,
         "disk_titles/options.html.turbo",
         &context,
@@ -244,19 +227,28 @@ async fn load_titles(app_handle: &AppHandle, disk: &OpticalDiskInfo) {
 
     match makemkvcon::title_info(app_handle, path).await {
         Ok(results) => {
-            let optical_disks = state.optical_disks.lock().unwrap();
+            let optical_disks = state
+                .optical_disks
+                .lock()
+                .expect("failed to grab optical disks");
             if let Some(disk_arc) = optical_disks.iter().find(|disk_arc| {
-                let d = disk_arc.lock().unwrap();
+                let d = disk_arc.lock().expect("Failed to grab disk arc");
                 d.mount_point == disk.mount_point
             }) {
-                disk_arc
-                    .lock()
-                    .unwrap()
+                let locked_disk = disk_arc.lock().expect("Failed to grab disk");
+                locked_disk
                     .titles
                     .lock()
-                    .unwrap()
+                    .expect("failed to get titles")
                     .extend(results.title_infos);
-                println!("Updated Titles: {:?}", disk_arc.lock().unwrap().titles);
+
+                let mut disk_name = locked_disk
+                    .disc_name
+                    .lock()
+                    .expect("failed to grab disk_name");
+                if let Some(drive) = results.drives.first() {
+                    *disk_name = drive.disc_name.to_string();
+                }
             } else {
                 println!("Disk not found in state.");
             }
@@ -270,18 +262,22 @@ async fn load_titles(app_handle: &AppHandle, disk: &OpticalDiskInfo) {
 fn add_optical_disk(app_handle: &AppHandle, disk: &OpticalDiskInfo) {
     let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
     let optical_disk = Arc::new(Mutex::new(disk.clone()));
-    let mut optical_disks = state.optical_disks.lock().unwrap();
+    let mut optical_disks = state
+        .optical_disks
+        .lock()
+        .expect("Failed to grab optical disks");
     if !contains(&optical_disks, &optical_disk) {
         optical_disks.push(optical_disk);
     }
-    println!("optical_disks: {:?}", optical_disks);
 }
 
 fn remove_optical_disks(app_handle: &AppHandle, disk: &OpticalDiskInfo) {
     let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
-    let mut optical_disks = state.optical_disks.lock().unwrap();
-    optical_disks.retain(|x| *x.lock().unwrap() != *disk);
-    println!("optical_disks: {:?}", optical_disks);
+    let mut optical_disks = state
+        .optical_disks
+        .lock()
+        .expect("Failed to grab optical disks");
+    optical_disks.retain(|x| *x.lock().expect("Failed to grab optical disk info") != *disk);
 }
 
 /// A separate async task that listens for changes and reacts to them.
@@ -297,23 +293,16 @@ pub async fn handle_changes(
                 for result in event {
                     match result {
                         diff::Result::Left(disk) => {
-                            println!("- {:?}", disk);
+                            println!("- {:?}", disk.name);
                             remove_optical_disks(&app_handle, &disk);
                             emit_disk_change(&app_handle);
+                            emit_disk_titles_change(&app_handle);
                         }
                         diff::Result::Both(disk, _) => {
-                            println!("  {:?}", disk);
+                            println!("? {:?}", disk.name);
                         }
                         diff::Result::Right(disk) => {
-                            println!("+ {:?}", disk);
-                            println!("Name: {:?}", disk.name);
-                            println!("Mount Point: {:?}", disk.mount_point);
-                            println!("Available Space: {}", disk.available_space);
-                            println!("Total Space: {}", disk.total_space);
-                            println!("Kind: {}", disk.kind);
-                            println!("File System: {:?}", disk.file_system);
-                            println!("Is Removable: {}", disk.is_removable);
-                            println!("Is Read Only: {}", disk.is_read_only);
+                            println!("+ {:?}", disk.name);
                             add_optical_disk(&app_handle, &disk);
                             emit_disk_change(&app_handle);
                             load_titles(&app_handle, &disk).await;

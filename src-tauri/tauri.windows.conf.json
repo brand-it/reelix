@@ -1,5 +1,14 @@
 {
   "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
     "resources": {
       "windows-x86_64/libdriveio.dll": "libdriveio.dll",
       "windows-x86_64/libffm.dll": "libffm.dll",

@@ -1,21 +1,144 @@
 use crate::models::{mkv, title_info};
-use crate::services::makemkvcon_parser;
-use std::collections::HashMap;
+use crate::services::{makemkvcon_parser, template};
+use crate::state::AppState;
+use std::path::PathBuf;
 use tauri::async_runtime::Receiver;
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
+use tera::Context;
 #[derive(Debug)]
 pub struct RunResults {
     pub title_infos: Vec<title_info::TitleInfo>,
     pub drives: Vec<mkv::DRV>,
     pub messages: Vec<mkv::MSG>,
 }
-
-async fn run(mut receiver: Receiver<CommandEvent>) -> RunResults {
+// makemkvcon [options] Command Parameters
+// https://www.makemkv.com/developers/usage.txt
+//
+// General options:
+//
+// --messages=file
+// Output all messages to file. Following special file names are recognized:
+// -stdout - stdout
+// -stderr - stderr
+// -null - disable output
+// Default is stdout
+//
+// --progress=file
+// Output all progress messages to file. The same special file names as in --messages are recognized with additional
+// value "-same" to output to the same file as messages. Naturally --progress should follow --messages in this case.
+// Default is no output.
+//
+// --debug[=file]
+// Enables debug messages and optionally changes the location of debug file. Default: program preferences.
+//
+// --directio=true/false
+// Enables or disables direct disc access. Default: program preferences.
+//
+// --noscan
+// Don't access any media during disc scan and do not check for media insertion and removal. Helpful when other
+// applications already accessing discs in other drives.
+//
+// --cache=size
+// Specifies size of read cache in megabytes used by MakeMKV. By default program uses huge amount of memory. About 128
+// MB is recommended for streaming and backup, 512MB for DVD conversion and 1024MB for Blu-ray conversion.
+//
+// Streaming options:
+//
+// --upnp=true/false
+// Enable or disable UPNP streaming. Default: program preferences.
+//
+// --bindip=address string
+// Specify IP address to bind. Default: None, UPNP server binds to the first available address and web
+// server listens on all available addresses.
+//
+// --bindport=port
+// Specify web server port to bind. Default: 51000.
+//
+// Backup options:
+//
+// --decrypt
+// Decrypt stream files during backup. Default: no decryption.
+//
+// Conversion options:
+//
+// --minlength=seconds
+// Specify minimum title length. Default: program preferences.
+//
+// Automation options.
+//
+// -r , --robot
+// Enables automation mode. Program will output more information in a format that is easier to parse. All output is
+// line-based and output is flushed on line end. All strings are quoted, all control characters and quotes are
+// backlash-escaped. If you automate this program it is highly recommended to use this option. Some options make
+// reference to apdefs.h file that can be found in MakeMKV open-source package, included with version for Linux.
+// These values will not change in future versions.
+//
+// Message formats:
+//
+// Message output
+// MSG:code,flags,count,message,format,param0,param1,...
+// code - unique message code, should be used to identify particular string in language-neutral way.
+// flags - message flags, see AP_UIMSG_xxx flags in apdefs.h
+// count - number of parameters
+// message - raw message string suitable for output
+// format - format string used for message. This string is localized and subject to change, unlike message code.
+// paramX - parameter for message
+//
+// Current and total progress title
+// PRGC:code,id,name
+// PRGT:code,id,name
+// code - unique message code
+// id - operation sub-id
+// name - name string
+//
+// Progress bar values for current and total progress
+// PRGV:current,total,max
+// current - current progress value
+// total - total progress value
+// max - maximum possible value for a progress bar, constant
+//
+// Drive scan messages
+// DRV:index,visible,enabled,flags,drive name,disc name
+// index - drive index
+// visible - set to 1 if drive is present
+// enabled - set to 1 if drive is accessible
+// flags - media flags, see AP_DskFsFlagXXX in apdefs.h
+// drive name - drive name string
+// disc name - disc name string
+//
+// Disc information output messages
+// TCOUT:count
+// count - titles count
+//
+// Disc, title and stream information
+// CINFO:id,code,value
+// TINFO:id,code,value
+// SINFO:id,code,value
+//
+// id - attribute id, see AP_ItemAttributeId in apdefs.h
+// code - message code if attribute value is a constant string
+// value - attribute value
+//
+// Examples:
+//
+// Copy all titles from first disc and save as MKV files:
+// makemkvcon mkv disc:0 all c:\folder
+//
+// List all available drives
+// makemkvcon -r --cache=1 info disc:9999
+//
+// Backup first disc decrypting all video files in automation mode with progress output
+// makemkvcon backup --decrypt --cache=16 --noscan -r --progress=-same disc:0 c:\folder
+//
+// Start streaming server with all output suppressed on a specific address and port
+// makemvcon stream --upnp=1 --cache=128 --bindip=192.168.1.102 --bindport=51000 --messages=-none
+async fn run(mut receiver: Receiver<CommandEvent>, app_handle: AppHandle) -> RunResults {
     let mut title_infos: Vec<title_info::TitleInfo> = Vec::new();
     let mut drives: Vec<mkv::DRV> = Vec::new();
     let mut messages: Vec<mkv::MSG> = Vec::new();
+    let app_state = app_handle.state::<AppState>();
     while let Some(event) = receiver.recv().await {
         match event {
             CommandEvent::Stdout(line_bytes) => {
@@ -34,13 +157,28 @@ async fn run(mut receiver: Receiver<CommandEvent>) -> RunResults {
                                 };
                             title_info.set_field(&tinfo.type_code, tinfo.value)
                         }
-                        mkv::MkvData::DRV(drv) => drives.push(drv),
+                        mkv::MkvData::DRV(drv) => {
+                            drives.push(drv);
+                        }
+                        mkv::MkvData::PRGV(prgv) => {
+                            let optical_disks = app_state
+                                .optical_disks
+                                .lock()
+                                .expect("Failed to capture optical_disks for PRGV");
+                            if let Some(disk_arc) = optical_disks.first() {
+                                let disk = disk_arc.lock().expect("Failed to lock disk for PRGV");
+                                *disk
+                                    .progress
+                                    .lock()
+                                    .expect("Failed to capture progress for PRGV") = Some(prgv);
+                                emit_progress(&app_handle);
+                            }
+                        }
                         mkv::MkvData::MSG(msg) => messages.push(msg),
                         _ => {}
                     }
                 }
             }
-
             CommandEvent::Stderr(line_bytes) => {
                 let line = String::from_utf8_lossy(&line_bytes);
                 eprintln!("Stderr: {}", line);
@@ -63,13 +201,86 @@ async fn run(mut receiver: Receiver<CommandEvent>) -> RunResults {
     }
 }
 
+pub async fn rip_title(
+    app_handle: &AppHandle,
+    path: &str,
+    title_id: &str,
+    tmp_dir: &PathBuf,
+) -> Result<RunResults, tauri::Error> {
+    let sidecar_command = app_handle
+        .shell()
+        .sidecar("makemkvcon")
+        .expect("failed to get makemkvcon for rip_title");
+    let disc_arg = format!("dev:{}", path);
+    let tmp_dir_str = tmp_dir.to_string_lossy();
+    let args = [
+        "mkv",
+        &disc_arg,
+        title_id,
+        &tmp_dir_str,
+        "--progress=-same",
+        "--robot",
+        "--profile=\"FLAC\"",
+    ];
+
+    println!("Executing command: makemkvcon {}", args.join(" "));
+
+    let (receiver, mut _child) = sidecar_command
+        .args(args)
+        .spawn()
+        .expect("Failed to spawn sidecar for rip_title");
+    let app_handle_clone = app_handle.clone();
+
+    tauri::async_runtime::spawn(run(receiver, app_handle_clone)).await
+}
+
 pub async fn title_info(app_handle: &AppHandle, path: &str) -> Result<RunResults, tauri::Error> {
-    let sidecar_command = app_handle.shell().sidecar("makemkvcon").unwrap();
+    let sidecar_command = app_handle
+        .shell()
+        .sidecar("makemkvcon")
+        .expect("failed to load makemkvcon");
     let disc_arg = format!("file:{}", path);
     let (receiver, mut _child) = sidecar_command
         .args(["-r", "info", &disc_arg])
         .spawn()
-        .expect("Failed to spawn sidecar");
+        .expect("Failed to spawn sidecar for title_info");
     println!("mkvcommand {}", disc_arg);
-    tauri::async_runtime::spawn(run(receiver)).await
+    let app_handle_clone = app_handle.clone();
+
+    tauri::async_runtime::spawn(run(receiver, app_handle_clone)).await
+}
+
+fn emit_progress(app_handle: &AppHandle) {
+    let state = app_handle.state::<AppState>();
+
+    // Bind the lock guard to a variable.
+    let optical_disks = state
+        .optical_disks
+        .lock()
+        .expect("Failure to lock optical_disks in emit_progress");
+
+    // Now borrow the first optical disk.
+    let optical_disk = optical_disks.first().expect("Failure to capture disk");
+
+    let progress = optical_disk
+        .lock()
+        .expect("failure to lock disk")
+        .progress
+        .lock()
+        .expect("failure to lock progress")
+        .clone();
+
+    let mut context = Context::new();
+    context.insert("progress", &progress);
+
+    let result = template::render(
+        &state.tera,
+        "disks/toast_progress.html.turbo",
+        &context,
+        None,
+    )
+    .expect("Failed to render disks/toast_progress.html.turbo");
+    app_handle
+        .emit("disks-changed", result)
+        .expect("Failed to emit disks-changed");
 }
