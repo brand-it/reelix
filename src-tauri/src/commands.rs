@@ -263,7 +263,7 @@ pub fn rip_one(
 
     template::render(
         &state.tera,
-        "search/index.html.turbo",
+        "disks/toast_progress.html.turbo",
         &Context::new(),
         None,
     )
