@@ -4,9 +4,9 @@ mod models;
 mod services;
 mod state;
 
+use crate::models::optical_disk_info::OpticalDiskInfo;
 use chrono::DateTime;
 use chrono::NaiveDate;
-use disk::OpticalDiskInfo;
 use include_dir::{include_dir, Dir};
 use state::AppState;
 use std::collections::HashMap;
@@ -38,7 +38,7 @@ fn add_templates_from_dir(tera: &mut Tera, dir: &Dir) {
 }
 
 fn spawn_disk_listener(app: &mut App) {
-    let (sender, receiver) = broadcast::channel::<Vec<diff::Result<disk::OpticalDiskInfo>>>(16);
+    let (sender, receiver) = broadcast::channel::<Vec<diff::Result<OpticalDiskInfo>>>(16);
     tauri::async_runtime::spawn(async move {
         disk::watch_for_changes(sender).await;
     });

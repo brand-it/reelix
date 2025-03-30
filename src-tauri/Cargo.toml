@@ -28,10 +28,10 @@ tera = ">=1.20.0"
 [dependencies]
 chrono = ">=0.4.40"
 diff = ">=0.1.13"
-dirs = "6.0.0"
+dirs = ">=6.0.0"
 include_dir = ">=0.7.4"
 lazy_static = ">=1.5.0"
-serde = { version = "1", features = ["derive"] }
+serde = { version = ">=1", features = ["derive"] }
 serde_json = ">=1"
 sysinfo = ">=0.33.1"
 tauri = { version = ">=2", features = [] }

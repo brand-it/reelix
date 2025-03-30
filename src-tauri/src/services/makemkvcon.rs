@@ -1,12 +1,14 @@
+use crate::models::optical_disk_info::DiskId;
 use crate::models::{mkv, title_info};
 use crate::services::{makemkvcon_parser, template};
 use crate::state::AppState;
 use std::path::PathBuf;
 use tauri::async_runtime::Receiver;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 use tera::Context;
+
 #[derive(Debug)]
 pub struct RunResults {
     pub title_infos: Vec<title_info::TitleInfo>,
@@ -134,11 +136,14 @@ pub struct RunResults {
 //
 // Start streaming server with all output suppressed on a specific address and port
 // makemvcon stream --upnp=1 --cache=128 --bindip=192.168.1.102 --bindport=51000 --messages=-none
-async fn run(mut receiver: Receiver<CommandEvent>, app_handle: AppHandle) -> RunResults {
+async fn run(
+    disk_id: DiskId,
+    mut receiver: Receiver<CommandEvent>,
+    app_handle: AppHandle,
+) -> RunResults {
     let mut title_infos: Vec<title_info::TitleInfo> = Vec::new();
     let mut drives: Vec<mkv::DRV> = Vec::new();
     let mut messages: Vec<mkv::MSG> = Vec::new();
-    let app_state = app_handle.state::<AppState>();
     while let Some(event) = receiver.recv().await {
         match event {
             CommandEvent::Stdout(line_bytes) => {
@@ -161,8 +166,8 @@ async fn run(mut receiver: Receiver<CommandEvent>, app_handle: AppHandle) -> Run
                             drives.push(drv);
                         }
                         mkv::MkvData::PRGV(prgv) => {
-                            update_disk_progress_state(prgv, &app_handle);
-                            emit_progress(&app_handle);
+                            update_disk_progress_state(&disk_id, prgv, &app_handle);
+                            emit_progress(&disk_id, &app_handle);
                         }
                         mkv::MkvData::MSG(msg) => messages.push(msg),
                         _ => {}
@@ -193,7 +198,7 @@ async fn run(mut receiver: Receiver<CommandEvent>, app_handle: AppHandle) -> Run
 
 pub async fn rip_title(
     app_handle: &AppHandle,
-    path: &str,
+    disk_id: &DiskId,
     title_id: &str,
     tmp_dir: &PathBuf,
 ) -> Result<RunResults, tauri::Error> {
@@ -201,6 +206,23 @@ pub async fn rip_title(
         .shell()
         .sidecar("makemkvcon")
         .expect("failed to get makemkvcon for rip_title");
+    let state = app_handle.state::<AppState>();
+
+    let path: String = {
+        match state.find_optical_disk_by_id(disk_id) {
+            Some(disk) => disk
+                .lock()
+                .expect("Failed to acquire lock on disk from disk_arc in rip_title command")
+                .disc_name
+                .lock()
+                .expect("failed to acquire lock on disk name from disk_arc in rip_title command")
+                .clone(),
+            None => {
+                println!("Failed to find disk using id {:?}", disk_id);
+                "".to_string()
+            }
+        }
+    };
     let disc_arg = format!("dev:{}", path);
     let tmp_dir_str = tmp_dir.to_string_lossy();
     let args = [
@@ -221,10 +243,14 @@ pub async fn rip_title(
         .expect("Failed to spawn sidecar for rip_title");
     let app_handle_clone = app_handle.clone();
 
-    tauri::async_runtime::spawn(run(receiver, app_handle_clone)).await
+    tauri::async_runtime::spawn(run(disk_id.clone(), receiver, app_handle_clone)).await
 }
 
-pub async fn title_info(app_handle: &AppHandle, path: &str) -> Result<RunResults, tauri::Error> {
+pub async fn title_info(
+    disk_id: DiskId,
+    app_handle: &AppHandle,
+    path: &str,
+) -> Result<RunResults, tauri::Error> {
     let sidecar_command = app_handle
         .shell()
         .sidecar("makemkvcon")
@@ -237,42 +263,40 @@ pub async fn title_info(app_handle: &AppHandle, path: &str) -> Result<RunResults
     println!("mkvcommand {}", disc_arg);
     let app_handle_clone = app_handle.clone();
 
-    tauri::async_runtime::spawn(run(receiver, app_handle_clone)).await
+    tauri::async_runtime::spawn(run(disk_id, receiver, app_handle_clone)).await
 }
 
-fn update_disk_progress_state(prgv: mkv::PRGV, app_handle: &AppHandle) {
+fn update_disk_progress_state(disk_id: &DiskId, prgv: mkv::PRGV, app_handle: &AppHandle) {
     let state = app_handle.state::<AppState>();
-    let optical_disks = state
-        .optical_disks
-        .lock()
-        .expect("Failed to capture optical_disks for PRGV");
-    if let Some(disk_arc) = optical_disks.first() {
-        let disk = disk_arc.lock().expect("Failed to lock disk for PRGV");
-        *disk
-            .progress
-            .lock()
-            .expect("Failed to capture progress for PRGV") = Some(prgv);
-    }
+    match state.find_optical_disk_by_id(disk_id) {
+        Some(disk) => {
+            *disk
+                .lock()
+                .expect("failed to lock disk in update_disk_progress_state")
+                .progress
+                .lock()
+                .expect("Failed to capture progress for PRGV") = Some(prgv)
+        }
+        None => println!("Failed to find disk using {:?}", disk_id),
+    };
 }
-fn emit_progress(app_handle: &AppHandle) {
+
+fn emit_progress(disk_id: &DiskId, app_handle: &AppHandle) {
     let state = app_handle.state::<AppState>();
 
     let progress = {
-        let optical_disks = state
-            .optical_disks
-            .lock()
-            .expect("Failure to lock optical_disks in emit_progress");
-
-        if let Some(optical_disk) = optical_disks.first() {
-            optical_disk
+        match state.find_optical_disk_by_id(disk_id) {
+            Some(disk) => disk
                 .lock()
                 .expect("failed to lock disk")
                 .progress
                 .lock()
                 .expect("failure to lock progress")
-                .clone()
-        } else {
-            None
+                .clone(),
+            None => {
+                println!("failed to find disk using {:?}", disk_id);
+                None
+            }
         }
     };
     if progress.is_some() {
