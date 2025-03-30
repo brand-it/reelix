@@ -23,8 +23,7 @@
       <tbody>
         {% for title in optical_disk.titles %}
         <tr>
-          <td><a class="btn"
-              href="/rip_one?mountPoint={{ optical_disk.mount_point | escape }}&titleId={{ title.id }}">RIP
+          <td><a class="btn" href="/rip_one?diskId={{ optical_disk.id }}&titleId={{ title.id }}">RIP
               ONE</a>
           </td>
           <td>{{ title.chapter_count | default(value="") }}</td>

@@ -31,7 +31,8 @@
     },
     "store:default",
     "store:default",
-    "shell:default"
+    "shell:default",
+    "http:default"
   ],
   "platforms": [
     "macOS"

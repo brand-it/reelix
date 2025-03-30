@@ -1,9 +1,9 @@
+use crate::models::optical_disk_info::DiskId;
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use crate::services::{makemkvcon, template, the_movie_db};
 use crate::state::AppState;
 use serde::Serialize;
 use serde_json::json;
-use std::path::PathBuf;
 use tauri::State;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_store::StoreExt;
@@ -225,44 +225,30 @@ pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, templa
 
 #[tauri::command]
 pub fn rip_one(
-    mount_point: &str,
+    disk_id: &str,
     title_id: &str,
-    state: State<'_, AppState>,
+    app_state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, template::ApiError> {
-    let optical_disks = &state
-        .optical_disks
-        .lock()
-        .expect("Failed to acquire lock on optical_disks in rip_one command");
-    if let Some(disk_arc) = optical_disks.iter().find(|disk_arc| {
-        let d = disk_arc.lock().expect(
-            "Failed to acquire lock on a disk_arc while iterating optical_disks in rip_one command",
-        );
-        d.mount_point == PathBuf::from(mount_point)
-    }) {
-        let path = disk_arc
-            .lock()
-            .expect("Failed to acquire lock on disk from disk_arc in rip_one command")
-            .disc_name
-            .lock()
-            .expect("failed to acquire lock on disk name from disk_arc in rip_on command")
-            .clone();
-        if let Some(home_dir) = dirs::home_dir() {
-            let movies_dir = home_dir.join("Movies");
-            let title_id = title_id.to_string();
-
-            tauri::async_runtime::spawn(async move {
-                let _ = makemkvcon::rip_title(&app_handle, &path, &title_id, &movies_dir).await;
-            });
-        } else {
-            eprintln!("Could not determine home directory in rip_one command.");
+    match DiskId::try_from(disk_id) {
+        Ok(id) => {
+            if let Some(home_dir) = dirs::home_dir() {
+                let movies_dir = home_dir.join("Movies");
+                let title_id = title_id.to_string();
+                tauri::async_runtime::spawn(async move {
+                    let _ = makemkvcon::rip_title(&app_handle, &id, &title_id, &movies_dir).await;
+                });
+            } else {
+                eprintln!("Could not determine home directory in rip_one command.");
+            }
         }
-    } else {
-        println!("Disk not found in state during rip_one command.");
+        Err(e) => {
+            eprintln!("Error parsing disk_id in rip_one: {}", e);
+        }
     }
 
     template::render(
-        &state.tera,
+        &app_state.tera,
         "disks/toast_progress.html.turbo",
         &Context::new(),
         None,
