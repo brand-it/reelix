@@ -2,8 +2,17 @@
 
 <select class="form-select" id="disk-selector" aria-label="Floating label select example">
   {% if optical_disks %}
+  {% if selected_optical_disk_id %}
+  {{ macros::option(selected=false, name='Select Optical Disk', value='') }}
+  {% else %}
+  {{ macros::option(selected=true, name='Select Optical Disk', value='') }}
+  {% endif %}
   {% for optical_disk in optical_disks %}
+  {% if selected_optical_disk_id and optical_disk.id == selected_optical_disk_id %}
+  {{ macros::option(selected=true, name=optical_disk.name, value=optical_disk.mount_point) }}
+  {% else %}
   {{ macros::option(selected=false, name=optical_disk.name, value=optical_disk.mount_point) }}
+  {% endif %}
   {% endfor %}
   {% else %}
   {{ macros::option(selected=true, name='No Optical Drive Detected', value='') }}

@@ -19,6 +19,7 @@ pub struct OpticalDiskInfo {
     pub disc_name: Mutex<String>,
     pub titles: Mutex<Vec<title_info::TitleInfo>>,
     pub progress: Mutex<Option<PRGV>>,
+    pub pid: Mutex<Option<u32>>,
 }
 
 static NEXT_DISK_ID: AtomicU64 = AtomicU64::new(1);
@@ -154,6 +155,7 @@ impl Clone for OpticalDiskInfo {
             disc_name: Mutex::new(cloned_disk_name),
             titles: Mutex::new(cloned_titles),
             progress: Mutex::new(cloned_progress),
+            pid: Mutex::new(None),
         }
     }
 }

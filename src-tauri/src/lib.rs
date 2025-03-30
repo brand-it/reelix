@@ -92,6 +92,7 @@ pub fn run() {
         tera: Arc::new(tera),
         the_movie_db_key: Arc::new(Mutex::new(String::new())),
         optical_disks: Arc::new(Mutex::new(Vec::<Arc<Mutex<OpticalDiskInfo>>>::new())),
+        selected_optical_disk_id: Arc::new(Mutex::new(None)),
     };
 
     tauri::Builder::default()

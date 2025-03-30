@@ -9,6 +9,7 @@ pub struct AppState {
     pub tera: Arc<Tera>,
     pub the_movie_db_key: Arc<Mutex<String>>,
     pub optical_disks: Arc<Mutex<Vec<Arc<Mutex<OpticalDiskInfo>>>>>,
+    pub selected_optical_disk_id: Arc<Mutex<Option<DiskId>>>,
 }
 
 impl AppState {
