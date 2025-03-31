@@ -11,7 +11,9 @@ use include_dir::{include_dir, Dir};
 use state::AppState;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use sysinfo::{Signal, System};
+use sysinfo::System;
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::TrayIconBuilder;
 use tauri::{App, Manager};
 use tauri_plugin_store::StoreExt;
 use tera::{to_value, Result as TeraResult, Tera, Value};
@@ -100,6 +102,39 @@ fn kill_process(pid: u32) {
     }
 }
 
+fn setup_tray_icon(app: &mut App) {
+    let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)
+        .expect("failed to create quit item");
+    let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)
+        .expect("failed to create quit item");
+    let menu =
+        Menu::with_items(app, &[&show_i, &quit_i]).expect("Failed to define menu with items");
+
+    let tray_icon =
+        tauri::image::Image::from_path("icons/menu-icon.png").expect("failure to load tray icon");
+    TrayIconBuilder::new()
+        .icon(tray_icon)
+        .menu(&menu)
+        .show_menu_on_left_click(true)
+        .on_menu_event(|app, event| match event.id.as_ref() {
+            "quit" => {
+                app.exit(0);
+            }
+            "show" => {
+                let webview_window = app
+                    .get_webview_window("main")
+                    .expect("failed to find main window");
+                webview_window.show().expect("failed to show window");
+                webview_window.set_focus();
+            }
+            _ => {
+                println!("menu item {:?} not handled", event.id);
+            }
+        })
+        .build(app)
+        .expect("Failed to build tray icon");
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut tera = Tera::default();
@@ -120,7 +155,15 @@ pub fn run() {
         .setup(|app| {
             setup_store(app);
             spawn_disk_listener(app);
+            setup_tray_icon(app);
             Ok(())
+        })
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
+                window.hide().unwrap();
+                api.prevent_close();
+            }
+            _ => {}
         })
         .invoke_handler(tauri::generate_handler![
             commands::index,
