@@ -1,5 +1,6 @@
 use crate::models::optical_disk_info::DiskId;
 use crate::models::{mkv, title_info};
+use crate::progress_tracker::{Base, ProgressOptions};
 use crate::services::{makemkvcon_parser, template};
 use crate::state::AppState;
 use std::ffi::OsStr;
@@ -145,6 +146,7 @@ async fn run(
     let mut title_infos: Vec<title_info::TitleInfo> = Vec::new();
     let mut drives: Vec<mkv::DRV> = Vec::new();
     let mut messages: Vec<mkv::MSG> = Vec::new();
+    // let progress_bar = 
     while let Some(event) = receiver.recv().await {
         match event {
             CommandEvent::Stdout(line_bytes) => {
@@ -287,6 +289,19 @@ fn update_disk_progress_state(disk_id: &DiskId, prgv: mkv::PRGV, app_handle: &Ap
         }
         None => println!("Failed to find disk using {:?}", disk_id),
     };
+}
+
+fn update_progress_eta() {
+    let options = ProgressOptions {
+        total: Some(200),
+        autostart: true,
+        autofinish: true,
+        starting_at: Some(0),
+        projector_type: Some("smoothed".to_string()),
+        projector_strength: Some(0.1),
+        projector_at: Some(0.0),
+    };
+    let pb = Base::new(Some(options));
 }
 
 fn emit_progress(disk_id: &DiskId, app_handle: &AppHandle) {
