@@ -41,7 +41,15 @@ pub fn index(state: State<'_, AppState>) -> Result<String, template::ApiError> {
     };
     let mut context = Context::new();
     context.insert("optical_disks", &state.optical_disks);
-
+    let binding_selected_disk_id = state
+        .selected_optical_disk_id
+        .lock()
+        .expect("failed to lock selected optical disk id");
+    let guard_selected_disk_id = binding_selected_disk_id.as_ref();
+    if guard_selected_disk_id.is_some() {
+        let disk_id = guard_selected_disk_id.unwrap().clone();
+        context.insert("selected_optical_disk_id", &disk_id);
+    }
     template::render(&state.tera, "search/index.html.turbo", &context, None)
 }
 
@@ -236,7 +244,7 @@ pub fn rip_one(
                 let movies_dir = home_dir.join("Movies");
                 let title_id = title_id.to_string();
                 tauri::async_runtime::spawn(async move {
-                    let _ = makemkvcon::rip_title(&app_handle, &id, &title_id, &movies_dir).await;
+                    makemkvcon::rip_title(&app_handle, &id, &title_id, &movies_dir).await;
                 });
             } else {
                 eprintln!("Could not determine home directory in rip_one command.");

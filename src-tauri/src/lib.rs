@@ -11,6 +11,7 @@ use include_dir::{include_dir, Dir};
 use state::AppState;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use sysinfo::{Signal, System};
 use tauri::{App, Manager};
 use tauri_plugin_store::StoreExt;
 use tera::{to_value, Result as TeraResult, Tera, Value};
@@ -83,6 +84,22 @@ pub fn to_year(value: &Value, _args: &HashMap<String, Value>) -> TeraResult<Valu
     to_value(formatted).map_err(Into::into)
 }
 
+fn kill_process(pid: u32) {
+    println!("Killing process {:?}", pid);
+    let mut system = System::new_all();
+    system.refresh_all();
+    let sys_pid = sysinfo::Pid::from_u32(pid.clone());
+    if let Some(process) = system.process(sys_pid) {
+        if process.kill() {
+            println!("Killed {:?}", pid);
+        } else {
+            println!("Failed to kill process with PID {}", pid);
+        }
+    } else {
+        println!("Process with PID {} not found", pid);
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut tera = Tera::default();
@@ -92,9 +109,10 @@ pub fn run() {
         tera: Arc::new(tera),
         the_movie_db_key: Arc::new(Mutex::new(String::new())),
         optical_disks: Arc::new(Mutex::new(Vec::<Arc<Mutex<OpticalDiskInfo>>>::new())),
+        selected_optical_disk_id: Arc::new(Mutex::new(None)),
     };
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_http::init())
@@ -112,6 +130,26 @@ pub fn run() {
             commands::the_movie_db,
             commands::rip_one
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building Tauri application");
+
+    // Run the application with a run event callback to shutdown sidecar process
+    app.run(|app_handle, event| {
+        if let tauri::RunEvent::Exit = event {
+            let state = app_handle.state::<AppState>();
+            let disks = state
+                .optical_disks
+                .lock()
+                .expect("Failed to get lock on optical_disks");
+
+            // Iterate over the optical disks and kill the associated PID if it exists
+            for disk in disks.iter() {
+                let locked_disk = disk.lock().expect("failed to get lock on disk");
+                let pid = locked_disk.pid.lock().expect("failed to lock pid");
+                if pid.is_some() {
+                    kill_process(pid.expect("pid is not defined"));
+                }
+            }
+        }
+    });
 }

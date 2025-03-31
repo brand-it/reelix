@@ -35,6 +35,7 @@ pub fn list() {
     }
 }
 
+
 pub fn opticals() -> Vec<OpticalDiskInfo> {
     let disks = Disks::new_with_refreshed_list();
     let mut opticals = Vec::new();
@@ -55,6 +56,7 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
                 disc_name: Mutex::new(String::new()),
                 titles: Mutex::new(Vec::new()),
                 progress: Mutex::new(None),
+                pid: Mutex::new(None),
             })
         });
     opticals
@@ -84,9 +86,7 @@ fn changes(
     optics
 }
 
-pub async fn watch_for_changes(
-    sender: broadcast::Sender<Vec<diff::Result<OpticalDiskInfo>>>,
-) {
+pub async fn watch_for_changes(sender: broadcast::Sender<Vec<diff::Result<OpticalDiskInfo>>>) {
     let mut previous_opticals = Vec::new();
     println!("Stared watching for changes to optical Disks....");
     loop {
@@ -112,6 +112,15 @@ fn emit_disk_change(app_handle: &AppHandle) {
     let mut context = Context::new();
     let optical_disks = &state.optical_disks.lock().unwrap().to_vec();
     context.insert("optical_disks", &unwrap_disks(optical_disks));
+    let binding_selected_disk_id = state
+        .selected_optical_disk_id
+        .lock()
+        .expect("failed to lock selected optical disk id");
+    let guard_selected_disk_id = binding_selected_disk_id.as_ref();
+    if guard_selected_disk_id.is_some() {
+        let disk_id = guard_selected_disk_id.unwrap().clone();
+        context.insert("selected_optical_disk_id", &disk_id);
+    }
     let result = template::render(&state.tera, "disks/options.html.turbo", &context, None)
         .expect("Failed to render disks/options.html.turbo");
     app_handle
@@ -136,15 +145,11 @@ fn emit_disk_titles_change(app_handle: &AppHandle) {
         .expect("Failed to emit emit_disk_titles_change");
 }
 
-fn unwrap_disk(
-    disk: &Arc<Mutex<OpticalDiskInfo>>,
-) -> OpticalDiskInfo {
+fn unwrap_disk(disk: &Arc<Mutex<OpticalDiskInfo>>) -> OpticalDiskInfo {
     disk.lock().expect("Failed to lock").clone()
 }
 
-fn unwrap_disks(
-    disks: &Vec<Arc<Mutex<OpticalDiskInfo>>>,
-) -> Vec<OpticalDiskInfo> {
+fn unwrap_disks(disks: &Vec<Arc<Mutex<OpticalDiskInfo>>>) -> Vec<OpticalDiskInfo> {
     disks.iter().map(|disk| unwrap_disk(disk)).collect()
 }
 
@@ -169,31 +174,26 @@ async fn load_titles(app_handle: &AppHandle, disk_id: DiskId) {
         }
     };
 
-    match makemkvcon::title_info(disk_id, app_handle, &path).await {
-        Ok(results) => {
-            match state.find_optical_disk_by_id(&disk_id) {
-                Some(disk) => {
-                    let locked_disk = disk.lock().expect("Failed to grab disk");
-                    locked_disk
-                        .titles
-                        .lock()
-                        .expect("failed to get titles")
-                        .extend(results.title_infos);
+    let results = makemkvcon::title_info(disk_id, app_handle, &path).await;
 
-                    let mut disk_name = locked_disk
-                        .disc_name
-                        .lock()
-                        .expect("failed to grab disk_name");
-                    if let Some(drive) = results.drives.first() {
-                        *disk_name = drive.disc_name.to_string();
-                    }
-                }
-                None => println!("Disk not found in state."),
-            };
+    match state.find_optical_disk_by_id(&disk_id) {
+        Some(disk) => {
+            let locked_disk = disk.lock().expect("Failed to grab disk");
+            locked_disk
+                .titles
+                .lock()
+                .expect("failed to get titles")
+                .extend(results.title_infos);
+
+            let mut disk_name = locked_disk
+                .disc_name
+                .lock()
+                .expect("failed to grab disk_name");
+            if let Some(drive) = results.drives.first() {
+                *disk_name = drive.disc_name.to_string();
+            }
         }
-        Err(e) => {
-            println!("Loading title info error {}", e)
-        }
+        None => println!("Disk not found in state."),
     }
 }
 
@@ -218,6 +218,30 @@ fn remove_optical_disks(app_handle: &AppHandle, disk: &OpticalDiskInfo) {
     optical_disks.retain(|x| *x.lock().expect("Failed to grab optical disk info") != *disk);
 }
 
+pub fn set_default_selected_disk(app_handle: &AppHandle, disk_id: DiskId) {
+    let state = app_handle.state::<AppState>();
+    let mut selected_optical_disk_id = state
+        .selected_optical_disk_id
+        .lock()
+        .expect("failed to lock selected disk ID");
+    if selected_optical_disk_id.is_none() {
+        println!("changed default selected optical disk to {:?}", disk_id);
+        *selected_optical_disk_id = Some(disk_id.clone());
+    }
+}
+
+pub fn clear_selected_disk(app_handle: &AppHandle, disk_id: DiskId) {
+    let state = app_handle.state::<AppState>();
+    let mut selected_optical_disk_id = state
+        .selected_optical_disk_id
+        .lock()
+        .expect("failed to lock selected disk ID");
+
+    if selected_optical_disk_id.as_ref() == Some(&disk_id) {
+        *selected_optical_disk_id = None;
+    }
+}
+
 /// A separate async task that listens for changes and reacts to them.
 pub async fn handle_changes(
     mut receiver: broadcast::Receiver<Vec<diff::Result<OpticalDiskInfo>>>,
@@ -232,6 +256,7 @@ pub async fn handle_changes(
                     match result {
                         diff::Result::Left(disk) => {
                             println!("- {:?}", disk.name);
+                            clear_selected_disk(&app_handle, disk.id);
                             remove_optical_disks(&app_handle, &disk);
                             emit_disk_change(&app_handle);
                             emit_disk_titles_change(&app_handle);
@@ -242,6 +267,7 @@ pub async fn handle_changes(
                         diff::Result::Right(disk) => {
                             println!("+ {:?}", disk.name);
                             add_optical_disk(&app_handle, &disk);
+                            set_default_selected_disk(&app_handle, disk.id);
                             emit_disk_change(&app_handle);
                             load_titles(&app_handle, disk.id).await;
                             emit_disk_titles_change(&app_handle);

@@ -2,6 +2,7 @@ use crate::models::optical_disk_info::DiskId;
 use crate::models::{mkv, title_info};
 use crate::services::{makemkvcon_parser, template};
 use crate::state::AppState;
+use std::ffi::OsStr;
 use std::path::PathBuf;
 use tauri::async_runtime::Receiver;
 use tauri::{AppHandle, Emitter, Manager};
@@ -196,74 +197,83 @@ async fn run(
     }
 }
 
+fn spawn<I: IntoIterator<Item = S> + std::fmt::Debug + std::marker::Copy, S: AsRef<OsStr>>(
+    app_handle: &AppHandle,
+    disk_id: &DiskId,
+    args: I,
+) -> Receiver<CommandEvent> {
+    let sidecar_command = app_handle
+        .shell()
+        .sidecar("makemkvcon")
+        .expect("failed to get makemkvcon");
+    let (receiver, child) = sidecar_command
+        .args(args)
+        .spawn()
+        .expect("Failed to spawn sidecar for rip_title");
+    let state = app_handle.state::<AppState>();
+    match state.find_optical_disk_by_id(disk_id) {
+        Some(disk) => {
+            let guard_disk = disk
+                .lock()
+                .expect("Failed to acquire lock on disk from disk_arc in spawn command");
+            let mut pid = guard_disk.pid.lock().expect("failed to lock pid");
+            *pid = Some(child.pid());
+        }
+        None => println!("failed to assign the sidecar to disk {:?}", disk_id),
+    }
+    println!("Executing command: makemkvcon {:?}", args);
+    receiver
+}
+
 pub async fn rip_title(
     app_handle: &AppHandle,
     disk_id: &DiskId,
     title_id: &str,
     tmp_dir: &PathBuf,
-) -> Result<RunResults, tauri::Error> {
-    let sidecar_command = app_handle
-        .shell()
-        .sidecar("makemkvcon")
-        .expect("failed to get makemkvcon for rip_title");
+) {
     let state = app_handle.state::<AppState>();
 
-    let path: String = {
-        match state.find_optical_disk_by_id(disk_id) {
-            Some(disk) => disk
-                .lock()
-                .expect("Failed to acquire lock on disk from disk_arc in rip_title command")
-                .disc_name
-                .lock()
-                .expect("failed to acquire lock on disk name from disk_arc in rip_title command")
-                .clone(),
-            None => {
-                println!("Failed to find disk using id {:?}", disk_id);
-                "".to_string()
-            }
+    match state.find_optical_disk_by_id(disk_id) {
+        Some(disk) => {
+            let path = {
+                disk.lock()
+                    .expect("Failed to acquire lock on disk from disk_arc in rip_title command")
+                    .disc_name
+                    .lock()
+                    .expect(
+                        "failed to acquire lock on disk name from disk_arc in rip_title command",
+                    )
+                    .clone()
+            };
+
+            let disc_arg = format!("dev:{}", path);
+            let tmp_dir_str = tmp_dir.to_string_lossy();
+            let args = [
+                "mkv",
+                &disc_arg,
+                title_id,
+                &tmp_dir_str,
+                "--progress=-same",
+                "--robot",
+                "--profile=\"FLAC\"",
+            ];
+
+            let receiver = spawn(app_handle, disk_id, args);
+            let app_handle_clone = app_handle.clone();
+            run(disk_id.clone(), receiver, app_handle_clone).await;
         }
-    };
-    let disc_arg = format!("dev:{}", path);
-    let tmp_dir_str = tmp_dir.to_string_lossy();
-    let args = [
-        "mkv",
-        &disc_arg,
-        title_id,
-        &tmp_dir_str,
-        "--progress=-same",
-        "--robot",
-        "--profile=\"FLAC\"",
-    ];
-
-    println!("Executing command: makemkvcon {}", args.join(" "));
-
-    let (receiver, mut _child) = sidecar_command
-        .args(args)
-        .spawn()
-        .expect("Failed to spawn sidecar for rip_title");
-    let app_handle_clone = app_handle.clone();
-
-    tauri::async_runtime::spawn(run(disk_id.clone(), receiver, app_handle_clone)).await
+        None => {
+            println!("Failed to find disk using id {:?}", disk_id);
+        }
+    }
 }
 
-pub async fn title_info(
-    disk_id: DiskId,
-    app_handle: &AppHandle,
-    path: &str,
-) -> Result<RunResults, tauri::Error> {
-    let sidecar_command = app_handle
-        .shell()
-        .sidecar("makemkvcon")
-        .expect("failed to load makemkvcon");
-    let disc_arg = format!("file:{}", path);
-    let (receiver, mut _child) = sidecar_command
-        .args(["-r", "info", &disc_arg])
-        .spawn()
-        .expect("Failed to spawn sidecar for title_info");
-    println!("mkvcommand {}", disc_arg);
+pub async fn title_info(disk_id: DiskId, app_handle: &AppHandle, path: &str) -> RunResults {
+    let disk_args = format!("file:{}", path);
+    let receiver = spawn(app_handle, &disk_id, ["-r", "info", &disk_args]);
     let app_handle_clone = app_handle.clone();
 
-    tauri::async_runtime::spawn(run(disk_id, receiver, app_handle_clone)).await
+    run(disk_id, receiver, app_handle_clone).await
 }
 
 fn update_disk_progress_state(disk_id: &DiskId, prgv: mkv::PRGV, app_handle: &AppHandle) {
