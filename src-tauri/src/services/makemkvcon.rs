@@ -197,7 +197,7 @@ async fn run(
     }
 }
 
-fn spawn<I: IntoIterator<Item = S>, S: AsRef<OsStr>>(
+fn spawn<I: IntoIterator<Item = S> + std::fmt::Debug + std::marker::Copy, S: AsRef<OsStr>>(
     app_handle: &AppHandle,
     disk_id: &DiskId,
     args: I,
@@ -206,7 +206,7 @@ fn spawn<I: IntoIterator<Item = S>, S: AsRef<OsStr>>(
         .shell()
         .sidecar("makemkvcon")
         .expect("failed to get makemkvcon");
-    let (receiver, mut child) = sidecar_command
+    let (receiver, child) = sidecar_command
         .args(args)
         .spawn()
         .expect("Failed to spawn sidecar for rip_title");
@@ -221,6 +221,7 @@ fn spawn<I: IntoIterator<Item = S>, S: AsRef<OsStr>>(
         }
         None => println!("failed to assign the sidecar to disk {:?}", disk_id),
     }
+    println!("Executing command: makemkvcon {:?}", args);
     receiver
 }
 
@@ -257,8 +258,6 @@ pub async fn rip_title(
                 "--profile=\"FLAC\"",
             ];
 
-            println!("Executing command: makemkvcon {}", args.join(" "));
-
             let receiver = spawn(app_handle, disk_id, args);
             let app_handle_clone = app_handle.clone();
             run(disk_id.clone(), receiver, app_handle_clone).await;
@@ -270,16 +269,8 @@ pub async fn rip_title(
 }
 
 pub async fn title_info(disk_id: DiskId, app_handle: &AppHandle, path: &str) -> RunResults {
-    let sidecar_command = app_handle
-        .shell()
-        .sidecar("makemkvcon")
-        .expect("failed to load makemkvcon");
-    let disc_arg = format!("file:{}", path);
-    let (receiver, mut _child) = sidecar_command
-        .args(["-r", "info", &disc_arg])
-        .spawn()
-        .expect("Failed to spawn sidecar for title_info");
-    println!("mkvcommand {}", disc_arg);
+    let disk_args = format!("file:{}", path);
+    let receiver = spawn(app_handle, &disk_id, ["-r", "info", &disk_args]);
     let app_handle_clone = app_handle.clone();
 
     run(disk_id, receiver, app_handle_clone).await

@@ -35,6 +35,7 @@ pub fn list() {
     }
 }
 
+
 pub fn opticals() -> Vec<OpticalDiskInfo> {
     let disks = Disks::new_with_refreshed_list();
     let mut opticals = Vec::new();
