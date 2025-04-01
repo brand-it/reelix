@@ -21,7 +21,7 @@ use tokio::sync::broadcast;
 
 // Embed the `templates` directory into the binary
 static TEMPLATES_DIR: Dir = include_dir!("templates");
-const ICON_BYTES: &[u8] = include_bytes!("icons/menu-icon.png");
+const ICON_BYTES: &[u8] = include_bytes!("../icons/menu-icon.png");
 
 fn add_templates_from_dir(tera: &mut Tera, dir: &Dir) {
     for file in dir.files() {
