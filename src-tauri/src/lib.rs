@@ -21,6 +21,7 @@ use tokio::sync::broadcast;
 
 // Embed the `templates` directory into the binary
 static TEMPLATES_DIR: Dir = include_dir!("templates");
+const ICON_BYTES: &[u8] = include_bytes!("icons/menu-icon.png");
 
 fn add_templates_from_dir(tera: &mut Tera, dir: &Dir) {
     for file in dir.files() {
@@ -109,9 +110,7 @@ fn setup_tray_icon(app: &mut App) {
         .expect("failed to create quit item");
     let menu =
         Menu::with_items(app, &[&show_i, &quit_i]).expect("Failed to define menu with items");
-
-    let tray_icon =
-        tauri::image::Image::from_path("icons/menu-icon.png").expect("failure to load tray icon");
+    let tray_icon = tauri::image::Image::from_bytes(ICON_BYTES).expect("failure to load tray icon");
     TrayIconBuilder::new()
         .icon(tray_icon)
         .menu(&menu)
