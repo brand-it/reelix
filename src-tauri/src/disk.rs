@@ -9,32 +9,31 @@ use tera::Context;
 use tokio::sync::broadcast;
 use tokio::time::{sleep, Duration};
 
-pub fn list() {
-    let disks: Disks = Disks::new_with_refreshed_list();
+// pub fn list() {
+//     let disks: Disks = Disks::new_with_refreshed_list();
 
-    for disk in &disks {
-        let fs_bytes = disk.file_system();
-        let fs_str = fs_bytes.to_str().expect("Failed to load fs_bytes");
-        println!("#-------------------DISK---------------------#");
-        // Check if removable + known optical file system
-        if disk.is_removable() && (fs_str.contains("udf") || fs_str.contains("iso9660")) {
-            println!("Likely optical media:");
-            println!("  Name: {:?}", disk.name());
-            println!("  Mount Point: {:?}", disk.mount_point());
-            println!("  Available Space: {}", disk.available_space());
-            println!("  Total Space: {}", disk.total_space());
-            println!("  Kind: {}", disk.kind());
-            println!("  File System: {:?}", disk.file_system());
-            println!("  Is Removable: {}", disk.is_removable());
-            println!("  Is Read Only: {}", disk.is_read_only());
-            println!("  Usage: {:?}", disk.usage());
-        } else {
-            println!("Non-optical or unrecognized: {:?}", disk.name());
-        }
-        println!("#-------------------END DISK-----------------#");
-    }
-}
-
+//     for disk in &disks {
+//         let fs_bytes = disk.file_system();
+//         let fs_str = fs_bytes.to_str().expect("Failed to load fs_bytes");
+//         println!("#-------------------DISK---------------------#");
+//         // Check if removable + known optical file system
+//         if disk.is_removable() && (fs_str.contains("udf") || fs_str.contains("iso9660")) {
+//             println!("Likely optical media:");
+//             println!("  Name: {:?}", disk.name());
+//             println!("  Mount Point: {:?}", disk.mount_point());
+//             println!("  Available Space: {}", disk.available_space());
+//             println!("  Total Space: {}", disk.total_space());
+//             println!("  Kind: {}", disk.kind());
+//             println!("  File System: {:?}", disk.file_system());
+//             println!("  Is Removable: {}", disk.is_removable());
+//             println!("  Is Read Only: {}", disk.is_read_only());
+//             println!("  Usage: {:?}", disk.usage());
+//         } else {
+//             println!("Non-optical or unrecognized: {:?}", disk.name());
+//         }
+//         println!("#-------------------END DISK-----------------#");
+//     }
+// }
 
 pub fn opticals() -> Vec<OpticalDiskInfo> {
     let disks = Disks::new_with_refreshed_list();

@@ -32,7 +32,8 @@
     "store:default",
     "store:default",
     "shell:default",
-    "http:default"
+    "http:default",
+    "notification:default"
   ],
   "platforms": [
     "macOS"

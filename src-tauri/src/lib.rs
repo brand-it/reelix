@@ -5,18 +5,15 @@ mod services;
 mod state;
 
 use crate::models::optical_disk_info::OpticalDiskInfo;
-use chrono::DateTime;
-use chrono::NaiveDate;
 use include_dir::{include_dir, Dir};
 use state::AppState;
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use sysinfo::System;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{App, Manager};
 use tauri_plugin_store::StoreExt;
-use tera::{to_value, Result as TeraResult, Tera, Value};
+use tera::Tera;
 use tokio::sync::broadcast;
 
 // Embed the `templates` directory into the binary
@@ -69,23 +66,23 @@ fn setup_store(app: &mut App) {
 }
 
 /// Custom filter that formats a datetime string into "YYYY"
-pub fn to_year(value: &Value, _args: &HashMap<String, Value>) -> TeraResult<Value> {
-    let date_str = value
-        .as_str()
-        .ok_or("format_date filter: expected a string")?;
+// pub fn to_year(value: &Value, _args: &HashMap<String, Value>) -> TeraResult<Value> {
+//     let date_str = value
+//         .as_str()
+//         .ok_or("format_date filter: expected a string")?;
 
-    // Try parsing the string as an RFC3339 datetime.
-    let formatted = if let Ok(dt) = DateTime::parse_from_rfc3339(date_str) {
-        dt.format("%Y").to_string()
-    } else if let Ok(date) = NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
-        // Fallback: if it's already just a date, use it.
-        date.format("%Y").to_string()
-    } else {
-        return Err(format!("format_date filter: failed to parse date: {}", date_str).into());
-    };
+//     // Try parsing the string as an RFC3339 datetime.
+//     let formatted = if let Ok(dt) = DateTime::parse_from_rfc3339(date_str) {
+//         dt.format("%Y").to_string()
+//     } else if let Ok(date) = NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
+//         // Fallback: if it's already just a date, use it.
+//         date.format("%Y").to_string()
+//     } else {
+//         return Err(format!("format_date filter: failed to parse date: {}", date_str).into());
+//     };
 
-    to_value(formatted).map_err(Into::into)
-}
+//     to_value(formatted).map_err(Into::into)
+// }
 
 fn kill_process(pid: u32) {
     println!("Killing process {:?}", pid);
@@ -123,8 +120,14 @@ fn setup_tray_icon(app: &mut App) {
                 let webview_window = app
                     .get_webview_window("main")
                     .expect("failed to find main window");
-                webview_window.show().expect("failed to show window");
-                webview_window.set_focus();
+                match webview_window.show() {
+                    Ok(_e) => {
+                        let _ = webview_window.set_focus();
+                    }
+                    Err(_e) => {
+                        println!("Failed to show window");
+                    }
+                };
             }
             _ => {
                 println!("menu item {:?} not handled", event.id);
@@ -137,7 +140,6 @@ fn setup_tray_icon(app: &mut App) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut tera = Tera::default();
-    tera.register_filter("to_year", to_year);
     add_templates_from_dir(&mut tera, &TEMPLATES_DIR);
     let app_state: AppState = AppState {
         tera: Arc::new(tera),
@@ -147,6 +149,7 @@ pub fn run() {
     };
 
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_http::init())
