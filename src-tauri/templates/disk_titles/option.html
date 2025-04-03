@@ -19,9 +19,11 @@
       </tr>
     </thead>
     <tbody>
+      {% if optical_disk.titles | length > 0 %}
       {% for title in optical_disk.titles %}
       <tr>
-        <td><a class="btn" href="/rip_one?diskId={{ optical_disk.id }}&titleId={{ title.id }}">RIP
+        <td><a class="btn" data-rip-one-target="link" data-action="click->rip-one#rip"
+            data-disk-id="{{ optical_disk.id }}" data-title-id="{{ title.id }}">RIP
             ONE</a>
         </td>
         <td>{{ title.chapter_count | default(value="") }}</td>
@@ -38,6 +40,16 @@
         <td class="d-none d-lg-table-cell">{{ title.id }}</td>
       </tr>
       {% endfor %}
+      {% else %}
+      <tr>
+        <td colspan="13" class="text-center">
+          <div class="d-flex justify-content-center align-items-center py-3">
+            <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+            <span class="ms-2">Loading title info…</span>
+          </div>
+        </td>
+      </tr>
+      {% endif %}
     </tbody>
   </table>
 </div>

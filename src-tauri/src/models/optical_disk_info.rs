@@ -32,9 +32,9 @@ impl DiskId {
         DiskId(NEXT_DISK_ID.fetch_add(1, Ordering::Relaxed))
     }
 
-    pub fn from_any<Trait: Into<DiskId>>(id: Trait) -> Self {
-        id.into()
-    }
+    // pub fn from_any<Trait: Into<DiskId>>(id: Trait) -> Self {
+    //     id.into()
+    // }
 }
 
 // From unsigned types

@@ -1,10 +1,14 @@
+use crate::models::movie_db;
 use crate::models::optical_disk_info::DiskId;
+use crate::services::converter::{cast_to_i32, cast_to_u32};
+use crate::services::plex::{create_dir, find_movie, rename_file};
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use crate::services::{makemkvcon, template, the_movie_db};
 use crate::state::AppState;
 use serde::Serialize;
 use serde_json::json;
 use tauri::State;
+use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_shell::ShellExt;
 use tauri_plugin_store::StoreExt;
 use tera::Context;
@@ -12,7 +16,7 @@ use tera::Context;
 #[derive(Serialize)]
 struct Search {
     query: String,
-    search: the_movie_db::SearchResponse,
+    search: movie_db::SearchResponse,
 }
 
 // This is the entry point, basically it decides what to first show the user
@@ -137,7 +141,11 @@ pub fn movie(
         .find(|entry| entry.iso_3166_1 == "US")
         .and_then(|us| us.release_dates.first())
         .map(|rd| rd.certification.trim());
-    context.insert("movie", &movie);
+    let year = movie.year().unwrap_or(0u32).to_string();
+    let year_title = movie.title_year();
+    println!("MOVIE Data {} {} {:?}", year, year_title, movie);
+    context.insert("movie", &movie_db::MovieView::from(movie));
+
     context.insert("query", query);
     context.insert("certification", &certification);
     context.insert("optical_disks", &state.optical_disks);
@@ -235,21 +243,50 @@ pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, templa
 pub fn rip_one(
     disk_id: &str,
     title_id: &str,
+    mvdb_id: &str,
     app_state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, template::ApiError> {
+    let title_id = cast_to_u32(title_id.to_string());
+    let mvdb_id = cast_to_u32(mvdb_id.to_string());
     match DiskId::try_from(disk_id) {
-        Ok(id) => {
-            if let Some(home_dir) = dirs::home_dir() {
-                let movies_dir = home_dir.join("Movies");
-                let title_id = title_id.to_string();
+        Ok(id) => match find_movie(&app_handle, mvdb_id) {
+            Ok(movie) => {
+                let movie_dir = create_dir(&movie);
+
                 tauri::async_runtime::spawn(async move {
-                    makemkvcon::rip_title(&app_handle, &id, &title_id, &movies_dir).await;
+                    let results =
+                        makemkvcon::rip_title(&app_handle, &id, title_id, &movie_dir).await;
+                    match results {
+                        Ok(_r) => match rename_file(&app_handle, &movie, id, title_id) {
+                            Ok(p) => {
+                                let file_path = p.to_string_lossy().to_string();
+                                app_handle
+                                    .notification()
+                                    .builder()
+                                    .title("Reelix")
+                                    .body(format!("Finished Ripping {}", &file_path))
+                                    .show()
+                                    .unwrap();
+                            }
+                            Err(e) => {
+                                app_handle
+                                    .notification()
+                                    .builder()
+                                    .title("Reelix")
+                                    .body(format!("Error Ripping {}", &e))
+                                    .show()
+                                    .unwrap();
+                            }
+                        },
+                        Err(message) => {
+                            println!("failed {}", message);
+                        }
+                    }
                 });
-            } else {
-                eprintln!("Could not determine home directory in rip_one command.");
             }
-        }
+            Err(e) => eprintln!("Failure {}", e.message),
+        },
         Err(e) => {
             eprintln!("Error parsing disk_id in rip_one: {}", e);
         }

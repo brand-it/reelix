@@ -1,6 +1,7 @@
 use crate::models::mkv::{
     MkvData, ParseError, CINFO, DRV, MSG, PRGC, PRGT, PRGV, SINFO, TCOUNT, TINFO,
 };
+use crate::services::converter::{cast_to_i32, cast_to_u32};
 
 fn tinfo_code_legend(code: String) -> String {
     match cast_to_i32(code) {
@@ -21,19 +22,13 @@ fn tinfo_code_legend(code: String) -> String {
     }
     .to_string()
 }
-fn cast_to_i32(number_string: String) -> i32 {
-    match number_string.parse::<i32>() {
-        Ok(num) => num,
-        Err(_e) => 0,
-    }
-}
 
 fn define_type<I: IntoIterator<Item = String>>(type_str: &str, fields: I) -> MkvData {
     match type_str {
         "CINFO" => {
             let mut iter = fields.into_iter();
             MkvData::CINFO(CINFO {
-                id: cast_to_i32(iter.next().unwrap()),
+                id: cast_to_u32(iter.next().unwrap()),
                 type_: iter.next().unwrap(),
                 code: iter.next().unwrap(),
                 value: iter.collect::<Vec<String>>().join(","),
@@ -42,7 +37,7 @@ fn define_type<I: IntoIterator<Item = String>>(type_str: &str, fields: I) -> Mkv
         "TINFO" => {
             let mut iter = fields.into_iter();
             MkvData::TINFO(TINFO {
-                id: cast_to_i32(iter.next().unwrap()),
+                id: cast_to_u32(iter.next().unwrap()),
                 type_code: tinfo_code_legend(iter.next().unwrap()),
                 code: iter.next().unwrap(),
                 value: iter.collect::<Vec<String>>().join(","),
@@ -51,7 +46,7 @@ fn define_type<I: IntoIterator<Item = String>>(type_str: &str, fields: I) -> Mkv
         "SINFO" => {
             let mut iter = fields.into_iter();
             MkvData::SINFO(SINFO {
-                id: cast_to_i32(iter.next().unwrap()),
+                id: cast_to_u32(iter.next().unwrap()),
                 type_: iter.next().unwrap(),
                 code: iter.next().unwrap(),
                 value: iter.collect::<Vec<String>>().join(","),
@@ -84,7 +79,7 @@ fn define_type<I: IntoIterator<Item = String>>(type_str: &str, fields: I) -> Mkv
             let mut iter = fields.into_iter();
             MkvData::PRGT(PRGT {
                 code: iter.next().unwrap(),
-                id: cast_to_i32(iter.next().unwrap()),
+                id: cast_to_u32(iter.next().unwrap()),
                 name: iter.collect::<Vec<String>>().join(","),
             })
         }
@@ -92,7 +87,7 @@ fn define_type<I: IntoIterator<Item = String>>(type_str: &str, fields: I) -> Mkv
             let mut iter = fields.into_iter();
             MkvData::PRGC(PRGC {
                 code: iter.next().unwrap(),
-                id: cast_to_i32(iter.next().unwrap()),
+                id: cast_to_u32(iter.next().unwrap()),
                 name: iter.collect::<Vec<String>>().join(","),
             })
         }

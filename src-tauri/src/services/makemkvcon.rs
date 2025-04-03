@@ -228,9 +228,9 @@ fn spawn<I: IntoIterator<Item = S> + std::fmt::Debug + std::marker::Copy, S: AsR
 pub async fn rip_title(
     app_handle: &AppHandle,
     disk_id: &DiskId,
-    title_id: &str,
+    title_id: u32,
     tmp_dir: &PathBuf,
-) {
+) -> Result<RunResults, String> {
     let state = app_handle.state::<AppState>();
 
     match state.find_optical_disk_by_id(disk_id) {
@@ -251,7 +251,7 @@ pub async fn rip_title(
             let args = [
                 "mkv",
                 &disc_arg,
-                title_id,
+                &title_id.to_string(),
                 &tmp_dir_str,
                 "--progress=-same",
                 "--robot",
@@ -260,11 +260,9 @@ pub async fn rip_title(
 
             let receiver = spawn(app_handle, disk_id, args);
             let app_handle_clone = app_handle.clone();
-            run(disk_id.clone(), receiver, app_handle_clone).await;
+            Ok(run(disk_id.clone(), receiver, app_handle_clone).await)
         }
-        None => {
-            println!("Failed to find disk using id {:?}", disk_id);
-        }
+        None => Err(format!("Failed to find disk using id {:?}", disk_id)),
     }
 }
 

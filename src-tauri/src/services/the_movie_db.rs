@@ -1,13 +1,15 @@
+use crate::models::movie_db::{MovieReleaseDatesResponse, MovieResponse, SearchResponse};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-// use tauri::http::response;
 use tauri_plugin_http::reqwest::blocking::Client;
+
 // Struct for the TMDB Client
 pub struct TheMovieDb {
     api_key: String,
     language: String,
     client: Client,
 }
+
 #[derive(Serialize, Deserialize)]
 pub struct Error {
     pub code: u16,
@@ -21,94 +23,6 @@ pub struct SearchError {
     success: bool,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct MovieResponse {
-    pub adult: bool,
-    pub backdrop_path: Option<String>,
-    pub genres: Vec<MovieGenre>,
-    pub homepage: String,
-    pub id: u32,
-    pub imdb_id: String,
-    pub origin_country: Vec<String>,
-    pub original_language: String,
-    pub original_title: String,
-    pub overview: String,
-    pub popularity: f32,
-    pub poster_path: Option<String>,
-    pub release_date: Option<String>,
-    pub revenue: i32,
-    pub runtime: i32,
-    pub title: String,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct MovieGenre {
-    pub id: u32,
-    pub name: String,
-}
-
-// Struct to represent the full response
-#[derive(Serialize, Deserialize)]
-pub struct SearchResponse {
-    page: u32,
-    results: Vec<SearchResult>,
-    total_pages: u32,
-    total_results: u32,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct SearchResult {
-    #[serde(default)]
-    name: String,
-    #[serde(default)]
-    original_name: String,
-    adult: bool,
-    backdrop_path: Option<String>,
-    #[serde(default)]
-    genre_ids: Vec<u32>,
-    id: u32,
-    media_type: String,
-    #[serde(default)]
-    original_language: String,
-    original_title: Option<String>,
-    #[serde(default)]
-    overview: String,
-    popularity: f64,
-    profile_path: Option<String>,
-    poster_path: Option<String>,
-    release_date: Option<String>,
-    first_air_date: Option<String>,
-    title: Option<String>,
-    #[serde(default)]
-    video: bool,
-    #[serde(default)]
-    vote_average: f64,
-    #[serde(default)]
-    vote_count: u32,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct MovieReleaseDatesResponse {
-    pub id: u32,
-    pub results: Vec<CountryReleaseDates>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CountryReleaseDates {
-    pub iso_3166_1: String,
-    pub release_dates: Vec<ReleaseDate>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ReleaseDate {
-    pub certification: String,
-    pub descriptors: Vec<String>,
-    pub iso_639_1: String,
-    pub note: String,
-    pub release_date: String,
-    #[serde(rename = "type")]
-    pub release_type: u32,
-}
 impl TheMovieDb {
     pub fn new(api_key: String, language: String) -> Self {
         TheMovieDb {
@@ -123,7 +37,7 @@ impl TheMovieDb {
     // let language = "en-US".to_string();
     // let movie_db = TheMovieDb::new(api_key, language);
 
-    // // Example query to search for "Inception"
+    // Example query to search for "Inception"
     // match movie_db.search_multi("Inception") {
     //     Ok(results) => println!("Results: {:#?}", results),
     //     Err(err) => eprintln!("Error: {:?}", err),
