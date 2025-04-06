@@ -250,43 +250,50 @@ pub fn rip_one(
     let title_id = cast_to_u32(title_id.to_string());
     let mvdb_id = cast_to_u32(mvdb_id.to_string());
     match DiskId::try_from(disk_id) {
-        Ok(id) => match find_movie(&app_handle, mvdb_id) {
-            Ok(movie) => {
-                let movie_dir = create_dir(&movie);
-
-                tauri::async_runtime::spawn(async move {
-                    let results =
-                        makemkvcon::rip_title(&app_handle, &id, title_id, &movie_dir).await;
-                    match results {
-                        Ok(_r) => match rename_file(&app_handle, &movie, id, title_id) {
-                            Ok(p) => {
-                                let file_path = p.to_string_lossy().to_string();
-                                app_handle
-                                    .notification()
-                                    .builder()
-                                    .title("Reelix")
-                                    .body(format!("Finished Ripping {}", &file_path))
-                                    .show()
-                                    .unwrap();
+        Ok(id) => match app_state.find_optical_disk_by_id(&id) {
+            Some(optical_disk) => match find_movie(&app_handle, mvdb_id) {
+                Ok(movie) => {
+                    let movie_dir = create_dir(&movie);
+                    optical_disk
+                        .lock()
+                        .unwrap()
+                        .set_movie_details(Some(movie.clone()));
+                    tauri::async_runtime::spawn(async move {
+                        let results =
+                            makemkvcon::rip_title(&app_handle, &id, title_id, &movie_dir).await;
+                        match results {
+                            Ok(_r) => match rename_file(&app_handle, &movie, id, title_id) {
+                                Ok(p) => {
+                                    let file_path = p.to_string_lossy().to_string();
+                                    app_handle
+                                        .notification()
+                                        .builder()
+                                        .title("Reelix")
+                                        .body(format!("Finished Ripping {}", &file_path))
+                                        .show()
+                                        .unwrap();
+                                }
+                                Err(e) => {
+                                    app_handle
+                                        .notification()
+                                        .builder()
+                                        .title("Reelix")
+                                        .body(format!("Error Ripping {}", &e))
+                                        .show()
+                                        .unwrap();
+                                }
+                            },
+                            Err(message) => {
+                                println!("failed {}", message);
                             }
-                            Err(e) => {
-                                app_handle
-                                    .notification()
-                                    .builder()
-                                    .title("Reelix")
-                                    .body(format!("Error Ripping {}", &e))
-                                    .show()
-                                    .unwrap();
-                            }
-                        },
-                        Err(message) => {
-                            println!("failed {}", message);
                         }
-                    }
-                });
-            }
-            Err(e) => eprintln!("Failure {}", e.message),
+                    });
+                }
+                Err(e) => eprintln!("Failure {}", e.message),
+            },
+            None => eprintln!("Failed to find optical disk"),
         },
+
         Err(e) => {
             eprintln!("Error parsing disk_id in rip_one: {}", e);
         }

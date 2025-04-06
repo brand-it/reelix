@@ -70,9 +70,9 @@ fn define_type<I: IntoIterator<Item = String>>(type_str: &str, fields: I) -> Mkv
         "PRGV" => {
             let mut iter = fields.into_iter();
             MkvData::PRGV(PRGV {
-                current: cast_to_i32(iter.next().unwrap()),
-                total: cast_to_i32(iter.next().unwrap()),
-                pmax: cast_to_i32(iter.next().unwrap()),
+                current: cast_to_u32(iter.next().unwrap()),
+                total: cast_to_u32(iter.next().unwrap()),
+                pmax: cast_to_u32(iter.next().unwrap()),
             })
         }
         "PRGT" => {

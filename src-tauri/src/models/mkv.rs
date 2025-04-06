@@ -43,12 +43,12 @@ pub struct DRV {
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Clone)]
 pub struct PRGV {
-    pub current: i32,
-    pub total: i32,
-    pub pmax: i32,
+    pub current: u32,
+    pub total: u32,
+    pub pmax: u32,
 }
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PRGT {
     pub code: String,
     pub id: u32,
@@ -62,7 +62,7 @@ pub struct PRGC {
     pub name: String,
 }
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MSG {
     pub code: String,
     pub flags: String,

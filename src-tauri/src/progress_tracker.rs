@@ -1,6 +1,10 @@
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
+
+/// I'm building this system as a prototype for other progress based tools
+/// Later on down the road. ETA is going to be a big part of
+/// this system and have a good system that calculates estimated times
+/// will be one of the foundations that makes this tool great.
 
 // --- Progress ---
 #[derive(Debug)]
@@ -29,9 +33,7 @@ impl Progress {
     }
 
     pub fn finish(&mut self) {
-        if !self.unknown() {
-            self.progress = self.total;
-        }
+        self.progress = self.total;
     }
 
     pub fn finished(&self) -> bool {
@@ -73,7 +75,8 @@ impl Progress {
 
     pub fn set_total(&mut self, new_total: usize) {
         if self.progress > new_total {
-            panic!("You can't set the item's total value to less than the current progress.");
+            println!("You can't set the item's total value to less than the current progress. Adjust progress to be eq to new total");
+            self.set_progress(new_total);
         }
         self.total = new_total;
     }
@@ -99,12 +102,6 @@ impl Progress {
     /// Returns the “absolute” progress (progress minus starting position).
     pub fn absolute(&self) -> isize {
         self.progress as isize - self.starting_position as isize
-    }
-
-    pub fn unknown(&self) -> bool {
-        // In Ruby nil checks may make progress unknown.
-        // Here we assume values are always set.
-        false
     }
 
     pub fn none(&self) -> bool {
@@ -208,7 +205,8 @@ impl Timer {
 }
 
 // --- Projector Trait & SmoothedAverage ---
-pub trait Projector {
+// The trait now requires implementors to be Send + Sync.
+pub trait Projector: Send + Sync {
     fn start(&mut self, at: Option<f64>);
     fn decrement(&mut self);
     fn increment(&mut self);
@@ -227,10 +225,14 @@ pub mod projectors {
         strength: f64,
     }
 
+    // --- SmoothedAverage ---
     impl SmoothedAverage {
         pub const DEFAULT_STRENGTH: f64 = 0.1;
         pub const DEFAULT_BEGINNING_POSITION: f64 = 0.0;
-
+        // Adjust the strength to make the system update the weighted average
+        // more often or less often. Larger numbers will keep the current
+        // value closer to the current projection, while lower numbers will
+        // make the projection adjust more quickly based on changes.
         pub fn new(strength: Option<f64>, at: Option<f64>) -> Self {
             let strength = strength.unwrap_or(Self::DEFAULT_STRENGTH);
             let mut projector = SmoothedAverage {
@@ -245,7 +247,7 @@ pub mod projectors {
         fn absolute(&self) -> f64 {
             self.samples[1] - self.samples[0]
         }
-
+        // Calculates a smoothed projection by blending the new value with the current projection.
         fn calculate(current_projection: f64, new_value: f64, rate: f64) -> f64 {
             new_value * (1.0 - rate) + current_projection * rate
         }
@@ -287,7 +289,6 @@ pub mod projectors {
         }
     }
 
-    /// A factory function mimicking the Ruby `from_type` behavior.
     pub fn from_type(
         name: Option<&str>,
         strength: Option<f64>,
@@ -304,47 +305,59 @@ pub mod projectors {
 pub mod components {
     use super::{Progress, Projector, Timer};
     use chrono::{DateTime, Local};
-    use std::cell::RefCell;
-    use std::rc::Rc;
+    use std::sync::{Arc, Mutex};
     use std::time::{Duration, SystemTime};
 
     pub struct Percentage {
-        pub progress: Rc<RefCell<Progress>>,
+        pub progress: Arc<Mutex<Progress>>,
     }
 
     impl Percentage {
-        pub fn new(progress: Rc<RefCell<Progress>>) -> Self {
+        pub fn new(progress: Arc<Mutex<Progress>>) -> Self {
             Percentage { progress }
         }
 
         pub fn percentage(&self) -> String {
-            self.progress.borrow().percentage_completed().to_string()
+            self.progress
+                .lock()
+                .unwrap()
+                .percentage_completed()
+                .to_string()
         }
 
         pub fn justified_percentage(&self) -> String {
-            format!("{:>3}", self.progress.borrow().percentage_completed())
+            format!(
+                "{:>3}",
+                self.progress.lock().unwrap().percentage_completed()
+            )
         }
 
         pub fn percentage_with_precision(&self) -> String {
-            self.progress.borrow().percentage_completed_with_precision()
+            self.progress
+                .lock()
+                .unwrap()
+                .percentage_completed_with_precision()
         }
 
         pub fn justified_percentage_with_precision(&self) -> String {
             format!(
                 "{:>6}",
-                self.progress.borrow().percentage_completed_with_precision()
+                self.progress
+                    .lock()
+                    .unwrap()
+                    .percentage_completed_with_precision()
             )
         }
     }
 
     pub struct Rate {
-        pub rate_scale: Box<dyn Fn(f64) -> f64>,
-        pub timer: Rc<RefCell<Timer>>,
-        pub progress: Rc<RefCell<Progress>>,
+        pub rate_scale: Box<dyn Fn(f64) -> f64 + Send + Sync>,
+        pub timer: Arc<Mutex<Timer>>,
+        pub progress: Arc<Mutex<Progress>>,
     }
 
     impl Rate {
-        pub fn new(timer: Rc<RefCell<Timer>>, progress: Rc<RefCell<Progress>>) -> Self {
+        pub fn new(timer: Arc<Mutex<Timer>>, progress: Arc<Mutex<Progress>>) -> Self {
             Rate {
                 rate_scale: Box::new(|x| x),
                 timer,
@@ -353,13 +366,12 @@ pub mod components {
         }
 
         pub fn rate_of_change(&self, _format_string: Option<&str>) -> String {
-            let elapsed = self.timer.borrow().elapsed_seconds();
+            let elapsed = self.timer.lock().unwrap().elapsed_seconds();
             if elapsed <= 0.0 {
                 return "0".to_string();
             }
-            let base_rate = self.progress.borrow().absolute() as f64 / elapsed;
+            let base_rate = self.progress.lock().unwrap().absolute() as f64 / elapsed;
             let scaled_rate = (self.rate_scale)(base_rate);
-            // For simplicity we ignore custom formatting.
             format!("{}", scaled_rate)
         }
 
@@ -375,13 +387,12 @@ pub mod components {
     }
 
     pub struct TimeComponent {
-        pub timer: Rc<RefCell<Timer>>,
-        pub progress: Rc<RefCell<Progress>>,
-        pub projector: Rc<RefCell<Box<dyn Projector>>>,
+        pub timer: Arc<Mutex<Timer>>,
+        pub progress: Arc<Mutex<Progress>>,
+        pub projector: Arc<Mutex<Box<dyn Projector>>>,
     }
 
     impl TimeComponent {
-        const TIME_FORMAT: &'static str = "{:02}:{:02}:{:02}";
         const OOB_LIMIT_IN_HOURS: u64 = 99;
         const OOB_UNKNOWN_TIME_TEXT: &'static str = "??:??:??";
         const OOB_FRIENDLY_TIME_TEXT: &'static str = "> 4 Days";
@@ -391,9 +402,9 @@ pub mod components {
         const WALL_CLOCK_FORMAT: &'static str = "%H:%M:%S";
 
         pub fn new(
-            timer: Rc<RefCell<Timer>>,
-            progress: Rc<RefCell<Progress>>,
-            projector: Rc<RefCell<Box<dyn Projector>>>,
+            timer: Arc<Mutex<Timer>>,
+            progress: Arc<Mutex<Progress>>,
+            projector: Arc<Mutex<Box<dyn Projector>>>,
         ) -> Self {
             TimeComponent {
                 timer,
@@ -413,10 +424,14 @@ pub mod components {
                         };
                     }
                 }
-                format!("{} {} {} {}", Self::TIME_FORMAT, hours, minutes, seconds)
+                self.format_time(hours, minutes, seconds)
             } else {
                 Self::OOB_UNKNOWN_TIME_TEXT.to_string()
             }
+        }
+
+        fn format_time(&self, hours: u64, minutes: u64, seconds: u64) -> String {
+            format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
         }
 
         pub fn estimated_with_label(&self, oob_format: Option<OOBTimeFormat>) -> String {
@@ -424,12 +439,12 @@ pub mod components {
         }
 
         pub fn elapsed(&self) -> String {
-            if !self.timer.borrow().started() {
+            if !self.timer.lock().unwrap().started() {
                 return Self::NO_TIME_ELAPSED_TEXT.to_string();
             }
-            let elapsed = self.timer.borrow().elapsed_whole_seconds();
+            let elapsed = self.timer.lock().unwrap().elapsed_whole_seconds();
             let (hours, minutes, seconds) = Timer::divide_seconds(elapsed);
-            format!("{} {} {} {}", Self::TIME_FORMAT, hours, minutes, seconds)
+            self.format_time(hours, minutes, seconds)
         }
 
         pub fn elapsed_with_label(&self) -> String {
@@ -449,7 +464,7 @@ pub mod components {
         }
 
         fn estimated_with_elapsed_fallback(&self, oob_format: Option<OOBTimeFormat>) -> String {
-            if self.progress.borrow().finished() {
+            if self.progress.lock().unwrap().finished() {
                 self.elapsed_with_label()
             } else {
                 self.estimated_with_label(oob_format)
@@ -457,17 +472,18 @@ pub mod components {
         }
 
         pub fn estimated_wall_clock(&self) -> String {
-            if self.progress.borrow().finished() {
-                if let Some(stopped) = self.timer.borrow().stopped_at {
+            if self.progress.lock().unwrap().finished() {
+                if let Some(stopped) = self.timer.lock().unwrap().stopped_at {
                     let datetime: DateTime<Local> = stopped.into();
                     return datetime.format(Self::WALL_CLOCK_FORMAT).to_string();
                 }
             }
-            if !self.timer.borrow().started() {
+            if !self.timer.lock().unwrap().started() {
                 return Self::NO_TIME_ELAPSED_TEXT.to_string();
             }
             if let Some(estimated_secs) = self.estimated_seconds_remaining() {
-                let estimated_time = SystemTime::now() + Duration::from_secs(estimated_secs);
+                let estimated_time =
+                    SystemTime::now() + std::time::Duration::from_secs(estimated_secs);
                 let datetime: DateTime<Local> = estimated_time.into();
                 return datetime.format(Self::WALL_CLOCK_FORMAT).to_string();
             }
@@ -475,17 +491,16 @@ pub mod components {
         }
 
         fn estimated_seconds_remaining(&self) -> Option<u64> {
-            let progress = self.progress.borrow();
-            let projector_progress = self.projector.borrow().get_progress();
-            if progress.unknown()
-                || self.projector.borrow().none()
+            let progress = self.progress.lock().unwrap();
+            let projector_progress = self.projector.lock().unwrap().get_progress();
+            if self.projector.lock().unwrap().none()
                 || progress.none()
-                || self.timer.borrow().stopped()
-                || self.timer.borrow().is_reset()
+                || self.timer.lock().unwrap().stopped()
+                || self.timer.lock().unwrap().is_reset()
             {
                 return None;
             }
-            let elapsed = self.timer.borrow().elapsed_seconds();
+            let elapsed = self.timer.lock().unwrap().elapsed_seconds();
             if elapsed <= 0.0 || projector_progress == 0.0 {
                 return None;
             }
@@ -502,9 +517,9 @@ pub struct Base {
     pub autostart: bool,
     pub autofinish: bool,
     pub finished: bool,
-    pub timer: Rc<RefCell<Timer>>,
-    pub projector: Rc<RefCell<Box<dyn Projector>>>,
-    pub progress: Rc<RefCell<Progress>>,
+    pub timer: Arc<Mutex<Timer>>,
+    pub projector: Arc<Mutex<Box<dyn Projector>>>,
+    pub progress: Arc<Mutex<Progress>>,
     pub percentage_component: components::Percentage,
     pub rate_component: components::Rate,
     pub time_component: components::TimeComponent,
@@ -517,21 +532,21 @@ impl Base {
         let autofinish = opts.autofinish;
         let finished = false;
 
-        let timer = Rc::new(RefCell::new(Timer::new()));
-        let progress = Rc::new(RefCell::new(Progress::new(opts.total)));
+        let timer = Arc::new(Mutex::new(Timer::new()));
+        let progress = Arc::new(Mutex::new(Progress::new(opts.total)));
         // Create the projector via the factory (using type, strength, and starting value).
         let proj_type = opts.projector_type.as_deref();
         let projector_obj =
             projectors::from_type(proj_type, opts.projector_strength, opts.projector_at);
-        let projector = Rc::new(RefCell::new(projector_obj));
+        let projector = Arc::new(Mutex::new(projector_obj));
 
         // Create components (they share the same progress, timer, and projector).
-        let percentage_component = components::Percentage::new(Rc::clone(&progress));
-        let rate_component = components::Rate::new(Rc::clone(&timer), Rc::clone(&progress));
+        let percentage_component = components::Percentage::new(Arc::clone(&progress));
+        let rate_component = components::Rate::new(Arc::clone(&timer), Arc::clone(&progress));
         let time_component = components::TimeComponent::new(
-            Rc::clone(&timer),
-            Rc::clone(&progress),
-            Rc::clone(&projector),
+            Arc::clone(&timer),
+            Arc::clone(&progress),
+            Arc::clone(&projector),
         );
 
         let base = Base {
@@ -556,49 +571,48 @@ impl Base {
     }
 
     pub fn start(&self, at: Option<usize>) {
-        self.timer.borrow_mut().start();
-        self.progress.borrow_mut().start(at);
-        let val = self.progress.borrow().progress as f64;
-        self.projector.borrow_mut().start(Some(val));
+        self.timer.lock().unwrap().start();
+        self.progress.lock().unwrap().start(at);
+        let val = self.progress.lock().unwrap().progress as f64;
+        self.projector.lock().unwrap().start(Some(val));
     }
 
     pub fn finish(&mut self) {
         if self.finished() {
             return;
         }
-        // (The Ruby code wrapped this in an output refresh block.)
         self.finished = true;
-        self.progress.borrow_mut().finish();
-        self.timer.borrow_mut().stop();
+        self.progress.lock().unwrap().finish();
+        self.timer.lock().unwrap().stop();
     }
 
     pub fn pause(&self) {
         if !self.paused() {
-            self.timer.borrow_mut().pause();
+            self.timer.lock().unwrap().pause();
         }
     }
 
     pub fn stop(&self) {
         if !self.stopped() {
-            self.timer.borrow_mut().stop();
+            self.timer.lock().unwrap().stop();
         }
     }
 
     pub fn resume(&self) {
         if self.stopped() {
-            self.timer.borrow_mut().resume();
+            self.timer.lock().unwrap().resume();
         }
     }
 
     pub fn reset(&mut self) {
         self.finished = false;
-        self.progress.borrow_mut().reset();
-        self.projector.borrow_mut().reset();
-        self.timer.borrow_mut().reset();
+        self.progress.lock().unwrap().reset();
+        self.projector.lock().unwrap().reset();
+        self.timer.lock().unwrap().reset();
     }
 
     pub fn stopped(&self) -> bool {
-        self.timer.borrow().stopped() || self.finished()
+        self.timer.lock().unwrap().stopped() || self.finished()
     }
 
     pub fn paused(&self) -> bool {
@@ -606,44 +620,44 @@ impl Base {
     }
 
     pub fn finished(&self) -> bool {
-        self.finished || (self.autofinish && self.progress.borrow().finished())
+        self.finished || (self.autofinish && self.progress.lock().unwrap().finished())
     }
 
     pub fn started(&self) -> bool {
-        self.timer.borrow().started()
+        self.timer.lock().unwrap().started()
     }
 
     pub fn decrement(&self) {
-        self.progress.borrow_mut().decrement();
-        self.projector.borrow_mut().decrement();
+        self.progress.lock().unwrap().decrement();
+        self.projector.lock().unwrap().decrement();
         if self.finished() {
-            self.timer.borrow_mut().stop();
+            self.timer.lock().unwrap().stop();
         }
     }
 
     pub fn increment(&self) {
-        self.progress.borrow_mut().increment();
-        self.projector.borrow_mut().increment();
+        self.progress.lock().unwrap().increment();
+        self.projector.lock().unwrap().increment();
         if self.finished() {
-            self.timer.borrow_mut().stop();
+            self.timer.lock().unwrap().stop();
         }
     }
 
     pub fn set_progress(&self, new_progress: usize) {
-        self.progress.borrow_mut().set_progress(new_progress);
+        self.progress.lock().unwrap().set_progress(new_progress);
         self.projector
-            .borrow_mut()
+            .lock()
+            .unwrap()
             .set_progress(new_progress as f64);
         if self.finished() {
-            self.timer.borrow_mut().stop();
+            self.timer.lock().unwrap().stop();
         }
     }
 
     pub fn set_total(&self, new_total: usize) {
-        self.progress.borrow_mut().set_total(new_total);
-        // projector's total setter is a no-op.
+        self.progress.lock().unwrap().set_total(new_total);
         if self.finished() {
-            self.timer.borrow_mut().stop();
+            self.timer.lock().unwrap().stop();
         }
     }
 }
@@ -662,7 +676,7 @@ pub struct ProgressOptions {
 
 // Example usage:
 // use progress_tracker::{Base, ProgressOptions};
-
+//
 // fn main() {
 //     let options = ProgressOptions {
 //         total: Some(200),
@@ -673,15 +687,15 @@ pub struct ProgressOptions {
 //         projector_strength: Some(0.1),
 //         projector_at: Some(0.0),
 //     };
-
+//
 //     let pb = Base::new(Some(options));
 //     pb.increment();
 //     pb.increment();
-
+//
 //     println!(
 //         "Progress: {}/{}",
-//         pb.progress.borrow().progress,
-//         pb.progress.borrow().total
+//         pb.progress.lock().unwrap().progress,
+//         pb.progress.lock().unwrap().total
 //     );
 //     println!("Percentage: {}", pb.percentage_component.percentage());
 //     println!("Elapsed: {}", pb.time_component.elapsed_with_label());
