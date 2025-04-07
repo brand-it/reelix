@@ -1,7 +1,7 @@
 {
   "name": "reelix",
   "private": true,
-  "version": "0.17.0",
+  "version": "0.17.1",
   "scripts": {
     "watch": "webpack --watch",
     "dev": "webpack --watch",
@@ -9,25 +9,25 @@
     "tauri": "tauri"
   },
   "devDependencies": {
-    "@fortawesome/fontawesome-free": "^6.7.1",
-    "@hotwired/stimulus": "^3.2.2",
-    "@hotwired/turbo": "^8.0.12",
-    "@tauri-apps/cli": "^2",
-    "bootstrap": "^5.3.3",
-    "css-loader": "^7.1.2",
-    "html-webpack-plugin": "^5.6.3",
-    "lodash": "^4.17.21",
-    "sass": "^1.81.0",
-    "sass-loader": "^16.0.3",
-    "style-loader": "^4.0.0",
-    "webpack": "^5.97.1",
-    "webpack-cli": "^5.1.4"
+    "@fortawesome/fontawesome-free": ">=6.7.1",
+    "@hotwired/stimulus": ">=3.2.2",
+    "@hotwired/turbo": ">=8.0.12",
+    "@tauri-apps/cli": ">=2",
+    "bootstrap": ">=5.3.3",
+    "css-loader": ">=7.1.2",
+    "html-webpack-plugin": ">=5.6.3",
+    "lodash": ">=4.17.21",
+    "sass": ">=1.81.0",
+    "sass-loader": ">=16.0.3",
+    "style-loader": ">=4.0.0",
+    "webpack": ">=5.97.1",
+    "webpack-cli": ">=5.1.4"
   },
   "packageManager": "npm@1.22.22",
   "dependencies": {
-    "@tauri-apps/plugin-http": "^2.4.2",
-    "@tauri-apps/plugin-notification": "^2.2.2",
-    "@tauri-apps/plugin-shell": "^2.2.0",
-    "@tauri-apps/plugin-store": "^2.2.0"
+    "@tauri-apps/plugin-http": ">=2.4.2",
+    "@tauri-apps/plugin-notification": ">=2.2.2",
+    "@tauri-apps/plugin-shell": ">=2.2.0",
+    "@tauri-apps/plugin-store": ">=2.2.0"
   }
 }
