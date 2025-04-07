@@ -56,6 +56,7 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
                 titles: Mutex::new(Vec::new()),
                 progress: Mutex::new(None),
                 pid: Mutex::new(None),
+                movie_details: Mutex::new(None),
             })
         });
     opticals

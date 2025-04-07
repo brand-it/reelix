@@ -2,7 +2,7 @@ use crate::services::converter;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MovieResponse {
     pub adult: bool,
     pub backdrop_path: Option<String>,
@@ -89,7 +89,7 @@ impl MovieResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MovieGenre {
     pub id: u32,
     pub name: String,

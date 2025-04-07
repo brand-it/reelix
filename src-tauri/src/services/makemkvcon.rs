@@ -1,5 +1,7 @@
-use crate::models::optical_disk_info::DiskId;
+use crate::models::mkv::{PRGT, PRGV};
+use crate::models::optical_disk_info::{self, DiskId};
 use crate::models::{mkv, title_info};
+use crate::progress_tracker::{self, ProgressOptions};
 use crate::services::{makemkvcon_parser, template};
 use crate::state::AppState;
 use std::ffi::OsStr;
@@ -145,6 +147,7 @@ async fn run(
     let mut title_infos: Vec<title_info::TitleInfo> = Vec::new();
     let mut drives: Vec<mkv::DRV> = Vec::new();
     let mut messages: Vec<mkv::MSG> = Vec::new();
+    let mut tracker: Option<progress_tracker::Base> = None;
     while let Some(event) = receiver.recv().await {
         match event {
             CommandEvent::Stdout(line_bytes) => {
@@ -167,10 +170,33 @@ async fn run(
                             drives.push(drv);
                         }
                         mkv::MkvData::PRGV(prgv) => {
-                            update_disk_progress_state(&disk_id, prgv, &app_handle);
+                            update_tracker(&mut tracker, prgv);
+                            update_disk_progress_state(&disk_id, &tracker, &app_handle, None, None);
                             emit_progress(&disk_id, &app_handle);
                         }
-                        mkv::MkvData::MSG(msg) => messages.push(msg),
+                        mkv::MkvData::PRGT(prgt) => {
+                            create_tracker(&mut tracker, prgt.clone());
+                            update_disk_progress_state(
+                                &disk_id,
+                                &tracker,
+                                &app_handle,
+                                Some(prgt.name.clone()),
+                                None,
+                            );
+                        }
+                        mkv::MkvData::PRGC(prgc) => {
+                            tracker = None;
+                        }
+                        mkv::MkvData::MSG(msg) => {
+                            messages.push(msg.clone());
+                            update_disk_progress_state(
+                                &disk_id,
+                                &tracker,
+                                &app_handle,
+                                None,
+                                Some(msg.message.clone()),
+                            );
+                        }
                         _ => {}
                     }
                 }
@@ -197,6 +223,40 @@ async fn run(
     }
 }
 
+fn create_tracker(tracker: &mut Option<progress_tracker::Base>, prgt: PRGT) {
+    let options = ProgressOptions {
+        total: Some(1 as usize),
+        autostart: true,
+        autofinish: true,
+        starting_at: Some(0),
+        projector_type: Some("smoothed".to_string()),
+        projector_strength: Some(0.1),
+        projector_at: Some(0.0),
+    };
+    *tracker = Some(progress_tracker::Base::new(Some(options)));
+}
+
+fn update_tracker(tracker: &mut Option<progress_tracker::Base>, prgv: PRGV) {
+    if tracker.is_none() {
+        let options = ProgressOptions {
+            total: Some(prgv.pmax as usize),
+            autostart: true,
+            autofinish: true,
+            starting_at: Some(0),
+            projector_type: Some("smoothed".to_string()),
+            projector_strength: Some(0.1),
+            projector_at: Some(0.0),
+        };
+        // update the none tracker with this new one.
+        *tracker = Some(progress_tracker::Base::new(Some(options)));
+    }
+
+    if let Some(ref mut base) = tracker {
+        base.set_total(prgv.pmax as usize);
+        base.set_progress(prgv.current as usize);
+    }
+}
+
 fn spawn<I: IntoIterator<Item = S> + std::fmt::Debug + std::marker::Copy, S: AsRef<OsStr>>(
     app_handle: &AppHandle,
     disk_id: &DiskId,
@@ -213,11 +273,9 @@ fn spawn<I: IntoIterator<Item = S> + std::fmt::Debug + std::marker::Copy, S: AsR
     let state = app_handle.state::<AppState>();
     match state.find_optical_disk_by_id(disk_id) {
         Some(disk) => {
-            let guard_disk = disk
-                .lock()
-                .expect("Failed to acquire lock on disk from disk_arc in spawn command");
-            let mut pid = guard_disk.pid.lock().expect("failed to lock pid");
-            *pid = Some(child.pid());
+            disk.lock()
+                .expect("Failed to acquire lock on disk from disk_arc in spawn command")
+                .set_pid(Some(child.pid()));
         }
         None => println!("failed to assign the sidecar to disk {:?}", disk_id),
     }
@@ -260,7 +318,19 @@ pub async fn rip_title(
 
             let receiver = spawn(app_handle, disk_id, args);
             let app_handle_clone = app_handle.clone();
-            Ok(run(disk_id.clone(), receiver, app_handle_clone).await)
+            let status = Ok(run(disk_id.clone(), receiver, app_handle_clone).await);
+
+            let result = template::render(
+                &state.tera,
+                "disks/toast_progress.html.turbo",
+                &Context::new(),
+                None,
+            )
+            .expect("Failed to render disks/toast_progress.html.turbo");
+            app_handle
+                .emit("disks-changed", result)
+                .expect("Failed to emit disks-changed");
+            status
         }
         None => Err(format!("Failed to find disk using id {:?}", disk_id)),
     }
@@ -274,42 +344,92 @@ pub async fn title_info(disk_id: DiskId, app_handle: &AppHandle, path: &str) -> 
     run(disk_id, receiver, app_handle_clone).await
 }
 
-fn update_disk_progress_state(disk_id: &DiskId, prgv: mkv::PRGV, app_handle: &AppHandle) {
-    let state = app_handle.state::<AppState>();
-    match state.find_optical_disk_by_id(disk_id) {
-        Some(disk) => {
-            *disk
-                .lock()
-                .expect("failed to lock disk in update_disk_progress_state")
-                .progress
-                .lock()
-                .expect("Failed to capture progress for PRGV") = Some(prgv)
-        }
-        None => println!("Failed to find disk using {:?}", disk_id),
+fn update_disk_progress_state(
+    disk_id: &DiskId,
+    tracker: &Option<progress_tracker::Base>,
+    app_handle: &AppHandle,
+    label: Option<String>,
+    message: Option<String>,
+) {
+    // Early return if there's no tracker.
+    let tracker = match tracker {
+        Some(tracker) => tracker,
+        None => return,
     };
+
+    let state = app_handle.state::<AppState>();
+
+    // Try to find the disk.
+    let disk_arc = match state.find_optical_disk_by_id(disk_id) {
+        Some(disk) => disk,
+        None => {
+            println!("Failed to find disk using {:?}", disk_id);
+            return;
+        }
+    };
+
+    // Lock the disk.
+    let mut disk = disk_arc
+        .lock()
+        .expect("failed to lock disk in update_disk_progress_state");
+
+    // Lock current progress to use its label/message as default if needed.
+    let current_progress = disk
+        .progress
+        .lock()
+        .expect("failed to lock disk progress in update_disk_progress_state");
+    let default_label = current_progress
+        .as_ref()
+        .map(|p| p.label.clone())
+        .unwrap_or_default();
+    let default_message = current_progress
+        .as_ref()
+        .map(|p| p.message.clone())
+        .unwrap_or_default();
+    // Drop the current_progress guard early since we don't need it anymore.
+    drop(current_progress);
+
+    // Build new progress using values from the tracker and provided options.
+    let new_progress = optical_disk_info::Progress {
+        eta: tracker.time_component.estimated(None),
+        percentage: tracker.percentage_component.percentage(),
+        label: label.unwrap_or(default_label),
+        message: message.unwrap_or(default_message),
+    };
+
+    // Update the disk's progress.
+    disk.set_progress(Some(new_progress));
 }
 
 fn emit_progress(disk_id: &DiskId, app_handle: &AppHandle) {
     let state = app_handle.state::<AppState>();
-
-    let progress = {
+    let optical_disk_info = {
         match state.find_optical_disk_by_id(disk_id) {
-            Some(disk) => disk
-                .lock()
-                .expect("failed to lock disk")
-                .progress
-                .lock()
-                .expect("failure to lock progress")
-                .clone(),
+            Some(disk) => disk.lock().expect("failed to lock disk").clone(),
             None => {
                 println!("failed to find disk using {:?}", disk_id);
-                None
+                return;
             }
         }
     };
+    let movie_title_year = match optical_disk_info
+        .movie_details
+        .lock()
+        .expect("failed to lock movie details in emit progress")
+        .as_ref()
+    {
+        Some(movie) => movie.title_year(),
+        None => "Unknown".to_string(),
+    };
+    let progress = optical_disk_info
+        .progress
+        .lock()
+        .expect("failure to lock progress");
+
     if progress.is_some() {
         let mut context = Context::new();
-        context.insert("progress", &progress);
+        context.insert("progress", &*progress);
+        context.insert("movie_title_year", &movie_title_year);
 
         let result = template::render(
             &state.tera,

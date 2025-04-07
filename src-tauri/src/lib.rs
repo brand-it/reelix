@@ -1,6 +1,7 @@
 mod commands;
 mod disk;
 mod models;
+mod progress_tracker;
 mod services;
 mod state;
 
