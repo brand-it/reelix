@@ -19,6 +19,21 @@ struct Search {
     search: movie_db::SearchResponse,
 }
 
+fn render_search_index(state: &State<'_, AppState>) -> Result<String, template::ApiError> {
+    let mut context = Context::new();
+    context.insert("optical_disks", &state.optical_disks);
+    let binding_selected_disk_id = state
+        .selected_optical_disk_id
+        .lock()
+        .expect("failed to lock selected optical disk id");
+    let guard_selected_disk_id = binding_selected_disk_id.as_ref();
+    if guard_selected_disk_id.is_some() {
+        let disk_id = guard_selected_disk_id.unwrap().clone();
+        context.insert("selected_optical_disk_id", &disk_id);
+    }
+    template::render(&state.tera, "search/index.html.turbo", &context, None)
+}
+
 // This is the entry point, basically it decides what to first show the user
 #[tauri::command]
 pub fn index(state: State<'_, AppState>) -> Result<String, template::ApiError> {
@@ -43,18 +58,7 @@ pub fn index(state: State<'_, AppState>) -> Result<String, template::ApiError> {
             return template::render(&state.tera, "the_movie_db/show.html.turbo", &context, None);
         }
     };
-    let mut context = Context::new();
-    context.insert("optical_disks", &state.optical_disks);
-    let binding_selected_disk_id = state
-        .selected_optical_disk_id
-        .lock()
-        .expect("failed to lock selected optical disk id");
-    let guard_selected_disk_id = binding_selected_disk_id.as_ref();
-    if guard_selected_disk_id.is_some() {
-        let disk_id = guard_selected_disk_id.unwrap().clone();
-        context.insert("selected_optical_disk_id", &disk_id);
-    }
-    template::render(&state.tera, "search/index.html.turbo", &context, None)
+    render_search_index(&state)
 }
 
 #[tauri::command]
@@ -188,13 +192,7 @@ pub fn the_movie_db(
     store
         .save()
         .expect("Failed to save store.json in the_movie_db command");
-
-    template::render(
-        &state.tera,
-        "search/index.html.turbo",
-        &Context::new(),
-        None,
-    )
+    render_search_index(&state)
 }
 
 #[tauri::command]
