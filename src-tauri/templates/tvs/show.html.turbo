@@ -1,0 +1,9 @@
+<turbo-stream action="replace" target="main-view">
+  <template>
+    <div id="main-view">
+      {% include "tvs/show.html" %}
+    </div>
+  </template>
+</turbo-stream>
+
+{% include "error.html.turbo" %}

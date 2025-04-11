@@ -6,7 +6,7 @@ use std::sync::Mutex;
 
 use super::movie_db::MovieResponse;
 
-#[derive(Debug, Serialize)]
+#[derive(Serialize)]
 pub struct OpticalDiskInfo {
     pub id: DiskId,
     pub name: String,

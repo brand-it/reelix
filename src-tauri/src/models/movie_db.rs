@@ -1,8 +1,7 @@
-use crate::services::converter;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct MovieResponse {
     pub adult: bool,
     pub backdrop_path: Option<String>,
@@ -22,7 +21,7 @@ pub struct MovieResponse {
     pub title: String,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize)]
 pub struct MovieView {
     pub adult: bool,
     pub backdrop_path: Option<String>,
@@ -89,7 +88,7 @@ impl MovieResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct MovieGenre {
     pub id: u32,
     pub name: String,
@@ -141,13 +140,13 @@ pub struct MovieReleaseDatesResponse {
     pub results: Vec<CountryReleaseDates>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct CountryReleaseDates {
     pub iso_3166_1: String,
     pub release_dates: Vec<ReleaseDate>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ReleaseDate {
     pub certification: String,
     pub descriptors: Vec<String>,
@@ -156,4 +155,215 @@ pub struct ReleaseDate {
     pub release_date: String,
     #[serde(rename = "type")]
     pub release_type: u32,
+}
+
+// -------------------------
+// ---------- TV -----------
+// -------------------------
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TvResponse {
+    pub adult: bool,
+    pub backdrop_path: Option<String>,
+    pub created_by: Vec<TvCreatedBy>,
+    pub episode_run_time: Vec<u32>,
+    pub first_air_date: Option<String>,
+    pub genres: Vec<TvGenre>,
+    pub homepage: Option<String>,
+    pub id: u32,
+    pub in_production: bool,
+    pub languages: Vec<String>,
+    pub last_air_date: Option<String>,
+    pub last_episode_to_air: Option<TvEpisode>,
+    pub name: String,
+    pub networks: Vec<TvNetwork>,
+    pub next_episode_to_air: Option<TvEpisode>,
+    pub number_of_episodes: u32,
+    pub number_of_seasons: u32,
+    pub origin_country: Vec<String>,
+    pub original_language: String,
+    pub original_name: String,
+    pub overview: String,
+    pub popularity: f64,
+    pub poster_path: Option<String>,
+    pub production_companies: Vec<TvProductionCompany>,
+    pub production_countries: Vec<TvProductionCountry>,
+    pub seasons: Vec<TvSeason>,
+    pub spoken_languages: Vec<TvSpokenLanguage>,
+    pub status: String,
+    pub tagline: String,
+    // Since "type" is a reserved word in Rust, we rename the field to "type_"
+    #[serde(rename = "type")]
+    pub type_: String,
+    pub vote_average: f64,
+    pub vote_count: u32,
+}
+impl TvResponse {
+    pub fn year(&self) -> Option<u32> {
+        self.first_air_date.as_ref().and_then(|date_str| {
+            NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
+                .ok()
+                .and_then(|dt| dt.format("%Y").to_string().parse::<u32>().ok())
+        })
+    }
+
+    pub fn name_year(&self) -> String {
+        match self.year() {
+            Some(v) => return format!("{} ({})", self.name, v.to_string()),
+            None => return format!("{}", self.name),
+        };
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TvCreatedBy {
+    pub id: u32,
+    pub credit_id: String,
+    pub name: String,
+    pub original_name: String,
+    pub gender: u8,
+    pub profile_path: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TvGenre {
+    pub id: u32,
+    pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TvEpisode {
+    pub id: u32,
+    pub name: String,
+    pub overview: String,
+    pub vote_average: f64,
+    pub vote_count: u32,
+    pub air_date: String,
+    pub episode_number: u32,
+    pub episode_type: String,
+    pub production_code: String,
+    pub runtime: u32,
+    pub season_number: u32,
+    pub show_id: u32,
+    pub still_path: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TvNetwork {
+    pub id: u32,
+    pub logo_path: Option<String>,
+    pub name: String,
+    pub origin_country: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TvProductionCompany {
+    pub id: u32,
+    pub logo_path: Option<String>,
+    pub name: String,
+    pub origin_country: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TvProductionCountry {
+    pub iso_3166_1: String,
+    pub name: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TvSeason {
+    pub air_date: Option<String>,
+    pub episode_count: u32,
+    pub id: u32,
+    pub name: String,
+    pub overview: String,
+    pub poster_path: Option<String>,
+    pub season_number: u32,
+    pub vote_average: f64,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TvSpokenLanguage {
+    pub english_name: String,
+    pub iso_639_1: String,
+    pub name: String,
+}
+
+// Example conversion to a simpler view struct
+#[derive(Serialize)]
+pub struct TvView {
+    pub adult: bool,
+    pub backdrop_path: Option<String>,
+    pub created_by: Vec<TvCreatedBy>,
+    pub episode_run_time: Vec<u32>,
+    pub first_air_date: Option<String>,
+    pub genres: Vec<TvGenre>,
+    pub homepage: Option<String>,
+    pub id: u32,
+    pub in_production: bool,
+    pub languages: Vec<String>,
+    pub last_air_date: Option<String>,
+    pub last_episode_to_air: Option<TvEpisode>,
+    pub name_year: String,
+    pub name: String,
+    pub networks: Vec<TvNetwork>,
+    pub next_episode_to_air: Option<TvEpisode>,
+    pub number_of_episodes: u32,
+    pub number_of_seasons: u32,
+    pub origin_country: Vec<String>,
+    pub original_language: String,
+    pub original_name: String,
+    pub overview: String,
+    pub popularity: f64,
+    pub poster_path: Option<String>,
+    pub production_companies: Vec<TvProductionCompany>,
+    pub production_countries: Vec<TvProductionCountry>,
+    pub seasons: Vec<TvSeason>,
+    pub spoken_languages: Vec<TvSpokenLanguage>,
+    pub status: String,
+    pub tagline: String,
+    pub vote_average: f64,
+    pub vote_count: u32,
+    pub year: Option<u32>,
+}
+
+impl From<TvResponse> for TvView {
+    fn from(tv: TvResponse) -> Self {
+        let year = tv.year();
+        let name_year = tv.name_year();
+        TvView {
+            adult: tv.adult,
+            backdrop_path: tv.backdrop_path,
+            created_by: tv.created_by,
+            episode_run_time: tv.episode_run_time,
+            first_air_date: tv.first_air_date,
+            genres: tv.genres,
+            homepage: tv.homepage,
+            id: tv.id,
+            in_production: tv.in_production,
+            languages: tv.languages,
+            last_air_date: tv.last_air_date,
+            last_episode_to_air: tv.last_episode_to_air,
+            name: tv.name,
+            networks: tv.networks,
+            next_episode_to_air: tv.next_episode_to_air,
+            number_of_episodes: tv.number_of_episodes,
+            number_of_seasons: tv.number_of_seasons,
+            origin_country: tv.origin_country,
+            original_language: tv.original_language,
+            original_name: tv.original_name,
+            overview: tv.overview,
+            popularity: tv.popularity,
+            poster_path: tv.poster_path,
+            production_companies: tv.production_companies,
+            production_countries: tv.production_countries,
+            seasons: tv.seasons,
+            spoken_languages: tv.spoken_languages,
+            status: tv.status,
+            tagline: tv.tagline,
+            vote_average: tv.vote_average,
+            vote_count: tv.vote_count,
+            name_year: name_year,
+            year: year,
+        }
+    }
 }

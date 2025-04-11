@@ -1,4 +1,4 @@
-use crate::models::mkv::{PRGT, PRGV};
+use crate::models::mkv::PRGV;
 use crate::models::optical_disk_info::{self, DiskId};
 use crate::models::{mkv, title_info};
 use crate::progress_tracker::{self, ProgressOptions};
@@ -175,16 +175,16 @@ async fn run(
                             emit_progress(&disk_id, &app_handle);
                         }
                         mkv::MkvData::PRGT(prgt) => {
-                            create_tracker(&mut tracker, prgt.clone());
+                            create_tracker(&mut tracker);
                             update_disk_progress_state(
                                 &disk_id,
                                 &tracker,
                                 &app_handle,
-                                Some(prgt.name.clone()),
+                                Some(&prgt.name),
                                 None,
                             );
                         }
-                        mkv::MkvData::PRGC(prgc) => {
+                        mkv::MkvData::PRGC(_prgc) => {
                             tracker = None;
                         }
                         mkv::MkvData::MSG(msg) => {
@@ -194,7 +194,7 @@ async fn run(
                                 &tracker,
                                 &app_handle,
                                 None,
-                                Some(msg.message.clone()),
+                                Some(&msg.message),
                             );
                         }
                         _ => {}
@@ -223,7 +223,7 @@ async fn run(
     }
 }
 
-fn create_tracker(tracker: &mut Option<progress_tracker::Base>, prgt: PRGT) {
+fn create_tracker(tracker: &mut Option<progress_tracker::Base>) {
     let options = ProgressOptions {
         total: Some(1 as usize),
         autostart: true,
@@ -348,8 +348,8 @@ fn update_disk_progress_state(
     disk_id: &DiskId,
     tracker: &Option<progress_tracker::Base>,
     app_handle: &AppHandle,
-    label: Option<String>,
-    message: Option<String>,
+    label: Option<&String>,
+    message: Option<&String>,
 ) {
     // Early return if there's no tracker.
     let tracker = match tracker {
@@ -369,7 +369,7 @@ fn update_disk_progress_state(
     };
 
     // Lock the disk.
-    let mut disk = disk_arc
+    let disk = disk_arc
         .lock()
         .expect("failed to lock disk in update_disk_progress_state");
 
@@ -393,8 +393,8 @@ fn update_disk_progress_state(
     let new_progress = optical_disk_info::Progress {
         eta: tracker.time_component.estimated(None),
         percentage: tracker.percentage_component.percentage(),
-        label: label.unwrap_or(default_label),
-        message: message.unwrap_or(default_message),
+        label: label.unwrap_or(&default_label).to_string(),
+        message: message.unwrap_or(&default_message).to_string(),
     };
 
     // Update the disk's progress.

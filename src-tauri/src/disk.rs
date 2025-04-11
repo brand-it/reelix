@@ -97,7 +97,7 @@ pub async fn watch_for_changes(sender: broadcast::Sender<Vec<diff::Result<Optica
 
             match sender.send(diff_result) {
                 Ok(num_receivers) => println!("Broadcast sent to {} receivers", num_receivers),
-                Err(err) => eprintln!("Broadcast send failed: {:?}", err),
+                Err(_err) => eprintln!("Broadcast send failed"),
             }
             previous_opticals = current_opticals;
         }

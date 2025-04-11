@@ -1,7 +1,7 @@
 use super::the_movie_db;
 use crate::models::movie_db;
 use crate::models::optical_disk_info::DiskId;
-use crate::state::AppState;
+use crate::state::{get_api_key, AppState};
 use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
@@ -20,16 +20,11 @@ pub fn find_movie(
     app_handle: &AppHandle,
     id: u32,
 ) -> Result<movie_db::MovieResponse, the_movie_db::Error> {
-    let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
-    let api_key: String = {
-        let locked_key = state.the_movie_db_key.lock().expect(
-            "Failed to acquire lock on the_movie_db_key for error handling in movie command",
-        );
-        locked_key.clone()
-    };
+    let state: tauri::State<AppState> = app_handle.state::<AppState>();
+    let api_key = get_api_key(&state);
 
-    let language = "en-US".to_string();
-    let movie_db = the_movie_db::TheMovieDb::new(api_key, language);
+    let language = "en-US";
+    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
     movie_db.movie(id)
 }
 
