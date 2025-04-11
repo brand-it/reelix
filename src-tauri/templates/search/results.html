@@ -24,7 +24,7 @@
       {% set poster_element = "a" %}
       {% set poster_classes = "btn img-poster-btn"%}
       {% endif %}
-      <{{ poster_element }} class="{{ poster_classes }} p-0 mb-2 m-0" href="/movie/{{result.id}}?query={{ query }}">
+      <{{ poster_element }} class="{{ poster_classes }} p-0 mb-2 m-0" href="/{{ result.media_type }}/{{ result.id }}">
         {% if result.media_type == "tv" %}
         {{ macros::poster(poster_path=result.poster_path, name=result.name, original_name=result.original_name) }}
         {% elif result.media_type == "movie" %}

@@ -1,10 +1,12 @@
 use crate::models::optical_disk_info::{DiskId, OpticalDiskInfo};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
+use tauri::State;
 use tera::Tera;
 // Structure to hold shared state, thread safe version
 pub struct AppState {
     pub tera: Arc<Tera>,
-    pub the_movie_db_key: Arc<Mutex<String>>,
+    pub query: Arc<Mutex<String>>,
+    pub the_movie_db_key: Arc<RwLock<String>>,
     pub optical_disks: Arc<Mutex<Vec<Arc<Mutex<OpticalDiskInfo>>>>>,
     pub selected_optical_disk_id: Arc<Mutex<Option<DiskId>>>,
 }
@@ -25,4 +27,11 @@ impl AppState {
         }
         None
     }
+}
+
+pub fn get_api_key<'a>(state: &'a State<AppState>) -> RwLockReadGuard<'a, String> {
+    state
+        .the_movie_db_key
+        .read()
+        .expect("Failed to acquire read lock on get_api_key")
 }

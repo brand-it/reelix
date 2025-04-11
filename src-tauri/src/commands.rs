@@ -1,10 +1,12 @@
+// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+
 use crate::models::movie_db;
 use crate::models::optical_disk_info::DiskId;
-use crate::services::converter::{cast_to_i32, cast_to_u32};
+use crate::services::converter::cast_to_u32;
 use crate::services::plex::{create_dir, find_movie, rename_file};
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+use crate::services::the_movie_db::Error;
 use crate::services::{makemkvcon, template, the_movie_db};
-use crate::state::AppState;
+use crate::state::{get_api_key, AppState};
 use serde::Serialize;
 use serde_json::json;
 use tauri::State;
@@ -19,44 +21,17 @@ struct Search {
     search: movie_db::SearchResponse,
 }
 
-fn render_search_index(state: &State<'_, AppState>) -> Result<String, template::ApiError> {
-    let mut context = Context::new();
-    context.insert("optical_disks", &state.optical_disks);
-    let binding_selected_disk_id = state
-        .selected_optical_disk_id
-        .lock()
-        .expect("failed to lock selected optical disk id");
-    let guard_selected_disk_id = binding_selected_disk_id.as_ref();
-    if guard_selected_disk_id.is_some() {
-        let disk_id = guard_selected_disk_id.unwrap().clone();
-        context.insert("selected_optical_disk_id", &disk_id);
-    }
-    template::render(&state.tera, "search/index.html.turbo", &context, None)
-}
-
 // This is the entry point, basically it decides what to first show the user
 #[tauri::command]
 pub fn index(state: State<'_, AppState>) -> Result<String, template::ApiError> {
-    let api_key: String = {
-        let locked_key = state
-            .the_movie_db_key
-            .lock()
-            .expect("Failed to acquire lock on the_movie_db_key in index command");
-        locked_key.clone()
-    };
-    let language = "en-US".to_string();
-    let movie_db = the_movie_db::TheMovieDb::new(api_key.clone(), language);
+    let api_key = get_api_key(&state);
+    let language = "en-US";
+    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
     let response = movie_db.search_multi("Martian", 1);
 
     match response {
         Ok(resp) => resp,
-        Err(e) => {
-            eprintln!("Error from TMDB: {}", e.message);
-            let mut context = Context::new();
-            context.insert("api_key", &api_key);
-            // let context = Context::from_serialize(&movie_db).expect("Failed to retrieve the value");
-            return template::render(&state.tera, "the_movie_db/show.html.turbo", &context, None);
-        }
+        Err(e) => return render_tmdb_error(&state, &e.message),
     };
     render_search_index(&state)
 }
@@ -86,74 +61,48 @@ pub fn open_browser(url: &str, app_handle: tauri::AppHandle) -> String {
 }
 
 #[tauri::command]
-pub fn movie(
-    id: u32,
-    query: &str,
-    state: State<'_, AppState>,
-) -> Result<String, template::ApiError> {
-    let api_key: String = {
-        let locked_key = state
-            .the_movie_db_key
-            .lock()
-            .expect("Failed to acquire lock on the_movie_db_key in movie command");
-        locked_key.clone()
-    };
-    let language: String = "en-US".to_string();
-    let movie_db = the_movie_db::TheMovieDb::new(api_key, language);
-    let movie_response = movie_db.movie(id);
-    let movie = match movie_response {
-        Ok(resp) => resp,
-        Err(e) => {
-            let api_key = {
-                let locked_key = state
-                    .the_movie_db_key
-                    .lock()
-                    .expect("Failed to acquire lock on the_movie_db_key for error handling in movie command");
-                locked_key.clone()
-            };
+pub fn movie(id: u32, state: State<'_, AppState>) -> Result<String, template::ApiError> {
+    let api_key = get_api_key(&state);
+    let language = "en-US";
+    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+    let query = get_query(&state);
 
-            let mut context = Context::new();
-            context.insert("code", "500");
-            context.insert("message", &format!("Error from TMDB: {}", e.message));
-            context.insert("api_key", &api_key);
-            return template::render(&state.tera, "the_movie_db/show.html.turbo", &context, None);
-        }
-    };
-    let release_dates_response = movie_db.release_dates(id);
-    let release_dates = match release_dates_response {
+    let movie = match movie_db.movie(id) {
         Ok(resp) => resp,
-        Err(e) => {
-            let api_key = {
-                let locked_key = state
-                    .the_movie_db_key
-                    .lock()
-                    .expect("Failed to acquire lock on the_movie_db_key for release_dates error handling in movie command");
-                locked_key.clone()
-            };
+        Err(e) => return render_tmdb_error(&state, &e.message),
+    };
 
-            let mut context = Context::new();
-            context.insert("code", "500");
-            context.insert("message", &format!("Error from TMDB: {}", e.message));
-            context.insert("api_key", &api_key);
-            return template::render(&state.tera, "the_movie_db/show.html.turbo", &context, None);
-        }
+    let certification = match get_movie_certification(movie_db, id) {
+        Ok(resp) => resp,
+        Err(e) => return render_tmdb_error(&state, &e.message),
     };
     let mut context = Context::new();
-    let certification = release_dates
-        .results
-        .iter()
-        .find(|entry| entry.iso_3166_1 == "US")
-        .and_then(|us| us.release_dates.first())
-        .map(|rd| rd.certification.trim());
-    let year = movie.year().unwrap_or(0u32).to_string();
-    let year_title = movie.title_year();
-    println!("MOVIE Data {} {} {:?}", year, year_title, movie);
-    context.insert("movie", &movie_db::MovieView::from(movie));
 
-    context.insert("query", query);
+    context.insert("movie", &movie_db::MovieView::from(movie));
+    context.insert("query", &query);
     context.insert("certification", &certification);
     context.insert("optical_disks", &state.optical_disks);
     template::render(&state.tera, "movies/show.html.turbo", &context, None)
+}
+
+#[tauri::command]
+pub fn tv(id: u32, state: State<'_, AppState>) -> Result<String, template::ApiError> {
+    let api_key = get_api_key(&state);
+    let language = "en-US";
+    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+    let query: String = get_query(&state);
+
+    let tv = match movie_db.tv(id) {
+        Ok(resp) => resp,
+        Err(e) => return render_tmdb_error(&state, &e.message),
+    };
+
+    let mut context = Context::new();
+    context.insert("tv", &movie_db::TvView::from(tv));
+    context.insert("query", &query);
+    context.insert("optical_disks", &state.optical_disks);
+
+    template::render(&state.tera, "tvs/show.html.turbo", &context, None)
 }
 
 #[tauri::command]
@@ -162,28 +111,18 @@ pub fn the_movie_db(
     state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, template::ApiError> {
-    let mut movie_db_key: std::sync::MutexGuard<'_, String> = state
+    let mut movie_db_key = state
         .the_movie_db_key
-        .lock()
+        .write()
         .expect("Failed to acquire lock on the_movie_db_key in the_movie_db command");
     *movie_db_key = key.to_string();
     let api_key = key.to_string();
-    let language = "en-US".to_string();
-    let movie_db = the_movie_db::TheMovieDb::new(api_key, language);
+    let language = "en-US";
+    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
     let response = movie_db.search_multi("Avengers", 1);
     match response {
         Ok(resp) => resp,
-        Err(e) => {
-            let api_error = template::ApiError {
-                code: 500,
-                message: e.message,
-                api_key: None,
-            };
-
-            let context = Context::from_serialize(&api_error)
-                .expect("Failed to serialize API error context in the_movie_db command");
-            return template::render(&state.tera, "error.html.turbo", &context, None);
-        }
+        Err(e) => return render_error(&state, &e.message),
     };
     let store = app_handle
         .store("store.json")
@@ -197,33 +136,14 @@ pub fn the_movie_db(
 
 #[tauri::command]
 pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, template::ApiError> {
-    let api_key: String = {
-        let locked_key = state
-            .the_movie_db_key
-            .lock()
-            .expect("Failed to acquire lock on the_movie_db_key in search command");
-        locked_key.clone()
-    };
-    let language: String = "en-US".to_string();
-    let movie_db = the_movie_db::TheMovieDb::new(api_key, language);
-    let response = movie_db.search_multi(search, 1);
-    let response = match response {
-        Ok(resp) => resp,
-        Err(e) => {
-            let api_key = {
-                let locked_key = state
-                    .the_movie_db_key
-                    .lock()
-                    .expect("Failed to acquire lock on the_movie_db_key for error handling in search command");
-                locked_key.clone()
-            };
+    save_query(&state, search);
 
-            let mut context = Context::new();
-            context.insert("code", "500");
-            context.insert("message", &format!("Error from TMDB: {}", e.message));
-            context.insert("api_key", &api_key);
-            return template::render(&state.tera, "the_movie_db/show.html.turbo", &context, None);
-        }
+    let api_key = get_api_key(&state);
+    let language = "en-US";
+    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+    let response = match movie_db.search_multi(search, 1) {
+        Ok(resp) => resp,
+        Err(e) => return render_tmdb_error(&state, &e.message),
     };
 
     let search = Search {
@@ -303,4 +223,76 @@ pub fn rip_one(
         &Context::new(),
         None,
     )
+}
+
+// ----------------------------------
+// ------- Helper Functions ---------
+// ----------------------------------
+
+fn render_tmdb_error(
+    state: &State<AppState>,
+    error_message: &str,
+) -> Result<String, template::ApiError> {
+    let api_key = get_api_key(state);
+    let mut context = Context::new();
+    context.insert("code", "500");
+    context.insert("message", &format!("Error from TMDB: {}", error_message));
+    context.insert("api_key", &api_key.to_owned());
+    template::render(&state.tera, "the_movie_db/show.html.turbo", &context, None)
+}
+
+fn render_error(
+    state: &State<'_, AppState>,
+    error_message: &str,
+) -> Result<String, template::ApiError> {
+    let api_error = template::ApiError {
+        code: 500,
+        message: error_message.to_owned(),
+        api_key: None,
+    };
+
+    let context = Context::from_serialize(&api_error)
+        .expect("Failed to serialize API error context in the_movie_db command");
+    template::render(&state.tera, "error.html.turbo", &context, None)
+}
+
+fn get_movie_certification(
+    movie_db: the_movie_db::TheMovieDb,
+    id: u32,
+) -> Result<Option<String>, Error> {
+    let release_dates = match movie_db.movie_release_dates(id) {
+        Ok(resp) => resp,
+        Err(e) => return Err(e),
+    };
+
+    Ok(release_dates
+        .results
+        .iter()
+        .find(|entry| entry.iso_3166_1 == "US")
+        .and_then(|us| us.release_dates.first())
+        .map(|rd| rd.certification.trim().to_string()))
+}
+
+fn get_query(state: &State<'_, AppState>) -> String {
+    state.query.lock().unwrap().to_string()
+}
+
+fn save_query(state: &State<'_, AppState>, search: &str) {
+    let mut query = state.query.lock().unwrap();
+    *query = search.to_string();
+}
+
+fn render_search_index(state: &State<'_, AppState>) -> Result<String, template::ApiError> {
+    let mut context = Context::new();
+    context.insert("optical_disks", &state.optical_disks);
+    let binding_selected_disk_id = state
+        .selected_optical_disk_id
+        .lock()
+        .expect("failed to lock selected optical disk id");
+    let guard_selected_disk_id = binding_selected_disk_id.as_ref();
+    if guard_selected_disk_id.is_some() {
+        let disk_id = guard_selected_disk_id.unwrap().clone();
+        context.insert("selected_optical_disk_id", &disk_id);
+    }
+    template::render(&state.tera, "search/index.html.turbo", &context, None)
 }

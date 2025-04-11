@@ -8,7 +8,7 @@ mod state;
 use crate::models::optical_disk_info::OpticalDiskInfo;
 use include_dir::{include_dir, Dir};
 use state::AppState;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use sysinfo::System;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
@@ -59,7 +59,7 @@ fn setup_store(app: &mut App) {
 
     if let Some(key) = value {
         if let Some(key_str) = key.as_str() {
-            let mut movie_db_key = state.the_movie_db_key.lock().unwrap();
+            let mut movie_db_key = state.the_movie_db_key.write().unwrap();
             *movie_db_key = key_str.to_string();
         }
     }
@@ -144,7 +144,8 @@ pub fn run() {
     add_templates_from_dir(&mut tera, &TEMPLATES_DIR);
     let app_state: AppState = AppState {
         tera: Arc::new(tera),
-        the_movie_db_key: Arc::new(Mutex::new(String::new())),
+        query: Arc::new(Mutex::new(String::new())),
+        the_movie_db_key: Arc::new(RwLock::new(String::new())),
         optical_disks: Arc::new(Mutex::new(Vec::<Arc<Mutex<OpticalDiskInfo>>>::new())),
         selected_optical_disk_id: Arc::new(Mutex::new(None)),
     };
@@ -172,9 +173,10 @@ pub fn run() {
             commands::index,
             commands::movie,
             commands::open_browser,
+            commands::rip_one,
             commands::search,
             commands::the_movie_db,
-            commands::rip_one
+            commands::tv,
         ])
         .build(tauri::generate_context!())
         .expect("error while building Tauri application");

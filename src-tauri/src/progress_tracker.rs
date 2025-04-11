@@ -306,7 +306,7 @@ pub mod components {
     use super::{Progress, Projector, Timer};
     use chrono::{DateTime, Local};
     use std::sync::{Arc, Mutex};
-    use std::time::{Duration, SystemTime};
+    use std::time::SystemTime;
 
     pub struct Percentage {
         pub progress: Arc<Mutex<Progress>>,
