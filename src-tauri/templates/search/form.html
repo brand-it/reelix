@@ -1,13 +1,13 @@
-<nav class="navbar bg-body-tertiary mb-3">
-  <div class="container-fluid">
-    <div class="col-md-6">
-      <div class="form-floating mx-1">
+<nav class="navbar mb-3">
+  <div class="container-fluid p-0">
+    <div class="col-6">
+      <div class="form-floating me-1">
         {% include "disks/options.html" %}
         <label for="floatingSelect">Select Disk Drive</label>
       </div>
     </div>
-    <div class="col-md-6">
-      <form class="d-flex simple_form row" action="/search" method="post" data-controller="submit-on-keyup">
+    <div class="col-6">
+      <form class="simple_form d-flex" action="/search" method="post" data-controller="submit-on-keyup">
         <div class="input-group input-group-lg">
           <input type="text" class="form-control" placeholder="TV or Movie Title" aria-label="TV or Movie Title"
             name="search" data-action="keyup->submit-on-keyup#submitWithDebounce" data-submit-on-keyup-target="input"

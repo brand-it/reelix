@@ -1,12 +1,8 @@
+{% import "_poster.html" as macros %}
+
 <div class="row">
-  <div class="col" style="width: 225px; max-width: 225px;">
-    {% if tv.poster_path %}
-    <img class="img-poster" width="200" loading="lazy" src="https://image.tmdb.org/t/p/w200{{ tv.poster_path }}"
-      alt="{{ tv.name | default(value=tv.original_name | default(value='Unknown')) }}">
-    {% else %}
-    <img class="img-poster" width="200" loading="lazy" src="/images/placeholder.jpg"
-      alt="{{ tv.name | default(value=tv.original_name | default(value='Unknown')) }}">
-    {% endif %}
+  <div class="col show-img-posters">
+    {{ macros::poster(poster_path=tv.poster_path, name=tv.name, original_name=tv.original_name) }}
   </div>
   <div class="col" style="width: 75%;">
     <h3 class="tv-name">
@@ -29,5 +25,19 @@
         {{ tv.overview }}
       </p>
     </div>
+    {% if tv.seasons | length > 0 %}
+    <div class="display-flex">
+      {% for season in tv.seasons %}
+      <div class="width-200 m-1 text-center">
+        <a class="btn img-poster-btn p-0 mb-2 m-0" href="/season?tvId={{ tv.id }}&seasonId={{ season.id }}">
+          {{ macros::poster(poster_path=season.poster_path, name=season.name, original_name=season.name) }}
+        </a>
+        <p class="card-title overflow-hidden text-start height-60 mt-2 mb-0">
+          {{ season.name }}
+        </p>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
   </div>
 </div>

@@ -175,6 +175,7 @@ pub fn run() {
             commands::open_browser,
             commands::rip_one,
             commands::search,
+            commands::season,
             commands::the_movie_db,
             commands::tv,
         ])

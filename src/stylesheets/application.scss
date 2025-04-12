@@ -145,6 +145,30 @@ body {
   border-radius: 4px;
 }
 
+.show-img-posters {
+  width: 245px;
+  max-width: 245px;
+}
+
+.img-stack {
+  position: relative;
+
+  .img-poster-behind {
+    position: absolute;
+    left: 0px;
+    top: 0;
+    z-index: 1;
+  }
+
+  .img-poster-front {
+    position: relative;
+    z-index: 2;
+    left: 25px;
+    top: 15px;
+  }
+}
+
+
 .width-200 {
   width: 200px;
 }

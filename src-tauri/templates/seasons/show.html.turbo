@@ -1,7 +1,7 @@
 <turbo-stream action="update" method="morph" target="main-view">
   <template>
     <div id="main-view">
-      {% include "tvs/show.html" %}
+      {% include "seasons/show.html" %}
     </div>
   </template>
 </turbo-stream>

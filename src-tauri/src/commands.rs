@@ -106,6 +106,39 @@ pub fn tv(id: u32, state: State<'_, AppState>) -> Result<String, template::ApiEr
 }
 
 #[tauri::command]
+pub fn season(
+    tv_id: u32,
+    season_id: u32,
+    state: State<'_, AppState>,
+) -> Result<String, template::ApiError> {
+    let api_key = get_api_key(&state);
+    let language = "en-US";
+    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+
+    let tv = match movie_db.tv(tv_id) {
+        Ok(resp) => resp,
+        Err(e) => return render_tmdb_error(&state, &e.message),
+    };
+
+    let season = match tv.find_season(season_id) {
+        Some(resp) => resp,
+        None => {
+            return render_error(
+                &state,
+                &format!("Failed to find Seasons {} in {}", season_id, tv.name),
+            )
+        }
+    };
+
+    let mut context = Context::new();
+    context.insert("tv", &movie_db::TvView::from(tv));
+    context.insert("season", &season);
+    context.insert("optical_disks", &state.optical_disks);
+
+    template::render(&state.tera, "seasons/show.html.turbo", &context, None)
+}
+
+#[tauri::command]
 pub fn the_movie_db(
     key: &str,
     state: State<'_, AppState>,
