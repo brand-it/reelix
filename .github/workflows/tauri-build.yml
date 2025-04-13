@@ -21,7 +21,7 @@ jobs:
           - platform: "macos-latest" # for Intel based macs.
             args: "--target x86_64-apple-darwin"
           - platform: "ubuntu-22.04"
-            args: "" # You can append "--verbose" here if needed.
+            args: "--verbose" # You can append "--verbose" here if needed.
           - platform: "windows-latest"
             args: ""
 
@@ -103,7 +103,7 @@ jobs:
           LINUXDEPLOY_DEBUG: 1 # Enable linuxdeploy debug logging
         with:
           args: ${{ matrix.args }} # Optionally, you can append '--verbose' here if desired.
-      # Release build step with debug environment variables added
+      # Release build step without debug
       - uses: tauri-apps/tauri-action@v0
         if: github.ref_name == 'release'
         env:
