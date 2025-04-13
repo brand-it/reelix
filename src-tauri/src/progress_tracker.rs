@@ -32,39 +32,43 @@ impl Progress {
         self.progress = pos;
     }
 
-    pub fn finish(&mut self) {
-        self.progress = self.total;
-    }
+    // Unused: warning: methods `finish` is never used
+    // pub fn finish(&mut self) {
+    //     self.progress = self.total;
+    // }
 
     pub fn finished(&self) -> bool {
         self.progress == self.total
     }
 
-    pub fn increment(&mut self) {
-        if self.progress == self.total {
-            eprintln!(
-                "WARNING: Your progress bar is currently at {} out of {}",
-                self.progress, self.total
-            );
-        } else {
-            self.progress += 1;
-        }
-    }
+    // Unused: warning: method `increment` is never used
+    // pub fn increment(&mut self) {
+    //     if self.progress == self.total {
+    //         eprintln!(
+    //             "WARNING: Your progress bar is currently at {} out of {}",
+    //             self.progress, self.total
+    //         );
+    //     } else {
+    //         self.progress += 1;
+    //     }
+    // }
 
-    pub fn decrement(&mut self) {
-        if self.progress == 0 {
-            eprintln!(
-                "WARNING: Your progress bar is currently at {} out of {}",
-                self.progress, self.total
-            );
-        } else {
-            self.progress -= 1;
-        }
-    }
+    // Unused: warning: method `decrement` is never used
+    // pub fn decrement(&mut self) {
+    //     if self.progress == 0 {
+    //         eprintln!(
+    //             "WARNING: Your progress bar is currently at {} out of {}",
+    //             self.progress, self.total
+    //         );
+    //     } else {
+    //         self.progress -= 1;
+    //     }
+    // }
 
-    pub fn reset(&mut self) {
-        self.start(Some(self.starting_position));
-    }
+    // Unused: warning: method `reset` is never used
+    // pub fn reset(&mut self) {
+    //     self.start(Some(self.starting_position));
+    // }
 
     pub fn set_progress(&mut self, new_progress: usize) {
         if new_progress > self.total {
@@ -89,20 +93,22 @@ impl Progress {
         }
     }
 
-    pub fn percentage_completed_with_precision(&self) -> String {
-        if self.total == 0 {
-            "100.00".to_string()
-        } else {
-            let percent =
-                (self.progress as f64 * 100.0 / self.total as f64 * 100.0).floor() / 100.0;
-            format!("{:5.2}", percent)
-        }
-    }
+    // Unused: warning: method `percentage_completed_with_precision` is never used
+    // pub fn percentage_completed_with_precision(&self) -> String {
+    //     if self.total == 0 {
+    //         "100.00".to_string()
+    //     } else {
+    //         let percent =
+    //             (self.progress as f64 * 100.0 / self.total as f64 * 100.0).floor() / 100.0;
+    //         format!("{:5.2}", percent)
+    //     }
+    // }
 
     /// Returns the “absolute” progress (progress minus starting position).
-    pub fn absolute(&self) -> isize {
-        self.progress as isize - self.starting_position as isize
-    }
+    // Unused: warning: method `absolute` is never used
+    // pub fn absolute(&self) -> isize {
+    //     self.progress as isize - self.starting_position as isize
+    // }
 
     pub fn none(&self) -> bool {
         self.progress == 0
@@ -149,13 +155,15 @@ impl Timer {
         }
     }
 
-    pub fn pause(&mut self) {
-        self.stop();
-    }
+    // Unused: warning: method `pause` is never used
+    // pub fn pause(&mut self) {
+    //     self.stop();
+    // }
 
-    pub fn resume(&mut self) {
-        self.start();
-    }
+    // Unused: warning: method `resume` is never used
+    // pub fn resume(&mut self) {
+    //     self.start();
+    // }
 
     pub fn started(&self) -> bool {
         self.started_at.is_some()
@@ -165,19 +173,21 @@ impl Timer {
         self.stopped_at.is_some()
     }
 
-    pub fn reset(&mut self) {
-        self.started_at = None;
-        self.stopped_at = None;
-    }
+    // Unused: warning: method `reset` is never used
+    // pub fn reset(&mut self) {
+    //     self.started_at = None;
+    //     self.stopped_at = None;
+    // }
 
     pub fn is_reset(&self) -> bool {
         self.started_at.is_none()
     }
 
-    pub fn restart(&mut self) {
-        self.reset();
-        self.start();
-    }
+    // Unused: warning: method `restart` is never used
+    // pub fn restart(&mut self) {
+    //     self.reset();
+    //     self.start();
+    // }
 
     pub fn elapsed_seconds(&self) -> f64 {
         if let Some(started) = self.started_at {
@@ -192,9 +202,10 @@ impl Timer {
         }
     }
 
-    pub fn elapsed_whole_seconds(&self) -> u64 {
-        self.elapsed_seconds().floor() as u64
-    }
+    // Unused: warning: method `elapsed_whole_seconds` is never used
+    // pub fn elapsed_whole_seconds(&self) -> u64 {
+    //     self.elapsed_seconds().floor() as u64
+    // }
 
     pub fn divide_seconds(seconds: u64) -> (u64, u64, u64) {
         let hours = seconds / 3600;
@@ -208,10 +219,13 @@ impl Timer {
 // The trait now requires implementors to be Send + Sync.
 pub trait Projector: Send + Sync {
     fn start(&mut self, at: Option<f64>);
-    fn decrement(&mut self);
-    fn increment(&mut self);
+    // Unused: warning: methods `decrement` is never used
+    // fn decrement(&mut self);
+    // Unused: warning: method `increment` is never used
+    // fn increment(&mut self);
     fn set_progress(&mut self, new_progress: f64);
-    fn reset(&mut self);
+    // Unused: warning: method `reset` is never used
+    // fn reset(&mut self);
     fn get_progress(&self) -> f64;
     fn none(&self) -> bool;
 }
@@ -228,7 +242,8 @@ pub mod projectors {
     // --- SmoothedAverage ---
     impl SmoothedAverage {
         pub const DEFAULT_STRENGTH: f64 = 0.1;
-        pub const DEFAULT_BEGINNING_POSITION: f64 = 0.0;
+        // Unused: warning: associated constant `DEFAULT_BEGINNING_POSITION` is never used
+        // pub const DEFAULT_BEGINNING_POSITION: f64 = 0.0;
         // Adjust the strength to make the system update the weighted average
         // more often or less often. Larger numbers will keep the current
         // value closer to the current projection, while lower numbers will
@@ -261,24 +276,27 @@ pub mod projectors {
             self.samples[1] = initial;
         }
 
-        fn decrement(&mut self) {
-            let new_value = self.get_progress() - 1.0;
-            self.set_progress(new_value);
-        }
+        // Unused: warning: method `decrement` is never used
+        // fn decrement(&mut self) {
+        //     let new_value = self.get_progress() - 1.0;
+        //     self.set_progress(new_value);
+        // }
 
-        fn increment(&mut self) {
-            let new_value = self.get_progress() + 1.0;
-            self.set_progress(new_value);
-        }
+        // Unused: warning: method `increment` is never used
+        // fn increment(&mut self) {
+        //     let new_value = self.get_progress() + 1.0;
+        //     self.set_progress(new_value);
+        // }
 
         fn set_progress(&mut self, new_progress: f64) {
             self.samples[1] = new_progress;
             self.projection = Self::calculate(self.projection, self.absolute(), self.strength);
         }
 
-        fn reset(&mut self) {
-            self.start(Some(self.samples[0]));
-        }
+        // Unused: warning: method `reset` is never used
+        // fn reset(&mut self) {
+        //     self.start(Some(self.samples[0]));
+        // }
 
         fn get_progress(&self) -> f64 {
             self.samples[1]
@@ -304,9 +322,7 @@ pub mod projectors {
 // --- Components ---
 pub mod components {
     use super::{Progress, Projector, Timer};
-    use chrono::{DateTime, Local};
     use std::sync::{Arc, Mutex};
-    use std::time::SystemTime;
 
     pub struct Percentage {
         pub progress: Arc<Mutex<Progress>>,
@@ -325,31 +341,35 @@ pub mod components {
                 .to_string()
         }
 
-        pub fn justified_percentage(&self) -> String {
-            format!(
-                "{:>3}",
-                self.progress.lock().unwrap().percentage_completed()
-            )
-        }
+        // Unused: warning: method `justified_percentage` is never used
+        // pub fn justified_percentage(&self) -> String {
+        //     format!(
+        //         "{:>3}",
+        //         self.progress.lock().unwrap().percentage_completed()
+        //     )
+        // }
 
-        pub fn percentage_with_precision(&self) -> String {
-            self.progress
-                .lock()
-                .unwrap()
-                .percentage_completed_with_precision()
-        }
+        // Unused: warning: method `percentage_with_precision` is never used
+        // pub fn percentage_with_precision(&self) -> String {
+        //     self.progress
+        //         .lock()
+        //         .unwrap()
+        //         .percentage_completed_with_precision()
+        // }
 
-        pub fn justified_percentage_with_precision(&self) -> String {
-            format!(
-                "{:>6}",
-                self.progress
-                    .lock()
-                    .unwrap()
-                    .percentage_completed_with_precision()
-            )
-        }
+        // Unused: warning: method `justified_percentage_with_precision` is never used
+        // pub fn justified_percentage_with_precision(&self) -> String {
+        //     format!(
+        //         "{:>6}",
+        //         self.progress
+        //             .lock()
+        //             .unwrap()
+        //             .percentage_completed_with_precision()
+        //     )
+        // }
     }
 
+    #[allow(dead_code)]
     pub struct Rate {
         pub rate_scale: Box<dyn Fn(f64) -> f64 + Send + Sync>,
         pub timer: Arc<Mutex<Timer>>,
@@ -365,22 +385,25 @@ pub mod components {
             }
         }
 
-        pub fn rate_of_change(&self, _format_string: Option<&str>) -> String {
-            let elapsed = self.timer.lock().unwrap().elapsed_seconds();
-            if elapsed <= 0.0 {
-                return "0".to_string();
-            }
-            let base_rate = self.progress.lock().unwrap().absolute() as f64 / elapsed;
-            let scaled_rate = (self.rate_scale)(base_rate);
-            format!("{}", scaled_rate)
-        }
+        // Unused: warning: method `rate_of_change` is never used
+        // pub fn rate_of_change(&self, _format_string: Option<&str>) -> String {
+        //     let elapsed = self.timer.lock().unwrap().elapsed_seconds();
+        //     if elapsed <= 0.0 {
+        //         return "0".to_string();
+        //     }
+        //     let base_rate = self.progress.lock().unwrap().absolute() as f64 / elapsed;
+        //     let scaled_rate = (self.rate_scale)(base_rate);
+        //     format!("{}", scaled_rate)
+        // }
 
-        pub fn rate_of_change_with_precision(&self) -> String {
-            self.rate_of_change(Some("%.2f"))
-        }
+        // Unused: warning: method `rate_of_change_with_precision` is never used
+        // pub fn rate_of_change_with_precision(&self) -> String {
+        //     self.rate_of_change(Some("%.2f"))
+        // }
     }
 
-    #[derive(Clone, Copy)]
+    #[derive(Clone)]
+    #[allow(dead_code)]
     pub enum OOBTimeFormat {
         Unknown,
         Friendly,
@@ -393,13 +416,13 @@ pub mod components {
     }
 
     impl TimeComponent {
-        const OOB_LIMIT_IN_HOURS: u64 = 99;
-        const OOB_UNKNOWN_TIME_TEXT: &'static str = "??:??:??";
-        const OOB_FRIENDLY_TIME_TEXT: &'static str = "> 4 Days";
+        // const OOB_LIMIT_IN_HOURS: u64 = 99;
+        // const OOB_UNKNOWN_TIME_TEXT: &'static str = "??:??:??";
+        // const OOB_FRIENDLY_TIME_TEXT: &'static str = "> 4 Days";
         const NO_TIME_ELAPSED_TEXT: &'static str = "--:--:--";
-        const ESTIMATED_LABEL: &'static str = " ETA";
-        const ELAPSED_LABEL: &'static str = "Time";
-        const WALL_CLOCK_FORMAT: &'static str = "%H:%M:%S";
+        // const ESTIMATED_LABEL: &'static str = " ETA";
+        // const ELAPSED_LABEL: &'static str = "Time";
+        // const WALL_CLOCK_FORMAT: &'static str = "%H:%M:%S";
 
         pub fn new(
             timer: Arc<Mutex<Timer>>,
@@ -416,17 +439,17 @@ pub mod components {
         pub fn estimated(&self, oob_format: Option<OOBTimeFormat>) -> String {
             if let Some(estimated_secs) = self.estimated_seconds_remaining() {
                 let (hours, minutes, seconds) = Timer::divide_seconds(estimated_secs);
-                if hours > Self::OOB_LIMIT_IN_HOURS {
+                if hours > 99 {
                     if let Some(oob) = oob_format {
                         return match oob {
-                            OOBTimeFormat::Unknown => Self::OOB_UNKNOWN_TIME_TEXT.to_string(),
-                            OOBTimeFormat::Friendly => Self::OOB_FRIENDLY_TIME_TEXT.to_string(),
+                            OOBTimeFormat::Unknown => Self::NO_TIME_ELAPSED_TEXT.to_string(),
+                            OOBTimeFormat::Friendly => Self::NO_TIME_ELAPSED_TEXT.to_string(),
                         };
                     }
                 }
                 self.format_time(hours, minutes, seconds)
             } else {
-                Self::OOB_UNKNOWN_TIME_TEXT.to_string()
+                Self::NO_TIME_ELAPSED_TEXT.to_string()
             }
         }
 
@@ -434,61 +457,69 @@ pub mod components {
             format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
         }
 
-        pub fn estimated_with_label(&self, oob_format: Option<OOBTimeFormat>) -> String {
-            format!("{}: {}", Self::ESTIMATED_LABEL, self.estimated(oob_format))
-        }
+        // Unused: warning: method `estimated_with_label` is never used
+        // pub fn estimated_with_label(&self, oob_format: Option<OOBTimeFormat>) -> String {
+        //     format!("{}: {}", Self::ESTIMATED_LABEL, self.estimated(oob_format))
+        // }
 
-        pub fn elapsed(&self) -> String {
-            if !self.timer.lock().unwrap().started() {
-                return Self::NO_TIME_ELAPSED_TEXT.to_string();
-            }
-            let elapsed = self.timer.lock().unwrap().elapsed_whole_seconds();
-            let (hours, minutes, seconds) = Timer::divide_seconds(elapsed);
-            self.format_time(hours, minutes, seconds)
-        }
+        // Unused: warning: method `elapsed` is never used
+        // pub fn elapsed(&self) -> String {
+        //     if !self.timer.lock().unwrap().started() {
+        //         return Self::NO_TIME_ELAPSED_TEXT.to_string();
+        //     }
+        //     let elapsed = self.timer.lock().unwrap().elapsed_whole_seconds();
+        //     let (hours, minutes, seconds) = Timer::divide_seconds(elapsed);
+        //     self.format_time(hours, minutes, seconds)
+        // }
 
-        pub fn elapsed_with_label(&self) -> String {
-            format!("{}: {}", Self::ELAPSED_LABEL, self.elapsed())
-        }
+        // Unused: warning: method `elapsed_with_label` is never used
+        // pub fn elapsed_with_label(&self) -> String {
+        //     format!("{}: {}", Self::ELAPSED_LABEL, self.elapsed())
+        // }
 
-        pub fn estimated_with_no_oob(&self) -> String {
-            self.estimated_with_elapsed_fallback(None)
-        }
+        // Unused: warning: method `estimated_with_no_oob` is never used
+        // pub fn estimated_with_no_oob(&self) -> String {
+        //     self.estimated_with_elapsed_fallback(None)
+        // }
 
-        pub fn estimated_with_unknown_oob(&self) -> String {
-            self.estimated_with_elapsed_fallback(Some(OOBTimeFormat::Unknown))
-        }
+        // Unused: warning: method `estimated_with_unknown_oob` is never used
+        // pub fn estimated_with_unknown_oob(&self) -> String {
+        //     self.estimated_with_elapsed_fallback(Some(OOBTimeFormat::Unknown))
+        // }
 
-        pub fn estimated_with_friendly_oob(&self) -> String {
-            self.estimated_with_elapsed_fallback(Some(OOBTimeFormat::Friendly))
-        }
+        // Unused: warning: method `estimated_with_friendly_oob` is never used
+        // pub fn estimated_with_friendly_oob(&self) -> String {
+        //     self.estimated_with_elapsed_fallback(Some(OOBTimeFormat::Friendly))
+        // }
 
-        fn estimated_with_elapsed_fallback(&self, oob_format: Option<OOBTimeFormat>) -> String {
-            if self.progress.lock().unwrap().finished() {
-                self.elapsed_with_label()
-            } else {
-                self.estimated_with_label(oob_format)
-            }
-        }
+        // Unused: warning: method `estimated_with_elapsed_fallback` is never used
+        // fn estimated_with_elapsed_fallback(&self, oob_format: Option<OOBTimeFormat>) -> String {
+        //     if self.progress.lock().unwrap().finished() {
+        //         self.elapsed_with_label()
+        //     } else {
+        //         self.estimated_with_label(oob_format)
+        //     }
+        // }
 
-        pub fn estimated_wall_clock(&self) -> String {
-            if self.progress.lock().unwrap().finished() {
-                if let Some(stopped) = self.timer.lock().unwrap().stopped_at {
-                    let datetime: DateTime<Local> = stopped.into();
-                    return datetime.format(Self::WALL_CLOCK_FORMAT).to_string();
-                }
-            }
-            if !self.timer.lock().unwrap().started() {
-                return Self::NO_TIME_ELAPSED_TEXT.to_string();
-            }
-            if let Some(estimated_secs) = self.estimated_seconds_remaining() {
-                let estimated_time =
-                    SystemTime::now() + std::time::Duration::from_secs(estimated_secs);
-                let datetime: DateTime<Local> = estimated_time.into();
-                return datetime.format(Self::WALL_CLOCK_FORMAT).to_string();
-            }
-            Self::NO_TIME_ELAPSED_TEXT.to_string()
-        }
+        // Unused: warning: method `estimated_wall_clock` is never used
+        // pub fn estimated_wall_clock(&self) -> String {
+        //     if self.progress.lock().unwrap().finished() {
+        //         if let Some(stopped) = self.timer.lock().unwrap().stopped_at {
+        //             let datetime: DateTime<Local> = stopped.into();
+        //             return datetime.format(Self::WALL_CLOCK_FORMAT).to_string();
+        //         }
+        //     }
+        //     if !self.timer.lock().unwrap().started() {
+        //         return Self::NO_TIME_ELAPSED_TEXT.to_string();
+        //     }
+        //     if let Some(estimated_secs) = self.estimated_seconds_remaining() {
+        //         let estimated_time =
+        //             SystemTime::now() + std::time::Duration::from_secs(estimated_secs);
+        //         let datetime: DateTime<Local> = estimated_time.into();
+        //         return datetime.format(Self::WALL_CLOCK_FORMAT).to_string();
+        //     }
+        //     Self::NO_TIME_ELAPSED_TEXT.to_string()
+        // }
 
         fn estimated_seconds_remaining(&self) -> Option<u64> {
             let progress = self.progress.lock().unwrap();
@@ -513,6 +544,7 @@ pub mod components {
 
 // --- Base ---
 /// The main ProgressTracker "Base" type.
+#[allow(dead_code)]
 pub struct Base {
     pub autostart: bool,
     pub autofinish: bool,
@@ -577,71 +609,81 @@ impl Base {
         self.projector.lock().unwrap().start(Some(val));
     }
 
-    pub fn finish(&mut self) {
-        if self.finished() {
-            return;
-        }
-        self.finished = true;
-        self.progress.lock().unwrap().finish();
-        self.timer.lock().unwrap().stop();
-    }
+    // Unused: warning: method `finish` is never used
+    // pub fn finish(&mut self) {
+    //     if self.finished() {
+    //         return;
+    //     }
+    //     self.finished = true;
+    //     self.progress.lock().unwrap().finish();
+    //     self.timer.lock().unwrap().stop();
+    // }
 
-    pub fn pause(&self) {
-        if !self.paused() {
-            self.timer.lock().unwrap().pause();
-        }
-    }
+    // Unused: warning: method `pause` is never used
+    // pub fn pause(&self) {
+    //     if !self.paused() {
+    //         self.timer.lock().unwrap().pause();
+    //     }
+    // }
 
-    pub fn stop(&self) {
-        if !self.stopped() {
-            self.timer.lock().unwrap().stop();
-        }
-    }
+    // Unused: warning: method `stop` is never used
+    // pub fn stop(&self) {
+    //     if !self.stopped() {
+    //         self.timer.lock().unwrap().stop();
+    //     }
+    // }
 
-    pub fn resume(&self) {
-        if self.stopped() {
-            self.timer.lock().unwrap().resume();
-        }
-    }
+    // Unused: warning: method `resume` is never used
+    // pub fn resume(&self) {
+    //     if self.stopped() {
+    //         self.timer.lock().unwrap().resume();
+    //     }
+    // }
 
-    pub fn reset(&mut self) {
-        self.finished = false;
-        self.progress.lock().unwrap().reset();
-        self.projector.lock().unwrap().reset();
-        self.timer.lock().unwrap().reset();
-    }
+    // Unused: warning: method `reset` is never used
+    // pub fn reset(&mut self) {
+    //     self.finished = false;
+    //     self.progress.lock().unwrap().reset();
+    //     self.projector.lock().unwrap().reset();
+    //     self.timer.lock().unwrap().reset();
+    // }
 
-    pub fn stopped(&self) -> bool {
-        self.timer.lock().unwrap().stopped() || self.finished()
-    }
+    // Unused: warning: method `stopped` is never used
+    // pub fn stopped(&self) -> bool {
+    //     self.timer.lock().unwrap().stopped() || self.finished()
+    // }
 
-    pub fn paused(&self) -> bool {
-        self.stopped()
-    }
+    // Unused: warning: method `paused` is never used
+    // pub fn paused(&self) -> bool {
+    //     self.stopped()
+    // }
 
     pub fn finished(&self) -> bool {
         self.finished || (self.autofinish && self.progress.lock().unwrap().finished())
     }
 
-    pub fn started(&self) -> bool {
-        self.timer.lock().unwrap().started()
-    }
+    // Unused: warning: method `started` is never used
+    // pub fn started(&self) -> bool {
+    //     self.timer.lock().unwrap().started()
+    // }
 
-    pub fn decrement(&self) {
-        self.progress.lock().unwrap().decrement();
-        self.projector.lock().unwrap().decrement();
-        if self.finished() {
-            self.timer.lock().unwrap().stop();
-        }
-    }
+    // Unused: warning: method `decrement` is never used
+    // pub fn decrement(&self) {
+    //     self.progress.lock().unwrap().decrement();
+    //     self.projector.lock().unwrap().decrement();
+    //     if self.finished() {
+    //         self.timer.lock().unwrap().stop();
+    //     }
+    // }
 
-    pub fn increment(&self) {
-        self.progress.lock().unwrap().increment();
-        self.projector.lock().unwrap().increment();
-        if self.finished() {
-            self.timer.lock().unwrap().stop();
-        }
-    }
+    // Unused: warning: method `increment` is never used
+    // pub fn increment(&self) {
+    //     self.progress.lock().unwrap().increment();
+    //     self.projector.lock().unwrap().increment();
+    //     if self.finished() {
+    //         self.timer.lock().unwrap().stop();
+    //     }
+    // }
 
     pub fn set_progress(&self, new_progress: usize) {
         self.progress.lock().unwrap().set_progress(new_progress);

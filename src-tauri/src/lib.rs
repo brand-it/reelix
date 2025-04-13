@@ -169,16 +169,7 @@ pub fn run() {
             }
             _ => {}
         })
-        .invoke_handler(tauri::generate_handler![
-            commands::index,
-            commands::movie,
-            commands::open_browser,
-            commands::rip_one,
-            commands::search,
-            commands::season,
-            commands::the_movie_db,
-            commands::tv,
-        ])
+        .invoke_handler(all_commands!())
         .build(tauri::generate_context!())
         .expect("error while building Tauri application");
 
