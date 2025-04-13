@@ -239,3 +239,38 @@ body {
     line-height: 1.25;
   }
 }
+
+.icon {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+}
+
+.episode-card {
+  border: 1px solid #dee2e6;
+  border-radius: .375rem;
+  overflow: hidden;
+  margin-bottom: 1rem;
+  padding: 1rem;
+}
+
+.episode-image img {
+  width: 100%;
+  max-width: 180px;
+  border-radius: .25rem;
+}
+
+.episode-number {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-right: 0.5rem;
+}
+
+.episode-overview {
+  font-size: 0.95rem;
+  color: #6c757d;
+}
+
+.parts-selector .form-select {
+  font-size: 0.875rem;
+}
