@@ -1,0 +1,189 @@
+// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+use super::helpers::{
+    get_movie_certification, get_query, render_error, render_search_index, render_tmdb_error,
+    save_query,
+};
+use crate::models::movie_db;
+use crate::services::{template, the_movie_db};
+use crate::state::{get_api_key, AppState};
+use serde::Serialize;
+use serde_json::json;
+use tauri::State;
+use tauri_plugin_shell::ShellExt;
+use tauri_plugin_store::StoreExt;
+use tera::Context;
+
+#[derive(Serialize)]
+struct Search {
+    query: String,
+    search: movie_db::SearchResponse,
+}
+
+// This is the entry point, basically it decides what to first show the user
+#[tauri::command]
+pub fn index(state: State<'_, AppState>) -> Result<String, template::ApiError> {
+    let api_key = get_api_key(&state);
+    let language = "en-US";
+    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+    let response = movie_db.search_multi("Martian", 1);
+
+    match response {
+        Ok(resp) => resp,
+        Err(e) => return render_tmdb_error(&state, &e.message),
+    };
+    render_search_index(&state)
+}
+
+#[tauri::command]
+pub fn open_browser(url: &str, app_handle: tauri::AppHandle) -> String {
+    let shell = app_handle.shell();
+
+    #[cfg(target_os = "macos")]
+    let browser_cmd = "open";
+
+    #[cfg(target_os = "windows")]
+    let browser_cmd = "cmd /C start";
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let browser_cmd = "xdg-open";
+
+    tauri::async_runtime::block_on(async move {
+        match shell.command(browser_cmd).args([url]).output().await {
+            Ok(resp) => format!("Result: {:?}", String::from_utf8(resp.stdout)),
+            Err(e) => {
+                eprintln!("Open URL Error: {e}");
+                format!("Open URL Error: {}", e)
+            }
+        }
+    })
+}
+
+#[tauri::command]
+pub fn movie(id: u32, state: State<'_, AppState>) -> Result<String, template::ApiError> {
+    let api_key = get_api_key(&state);
+    let language = "en-US";
+    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+    let query = get_query(&state);
+
+    let movie = match movie_db.movie(id) {
+        Ok(resp) => resp,
+        Err(e) => return render_tmdb_error(&state, &e.message),
+    };
+
+    let certification = match get_movie_certification(movie_db, id) {
+        Ok(resp) => resp,
+        Err(e) => return render_tmdb_error(&state, &e.message),
+    };
+    let mut context = Context::new();
+
+    context.insert("movie", &movie_db::MovieView::from(movie));
+    context.insert("query", &query);
+    context.insert("certification", &certification);
+    context.insert("optical_disks", &state.optical_disks);
+    template::render(&state.tera, "movies/show.html.turbo", &context, None)
+}
+
+#[tauri::command]
+pub fn tv(id: u32, state: State<'_, AppState>) -> Result<String, template::ApiError> {
+    let api_key = get_api_key(&state);
+    let language = "en-US";
+    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+    let query: String = get_query(&state);
+
+    let tv = match movie_db.tv(id) {
+        Ok(resp) => resp,
+        Err(e) => return render_tmdb_error(&state, &e.message),
+    };
+
+    let mut context = Context::new();
+    context.insert("tv", &movie_db::TvView::from(tv));
+    context.insert("query", &query);
+    context.insert("optical_disks", &state.optical_disks);
+
+    template::render(&state.tera, "tvs/show.html.turbo", &context, None)
+}
+
+#[tauri::command]
+pub fn season(
+    tv_id: u32,
+    season_id: u32,
+    state: State<'_, AppState>,
+) -> Result<String, template::ApiError> {
+    let api_key = get_api_key(&state);
+    let language = "en-US";
+    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+
+    let tv = match movie_db.tv(tv_id) {
+        Ok(resp) => resp,
+        Err(e) => return render_tmdb_error(&state, &e.message),
+    };
+
+    let season = match tv.find_season(season_id) {
+        Some(resp) => resp,
+        None => {
+            return render_error(
+                &state,
+                &format!("Failed to find Seasons {} in {}", season_id, tv.name),
+            )
+        }
+    };
+
+    let mut context = Context::new();
+    context.insert("tv", &movie_db::TvView::from(tv));
+    context.insert("season", &season);
+    context.insert("optical_disks", &state.optical_disks);
+
+    template::render(&state.tera, "seasons/show.html.turbo", &context, None)
+}
+
+#[tauri::command]
+pub fn the_movie_db(
+    key: &str,
+    state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<String, template::ApiError> {
+    let mut movie_db_key = state
+        .the_movie_db_key
+        .write()
+        .expect("Failed to acquire lock on the_movie_db_key in the_movie_db command");
+    *movie_db_key = key.to_string();
+    let api_key = key.to_string();
+    let language = "en-US";
+    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+    let response = movie_db.search_multi("Avengers", 1);
+    match response {
+        Ok(resp) => resp,
+        Err(e) => return render_error(&state, &e.message),
+    };
+    let store = app_handle
+        .store("store.json")
+        .expect("Failed to load store.json for persistence in the_movie_db command");
+    store.set("the_movie_db_key", json!(key));
+    store
+        .save()
+        .expect("Failed to save store.json in the_movie_db command");
+    render_search_index(&state)
+}
+
+#[tauri::command]
+pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, template::ApiError> {
+    save_query(&state, search);
+
+    let api_key = get_api_key(&state);
+    let language = "en-US";
+    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+    let response = match movie_db.search_multi(search, 1) {
+        Ok(resp) => resp,
+        Err(e) => return render_tmdb_error(&state, &e.message),
+    };
+
+    let search = Search {
+        query: search.to_string(),
+        search: response,
+    };
+
+    let context = Context::from_serialize(&search)
+        .expect("Failed to serialize search context in search command");
+
+    template::render(&state.tera, "search/results.html.turbo", &context, None)
+}

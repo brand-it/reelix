@@ -145,6 +145,30 @@ body {
   border-radius: 4px;
 }
 
+.show-img-posters {
+  width: 245px;
+  max-width: 245px;
+}
+
+.img-stack {
+  position: relative;
+
+  .img-poster-behind {
+    position: absolute;
+    left: 0px;
+    top: 0;
+    z-index: 1;
+  }
+
+  .img-poster-front {
+    position: relative;
+    z-index: 2;
+    left: 25px;
+    top: 15px;
+  }
+}
+
+
 .width-200 {
   width: 200px;
 }
@@ -214,4 +238,31 @@ body {
     min-height: calc(3.5rem + calc(var(--bs-border-width) * 2));
     line-height: 1.25;
   }
+}
+
+.icon {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+}
+
+.episode-image img {
+  width: 100%;
+  max-width: 180px;
+  border-radius: .25rem;
+}
+
+.episode-number {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-right: 0.5rem;
+}
+
+.episode-overview {
+  font-size: 0.95rem;
+  color: #6c757d;
+}
+
+.parts-selector .form-select {
+  font-size: 0.875rem;
 }

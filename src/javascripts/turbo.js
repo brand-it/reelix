@@ -115,7 +115,14 @@ class LinkClickObserver {
             let id = undefined;
             [command, id] = splitPath(location);
             params = {
-              ...Object.fromEntries(location.searchParams.entries()),
+              ...Object.fromEntries(
+                Array.from(location.searchParams.entries()).map(
+                  ([key, value]) => {
+                    const parsed = parseInt(value);
+                    return [key, isNaN(parsed) ? value : parsed];
+                  }
+                )
+              ),
               id: parseInt(id),
             };
           }

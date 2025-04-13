@@ -212,6 +212,10 @@ impl TvResponse {
             None => return format!("{}", self.name),
         };
     }
+
+    pub fn find_season(&self, id: u32) -> Option<TvSeason> {
+        self.seasons.iter().find(|s| s.id == id).cloned()
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone)]

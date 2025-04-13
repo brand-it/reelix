@@ -13,6 +13,7 @@ use tauri_plugin_shell::ShellExt;
 use tera::Context;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct RunResults {
     pub title_infos: Vec<title_info::TitleInfo>,
     pub drives: Vec<mkv::DRV>,

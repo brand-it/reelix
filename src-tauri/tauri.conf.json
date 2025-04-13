@@ -14,7 +14,9 @@
       {
         "title": "Reelix",
         "width": 1075,
-        "height": 800
+        "height": 800,
+        "minWidth": 500,
+        "minHeight": 500
       }
     ],
     "security": {

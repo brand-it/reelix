@@ -7,3 +7,26 @@
   alt="{{ name | default(value=original_name | default(value='Unknown')) }}">
 {% endif %}
 {% endmacro input %}
+
+{% macro poster_stack(front_poster_path, front_name, front_original_name, back_poster_path, back_name,
+back_original_name) %}
+<div class="img-stack">
+  {% if back_poster_path %}
+  <img class="img-poster img-poster-behind" width="200" loading="lazy"
+    src="https://image.tmdb.org/t/p/w200{{ back_poster_path }}"
+    alt="{{ back_name | default(value=back_original_name | default(value='Unknown')) }}">
+  {% else %}
+  <img class="img-poster" width="200" loading="lazy" src="/images/placeholder.jpg"
+    alt="{{ back_name | default(value=back_original_name | default(value='Unknown')) }}">
+  {% endif %}
+
+  {% if front_poster_path %}
+  <img class="img-poster img-poster-front" width="200" loading="lazy"
+    src="https://image.tmdb.org/t/p/w200{{ front_poster_path }}"
+    alt="{{ front_name | default(value=front_original_name | default(value='Unknown')) }}">
+  {% else %}
+  <img class="img-poster" width="200" loading="lazy" src="/images/placeholder.jpg"
+    alt="{{ front_name | default(value=front_original_name | default(value='Unknown')) }}">
+  {% endif %}
+</div>
+{% endmacro input %}
