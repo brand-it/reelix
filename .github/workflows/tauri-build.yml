@@ -99,8 +99,7 @@ jobs:
         if: github.ref_name != 'release'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_LOG: debug # Enable Tauri debug logging
-          LINUXDEPLOY_DEBUG: 1 # Enable linuxdeploy debug logging
+          ARCH: "x86_64"
         with:
           args: ${{ matrix.args }} # Optionally, you can append '--verbose' here if desired.
       # Release build step without debug
@@ -111,6 +110,7 @@ jobs:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
+          ARCH: "x86_64"
         with:
           tagName: reelix-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: "Reelix v__VERSION__"
