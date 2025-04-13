@@ -21,7 +21,7 @@ jobs:
           - platform: "macos-latest" # for Intel based macs.
             args: "--target x86_64-apple-darwin"
           - platform: "ubuntu-22.04"
-            args: ""
+            args: "" # You can append "--verbose" here if needed.
           - platform: "windows-latest"
             args: ""
 
@@ -77,33 +77,33 @@ jobs:
         run: |
           echo "Looking for Developer ID Application..."
           CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Developer ID Application")
-
           echo "Extracting Cert ID..."
           CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
           if [[ -z "$CERT_ID" ]]; then
             echo "Failed to extract CERT_ID from CERT_INFO."
             exit 1
           fi
-
           echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
           echo "Certificate imported successfully."
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-        # webkitgtk 4.0 is for Tauri v1 - webkitgtk 4.1 is for Tauri v2.
-        # You can remove the one that doesn't apply to your app to speed up the workflow a bit.
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - name: install frontend dependencies
         run: npm install # change this to npm, pnpm or bun depending on which one you use.
       - name: print platform info
         run: echo $(rustc -Vv | grep host | cut -f2 -d' ')
+      # Non-release build step with debug environment variables added
       - uses: tauri-apps/tauri-action@v0
         if: github.ref_name != 'release'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_LOG: debug # Enable Tauri debug logging
+          LINUXDEPLOY_DEBUG: 1 # Enable linuxdeploy debug logging
         with:
-          args: ${{ matrix.args }}
+          args: ${{ matrix.args }} # Optionally, you can append '--verbose' here if desired.
+      # Release build step with debug environment variables added
       - uses: tauri-apps/tauri-action@v0
         if: github.ref_name == 'release'
         env:
