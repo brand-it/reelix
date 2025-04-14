@@ -371,3 +371,68 @@ impl From<TvResponse> for TvView {
         }
     }
 }
+
+// ------------------------------------
+// ------- TV Season Response ---------
+// ------------------------------------
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SeasonResponse {
+    pub _id: String,
+    pub air_date: String,
+    pub episodes: Vec<SeasonEpisode>,
+    pub name: String,
+    pub overview: String,
+    pub id: u32,
+    pub poster_path: String,
+    pub season_number: u32,
+    pub vote_average: f32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SeasonEpisode {
+    pub air_date: String,
+    pub episode_number: u32,
+    pub episode_type: String,
+    pub id: u32,
+    pub name: String,
+    pub overview: String,
+    pub production_code: String,
+    pub runtime: u32,
+    pub season_number: u32,
+    pub show_id: u32,
+    pub still_path: String,
+    pub vote_average: f32,
+    pub vote_count: u32,
+    pub crew: Vec<SeasonCrewMember>,
+    pub guest_stars: Vec<SeasonGuestStar>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SeasonCrewMember {
+    pub job: String,
+    pub department: String,
+    pub credit_id: String,
+    pub adult: bool,
+    pub gender: Option<u8>,
+    pub id: u32,
+    pub known_for_department: String,
+    pub name: String,
+    pub original_name: String,
+    pub popularity: f32,
+    pub profile_path: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SeasonGuestStar {
+    pub character: String,
+    pub credit_id: String,
+    pub order: u32,
+    pub adult: bool,
+    pub gender: Option<u8>,
+    pub id: u32,
+    pub known_for_department: String,
+    pub name: String,
+    pub original_name: String,
+    pub popularity: f32,
+    pub profile_path: Option<String>,
+}

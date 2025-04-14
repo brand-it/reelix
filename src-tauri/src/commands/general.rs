@@ -106,7 +106,7 @@ pub fn tv(id: u32, state: State<'_, AppState>) -> Result<String, template::ApiEr
 #[tauri::command]
 pub fn season(
     tv_id: u32,
-    season_id: u32,
+    season_number: u32,
     state: State<'_, AppState>,
 ) -> Result<String, template::ApiError> {
     let api_key = get_api_key(&state);
@@ -118,14 +118,9 @@ pub fn season(
         Err(e) => return render_tmdb_error(&state, &e.message),
     };
 
-    let season = match tv.find_season(season_id) {
-        Some(resp) => resp,
-        None => {
-            return render_error(
-                &state,
-                &format!("Failed to find Seasons {} in {}", season_id, tv.name),
-            )
-        }
+    let season = match movie_db.season(tv_id, season_number) {
+        Ok(resp) => resp,
+        Err(e) => return render_tmdb_error(&state, &e.message),
     };
 
     let mut context = Context::new();
