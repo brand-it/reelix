@@ -35,7 +35,7 @@
       </{{ poster_element }}>
       <h6 class="card-title overflow-hidden text-start height-60">
         <a class="link-light link-opacity-50-hover link-underline-opacity-25 pb-1"
-          href="https://www.themoviedb.org/{{ result.media_type }}/{{ result.id }}" target="_blank">
+          href="https://www.themoviedb.org/{{ result.media_type }}/{{ result.id }}" command="open_url">
           {% if result.media_type == "tv" %}
           <i class="fa fa-tv" data-prefix="fas" data-icon="tv"></i>
           {% elif result.media_type == "movie" %}

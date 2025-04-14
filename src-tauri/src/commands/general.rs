@@ -9,7 +9,7 @@ use crate::state::{get_api_key, AppState};
 use serde::Serialize;
 use serde_json::json;
 use tauri::State;
-use tauri_plugin_shell::ShellExt;
+use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_store::StoreExt;
 use tera::Context;
 
@@ -35,27 +35,17 @@ pub fn index(state: State<'_, AppState>) -> Result<String, template::ApiError> {
 }
 
 #[tauri::command]
-pub fn open_browser(url: &str, app_handle: tauri::AppHandle) -> String {
-    let shell = app_handle.shell();
+pub fn open_url(
+    url: &str,
+    app_handle: tauri::AppHandle,
+    state: State<AppState>,
+) -> Result<String, template::ApiError> {
+    let response = app_handle.opener().open_url(url, None::<&str>);
 
-    #[cfg(target_os = "macos")]
-    let browser_cmd = "open";
-
-    #[cfg(target_os = "windows")]
-    let browser_cmd = "cmd /C start";
-
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    let browser_cmd = "xdg-open";
-
-    tauri::async_runtime::block_on(async move {
-        match shell.command(browser_cmd).args([url]).output().await {
-            Ok(resp) => format!("Result: {:?}", String::from_utf8(resp.stdout)),
-            Err(e) => {
-                eprintln!("Open URL Error: {e}");
-                format!("Open URL Error: {}", e)
-            }
-        }
-    })
+    match response {
+        Ok(_r) => Ok("".to_string()),
+        Err(e) => render_error(&state, &format!("failed to open url: {:?}", e)),
+    }
 }
 
 #[tauri::command]

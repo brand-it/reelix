@@ -30,12 +30,13 @@
       "deny": []
     },
     "store:default",
-    "store:default",
-    "shell:default",
     "http:default",
-    "notification:default"
+    "notification:default",
+    "opener:allow-default-urls"
   ],
   "platforms": [
-    "macOS"
+    "macOS",
+    "windows",
+    "linux"
   ]
 }

@@ -45,7 +45,7 @@
     <!-- Poster Image -->
     <div class="episode-image col-auto p-0">
       <a href="https://www.themoviedb.org/tv/{{ tv.id }}/season/{{ episode.season_number }}/episode/{{ episode.episode_number }}"
-        target="_blank">
+        command="open_url">
         <img src="https://image.tmdb.org/t/p/w227_and_h127_bestv2{{ episode.still_path}}" alt="{{ episode.name }}"
           loading=" lazy" style="width:227px; display:block;">
       </a>
@@ -62,7 +62,7 @@
           <h3 class="h5 mb-0">
             <a class="text-decoration-none"
               href="https://www.themoviedb.org/tv/{{ tv.id }}/season/{{ episode.season_number }}/episode/{{ episode.episode_number }}"
-              target="_blank">
+              command="open_url">
               {{ episode.name }}
             </a>
           </h3>
@@ -89,7 +89,7 @@
           {{ episode.overview }}
         </p>
         <a href="https://www.themoviedb.org/tv/{{ tv.id }}/season/{{ episode.season_number }}/episode/{{ episode.episode_number }}"
-          target="_blank" class="small">
+          command="open_url" class="small">
           Read More
         </a>
       </div>
