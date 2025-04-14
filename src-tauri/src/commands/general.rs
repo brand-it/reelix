@@ -125,7 +125,7 @@ pub fn season(
 
     let mut context = Context::new();
     context.insert("tv", &movie_db::TvView::from(tv));
-    context.insert("season", &season);
+    context.insert("season", &movie_db::SeasonView::from(season));
     context.insert("optical_disks", &state.optical_disks);
 
     template::render(&state.tera, "seasons/show.html.turbo", &context, None)
