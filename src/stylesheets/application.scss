@@ -3,6 +3,7 @@
 @import "checkbox_toggle";
 @import "bg_process";
 @import "movies";
+@import "disk_selector";
 
 html,
 body {
@@ -60,7 +61,7 @@ body {
 
   .console {
     background-color: #000;
-    color: #FFF;
+    color: #fff;
     flex-grow: 1;
     height: 100%;
     overflow-y: auto;
@@ -80,7 +81,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.6);
   line-height: 1;
   margin-right: 7px;
-  padding: .06em 4px .06em;
+  padding: 0.06em 4px 0.06em;
   white-space: nowrap;
 }
 
@@ -96,7 +97,6 @@ body {
     width: 200px;
   }
 }
-
 
 .h-90 {
   height: 90%;
@@ -168,7 +168,6 @@ body {
   }
 }
 
-
 .width-200 {
   width: 200px;
 }
@@ -197,7 +196,6 @@ body {
   --bs-btn-disabled-bg: transparent;
   --bs-btn-disabled-border-color: #f8f9fa;
   --bs-gradient: none;
-
 }
 
 .mini-console {
@@ -208,7 +206,8 @@ body {
     white-space: nowrap !important;
     line-height: 1.25;
     padding: 0.5rem !important;
-    border-bottom: var(--bs-border-width) var(--bs-border-style) var(--bs-border-color) !important;
+    border-bottom: var(--bs-border-width) var(--bs-border-style)
+      var(--bs-border-color) !important;
     border-top-left-radius: var(--bs-border-radius) !important;
     border-top-right-radius: var(--bs-border-radius) !important;
   }
@@ -233,7 +232,7 @@ body {
   }
 }
 .navbar {
-.simple_form {
+  .simple_form {
     height: calc(3.5rem + calc(var(--bs-border-width) * 2));
     min-height: calc(3.5rem + calc(var(--bs-border-width) * 2));
     line-height: 1.25;
@@ -249,7 +248,7 @@ body {
 .episode-image img {
   width: 100%;
   max-width: 180px;
-  border-radius: .25rem;
+  border-radius: 0.25rem;
 }
 
 .episode-number {

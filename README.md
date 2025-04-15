@@ -4,6 +4,22 @@
 
 - [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
 
+# Read Before Using
+
+## Using MakeMKV for DVD Ripping
+
+This tool relies on [MakeMKV](https://www.makemkv.com/) to handle the DVD ripping and convert your discs into MKV files. Unfortunately, MakeMKV is not free forever — you’ll need to purchase a license to unlock full functionality. I know, it’s a bit of a bummer, especially since the goal here is to make ripping your movie collection for Plex as smooth and cost-free as possible.
+
+At some point, I plan to stop bundling the MakeMKV binaries with this package. When that happens, you’ll be responsible for managing the MKV ripping process on your own. For now, if you want to take full advantage of the built-in ripping feature, go ahead and download MakeMKV and register it.
+
+### 👉 You can buy and register MakeMKV here:
+
+https://www.makemkv.com/buy/
+
+By registering it using their official process, the binaries used by this tool will be properly activated. Once that’s done, you shouldn’t need to open MakeMKV again unless you want to.
+
+Really There is nothing better out there I could find then MakeMKV. The process to get lossless conversion of your movie data this is the best. It is a lot of money to buy but I will leave that up to you to decided if you think it is worth it. In the end this tool will have more feature out side of simply ripping movies for Plex. So you might end up not using it for the Ripping your collection. Might end up using it to manage your Plex Library. I don't know we will see.
+
 ## Development
 
 1. `asdf install`
@@ -40,7 +56,6 @@ sudo apt install \
   libappindicator3-dev
 ```
 
-
 ## Build / Deployment
 
 1. `asdf install`
@@ -59,11 +74,10 @@ npm run tauri build -- --bundles dmg --debug
 
 ## Add new Cargo Package
 
-
-
 ```shell
 cargo tauri add tara
 ```
+
 ```shell
 cargo add tera --manifest-path src-tauri/Cargo.toml
 ```

@@ -8,3 +8,6 @@ application.register("restore-button", RestoreButtonController);
 
 import RipOneController from "./rip_one_controller.js";
 application.register("rip-one", RipOneController);
+
+import DiskSelectController from "./disk_select_controller.js";
+application.register("disk-select", DiskSelectController);

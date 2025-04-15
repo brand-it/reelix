@@ -1,0 +1,40 @@
+{# NOTE: It needs a value to have a loading icon #}
+{% macro disk_item(selected, name, value, loading) %}
+
+{% if selected and value %}
+<div class="dropdown-item dropdown-selected" data-disk-select-target="item" data-value="{{ value }}" type="button"
+  data-action="click->disk-select#selected">
+  <span class="icon-column">
+    {% if loading %}
+    <i class="fas fa-spinner fa-spin text-warning"></i>
+    {% else %}
+    <i class="fa-solid fa-square-check text-success"></i>
+    {% endif %}
+  </span>
+  <span class="text-column">{{ name }}</span>
+</div>
+{% elif selected %}
+<div class="dropdown-item dropdown-selected" data-disk-select-target="item" type="button"
+  data-action="click->disk-select#selected">
+  <span class="icon-column"></span>
+  <span class="text-column">{{ name }}</span>
+</div>
+{% elif value %}
+<div class="dropdown-item" data-value="{{ value }}" data-disk-select-target="item" type="button"
+  data-action="click->disk-select#selected">
+  <span class="icon-column">
+    {% if loading %}
+    <i class="fas fa-spinner fa-spin text-warning"></i>
+    {% else %}
+    <i class="fa-solid fa-square-check text-success"></i>
+    {% endif %}
+  </span>
+  <span class="text-column">{{ name }}</span>
+</div>
+{% else %}
+<div class="dropdown-item" data-disk-select-target="item" type="button" data-action="disk-select#selected">
+  <span class="icon-column"></span>
+  <span class="text-column">{{ name }}</span>
+</div>
+{% endif %}
+{% endmacro input %}

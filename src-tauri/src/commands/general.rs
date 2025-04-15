@@ -4,6 +4,7 @@ use super::helpers::{
     save_query,
 };
 use crate::models::movie_db;
+use crate::models::optical_disk_info::DiskId;
 use crate::services::{template, the_movie_db};
 use crate::state::{get_api_key, AppState};
 use serde::Serialize;
@@ -170,4 +171,33 @@ pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, templa
         .expect("Failed to serialize search context in search command");
 
     template::render(&state.tera, "search/results.html.turbo", &context, None)
+}
+
+#[tauri::command]
+pub fn selected_disk(
+    disk_id: u32,
+    state: State<'_, AppState>,
+) -> Result<String, template::ApiError> {
+    match DiskId::try_from(disk_id) {
+        Ok(id) => {
+            let mut selected_optical_disk_id = state
+                .selected_optical_disk_id
+                .write()
+                .expect("failed to lock selected disk ID");
+            *selected_optical_disk_id = Some(id);
+        }
+        Err(_e) => {
+            return render_error(&state, &format!("Failed to covert {} to DiskID", &disk_id))
+        }
+    }
+
+    let mut context = Context::new();
+    context.insert("selected_disk", &state.selected_disk());
+
+    template::render(
+        &state.tera,
+        "disk_titles/options.html.turbo",
+        &context,
+        None,
+    )
 }

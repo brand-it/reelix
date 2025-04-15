@@ -270,8 +270,12 @@ pub async fn handle_changes(
                             add_optical_disk(&app_handle, &disk);
                             set_default_selected_disk(&app_handle, disk.id);
                             emit_disk_change(&app_handle);
-                            load_titles(&app_handle, disk.id).await;
-                            emit_disk_titles_change(&app_handle);
+                            let app_handle_clone = app_handle.clone();
+                            tokio::spawn(async move {
+                                load_titles(&app_handle_clone, disk.id).await;
+                                emit_disk_titles_change(&app_handle_clone);
+                                emit_disk_change(&app_handle_clone);
+                            });
                         }
                     }
                 }

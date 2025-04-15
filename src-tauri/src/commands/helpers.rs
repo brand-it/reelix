@@ -60,6 +60,7 @@ pub fn save_query(state: &State<'_, AppState>, search: &str) {
 pub fn render_search_index(state: &State<'_, AppState>) -> Result<String, template::ApiError> {
     let mut context = Context::new();
     context.insert("optical_disks", &state.optical_disks);
+    context.insert("selected_disk", &state.selected_disk());
     let binding_selected_disk_id = state
         .selected_optical_disk_id
         .read()
