@@ -2,7 +2,6 @@
   <template>
     <main id="main-content">
       {% include "search/index.html" %}
-      {% include "disks/toast_progress.html" %}
     </main>
   </template>
 </turbo-stream>

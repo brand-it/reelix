@@ -1,4 +1,4 @@
-<turbo-stream action="update" method="morph" target="disk-progress">
+<turbo-stream action="replace" method="morph" target="disk-progress-toast">
   <template>
     {% include "disks/toast_progress.html" %}
   </template>

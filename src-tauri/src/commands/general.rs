@@ -69,7 +69,7 @@ pub fn movie(id: u32, state: State<'_, AppState>) -> Result<String, template::Ap
     context.insert("movie", &movie_db::MovieView::from(movie));
     context.insert("query", &query);
     context.insert("certification", &certification);
-    context.insert("optical_disks", &state.optical_disks);
+    context.insert("selected_disk", &state.selected_disk());
     template::render(&state.tera, "movies/show.html.turbo", &context, None)
 }
 
