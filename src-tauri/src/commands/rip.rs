@@ -59,7 +59,7 @@ pub fn rip_one(
                 Ok(movie) => {
                     let movie_dir = create_dir(&movie);
                     optical_disk
-                        .lock()
+                        .write()
                         .unwrap()
                         .set_movie_details(Some(movie.clone()));
                     tauri::async_runtime::spawn(async move {

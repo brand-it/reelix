@@ -1,6 +1,6 @@
 <!-- Parts Selector (4 Parts) -->
-<div class="parts-selector pb-3" id="parts">
-  {% if selected_disk.titles | length > 0 %}
+<div class="parts-selector pb-3">
+  {% if selected_disk and selected_disk.titles | length > 0 %}
 
   <div class="row g-2 align-items-center mb-2">
     <label for="part1" class="col-auto col-form-label fw-bold">Part 1*</label>
@@ -53,7 +53,7 @@
     * Part 1 is required; additional parts are optional.
   </small>
 
-  {% else %}
+  {% elif selected_disk %}
   <div class="d-flex justify-content-center align-items-center py-3">
     <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
     <span class="ms-2">Loading title info…</span>

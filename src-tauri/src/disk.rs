@@ -2,7 +2,7 @@ use crate::models::optical_disk_info;
 use crate::models::optical_disk_info::{DiskId, OpticalDiskInfo};
 use crate::services::{makemkvcon, template};
 use crate::state::AppState;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use sysinfo::{Disk, Disks};
 use tauri::{AppHandle, Emitter, Manager};
 use tera::Context;
@@ -110,17 +110,19 @@ pub async fn watch_for_changes(sender: broadcast::Sender<Vec<diff::Result<Optica
 fn emit_disk_change(app_handle: &AppHandle) {
     let state = app_handle.state::<AppState>();
     let mut context = Context::new();
-    let optical_disks = &state.optical_disks.lock().unwrap().to_vec();
+    let optical_disks: &Vec<Arc<RwLock<OpticalDiskInfo>>> =
+        &state.optical_disks.read().unwrap().to_vec();
     context.insert("optical_disks", &unwrap_disks(optical_disks));
     let binding_selected_disk_id = state
         .selected_optical_disk_id
-        .lock()
+        .read()
         .expect("failed to lock selected optical disk id");
     let guard_selected_disk_id = binding_selected_disk_id.as_ref();
     if guard_selected_disk_id.is_some() {
         let disk_id = guard_selected_disk_id.unwrap().clone();
         context.insert("selected_optical_disk_id", &disk_id);
     }
+    context.insert("selected_disk", &state.selected_disk());
     let result = template::render(&state.tera, "disks/options.html.turbo", &context, None)
         .expect("Failed to render disks/options.html.turbo");
     app_handle
@@ -131,7 +133,6 @@ fn emit_disk_change(app_handle: &AppHandle) {
 fn emit_disk_titles_change(app_handle: &AppHandle) {
     let state = app_handle.state::<AppState>();
     let mut context = Context::new();
-    let optical_disks = &state.optical_disks.lock().unwrap().to_vec();
     context.insert("selected_disk", &state.selected_disk());
     let result = template::render(
         &state.tera,
@@ -145,17 +146,17 @@ fn emit_disk_titles_change(app_handle: &AppHandle) {
         .expect("Failed to emit emit_disk_titles_change");
 }
 
-fn unwrap_disk(disk: &Arc<Mutex<OpticalDiskInfo>>) -> OpticalDiskInfo {
-    disk.lock().expect("Failed to lock").clone()
+fn unwrap_disk(disk: &Arc<RwLock<OpticalDiskInfo>>) -> OpticalDiskInfo {
+    disk.read().expect("Failed to lock").clone()
 }
 
-fn unwrap_disks(disks: &Vec<Arc<Mutex<OpticalDiskInfo>>>) -> Vec<OpticalDiskInfo> {
+fn unwrap_disks(disks: &Vec<Arc<RwLock<OpticalDiskInfo>>>) -> Vec<OpticalDiskInfo> {
     disks.iter().map(|disk| unwrap_disk(disk)).collect()
 }
 
 fn contains(
-    optical_disks: &Vec<Arc<Mutex<OpticalDiskInfo>>>,
-    disk: &Arc<Mutex<OpticalDiskInfo>>,
+    optical_disks: &Vec<Arc<RwLock<OpticalDiskInfo>>>,
+    disk: &Arc<RwLock<OpticalDiskInfo>>,
 ) -> bool {
     optical_disks
         .iter()
@@ -167,7 +168,7 @@ async fn load_titles(app_handle: &AppHandle, disk_id: DiskId) {
     let path = {
         match state.find_optical_disk_by_id(&disk_id) {
             Some(disk) => {
-                let locked_disk = disk.lock().expect("Failed to grab disk");
+                let locked_disk = disk.read().expect("Failed to grab disk");
                 locked_disk.mount_point.to_string_lossy().to_string()
             }
             None => "".to_string(),
@@ -178,7 +179,7 @@ async fn load_titles(app_handle: &AppHandle, disk_id: DiskId) {
 
     match state.find_optical_disk_by_id(&disk_id) {
         Some(disk) => {
-            let locked_disk = disk.lock().expect("Failed to grab disk");
+            let locked_disk = disk.write().expect("Failed to grab disk");
             locked_disk
                 .titles
                 .lock()
@@ -199,10 +200,10 @@ async fn load_titles(app_handle: &AppHandle, disk_id: DiskId) {
 
 fn add_optical_disk(app_handle: &AppHandle, disk: &OpticalDiskInfo) {
     let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
-    let optical_disk = Arc::new(Mutex::new(disk.clone()));
+    let optical_disk = Arc::new(RwLock::new(disk.clone()));
     let mut optical_disks = state
         .optical_disks
-        .lock()
+        .write()
         .expect("Failed to grab optical disks");
     if !contains(&optical_disks, &optical_disk) {
         optical_disks.push(optical_disk);
@@ -213,16 +214,16 @@ fn remove_optical_disks(app_handle: &AppHandle, disk: &OpticalDiskInfo) {
     let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
     let mut optical_disks = state
         .optical_disks
-        .lock()
+        .write()
         .expect("Failed to grab optical disks");
-    optical_disks.retain(|x| *x.lock().expect("Failed to grab optical disk info") != *disk);
+    optical_disks.retain(|x| *x.read().expect("Failed to grab optical disk info") != *disk);
 }
 
 pub fn set_default_selected_disk(app_handle: &AppHandle, disk_id: DiskId) {
     let state = app_handle.state::<AppState>();
     let mut selected_optical_disk_id = state
         .selected_optical_disk_id
-        .lock()
+        .write()
         .expect("failed to lock selected disk ID");
     if selected_optical_disk_id.is_none() {
         println!("changed default selected optical disk to {:?}", disk_id);
@@ -234,7 +235,7 @@ pub fn clear_selected_disk(app_handle: &AppHandle, disk_id: DiskId) {
     let state = app_handle.state::<AppState>();
     let mut selected_optical_disk_id = state
         .selected_optical_disk_id
-        .lock()
+        .write()
         .expect("failed to lock selected disk ID");
 
     if selected_optical_disk_id.as_ref() == Some(&disk_id) {
