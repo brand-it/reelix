@@ -7,19 +7,33 @@ pub struct AppState {
     pub tera: Arc<Tera>,
     pub query: Arc<Mutex<String>>,
     pub the_movie_db_key: Arc<RwLock<String>>,
-    pub optical_disks: Arc<Mutex<Vec<Arc<Mutex<OpticalDiskInfo>>>>>,
-    pub selected_optical_disk_id: Arc<Mutex<Option<DiskId>>>,
+    pub optical_disks: Arc<RwLock<Vec<Arc<RwLock<OpticalDiskInfo>>>>>,
+    pub selected_optical_disk_id: Arc<RwLock<Option<DiskId>>>,
 }
 
 impl AppState {
-    pub fn find_optical_disk_by_id(&self, disk_id: &DiskId) -> Option<Arc<Mutex<OpticalDiskInfo>>> {
+    pub fn selected_disk(&self) -> Option<Arc<RwLock<OpticalDiskInfo>>> {
+        let disk_id = self
+            .selected_optical_disk_id
+            .read()
+            .expect("failed to lock selected_optical_disk_id in find_selected_disk");
+        match disk_id.as_ref() {
+            Some(disk_id) => self.find_optical_disk_by_id(&disk_id),
+            None => None,
+        }
+    }
+
+    pub fn find_optical_disk_by_id(
+        &self,
+        disk_id: &DiskId,
+    ) -> Option<Arc<RwLock<OpticalDiskInfo>>> {
         let disks = self
             .optical_disks
-            .lock()
+            .read()
             .expect("Failed to acquire lock on optical_disks in find_optical_disk_by_id command");
         for disk in disks.iter() {
             let disk_guard = disk
-                .lock()
+                .read()
                 .expect("Failed to acquire lock on disk in find_optical_disk_by_id command");
             if &disk_guard.id == disk_id {
                 return Some(Arc::clone(disk));

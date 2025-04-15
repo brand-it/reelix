@@ -274,7 +274,7 @@ fn spawn<I: IntoIterator<Item = S> + std::fmt::Debug + std::marker::Copy, S: AsR
     let state = app_handle.state::<AppState>();
     match state.find_optical_disk_by_id(disk_id) {
         Some(disk) => {
-            disk.lock()
+            disk.write()
                 .expect("Failed to acquire lock on disk from disk_arc in spawn command")
                 .set_pid(Some(child.pid()));
         }
@@ -295,7 +295,7 @@ pub async fn rip_title(
     match state.find_optical_disk_by_id(disk_id) {
         Some(disk) => {
             let path = {
-                disk.lock()
+                disk.read()
                     .expect("Failed to acquire lock on disk from disk_arc in rip_title command")
                     .disc_name
                     .lock()
@@ -371,7 +371,7 @@ fn update_disk_progress_state(
 
     // Lock the disk.
     let disk = disk_arc
-        .lock()
+        .write()
         .expect("failed to lock disk in update_disk_progress_state");
 
     // Lock current progress to use its label/message as default if needed.
@@ -406,7 +406,7 @@ fn emit_progress(disk_id: &DiskId, app_handle: &AppHandle) {
     let state = app_handle.state::<AppState>();
     let optical_disk_info = {
         match state.find_optical_disk_by_id(disk_id) {
-            Some(disk) => disk.lock().expect("failed to lock disk").clone(),
+            Some(disk) => disk.read().expect("failed to lock disk").clone(),
             None => {
                 println!("failed to find disk using {:?}", disk_id);
                 return;

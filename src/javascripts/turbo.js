@@ -102,30 +102,28 @@ class LinkClickObserver {
       const target =
         (event.composedPath && event.composedPath()[0]) || event.target;
       const link = findLinkFromClickTarget(target);
-
       if (link && doesNotTargetIFrame(link.target)) {
         const location = getLocationForLink(link);
         if (this.delegate.willFollowLinkToLocation(link, location, event)) {
           let command = undefined;
           let params = {};
-          if (event.target.target == "_blank") {
-            command = "open_browser";
-            params = { url: event.target.href };
-          } else {
-            let id = undefined;
-            [command, id] = splitPath(location);
-            params = {
-              ...Object.fromEntries(
-                Array.from(location.searchParams.entries()).map(
-                  ([key, value]) => {
-                    const parsed = parseInt(value);
-                    return [key, isNaN(parsed) ? value : parsed];
-                  }
-                )
-              ),
-              id: parseInt(id),
-            };
-          }
+          let id = undefined;
+          [command, id] = splitPath(location);
+          params = {
+            ...Object.fromEntries(
+              Array.from(location.searchParams.entries()).map(
+                ([key, value]) => {
+                  const parsed = parseInt(value);
+                  return [key, isNaN(parsed) ? value : parsed];
+                }
+              )
+            ),
+            id: parseInt(id),
+          };
+          turboInvoke(command, params);
+        } else if (event.target.getAttribute('command') == 'open_url') {
+          let command = 'open_url';
+          let params = { url: event.target.href };
           turboInvoke(command, params);
         }
       }

@@ -9,7 +9,7 @@ use crate::state::{get_api_key, AppState};
 use serde::Serialize;
 use serde_json::json;
 use tauri::State;
-use tauri_plugin_shell::ShellExt;
+use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_store::StoreExt;
 use tera::Context;
 
@@ -35,27 +35,17 @@ pub fn index(state: State<'_, AppState>) -> Result<String, template::ApiError> {
 }
 
 #[tauri::command]
-pub fn open_browser(url: &str, app_handle: tauri::AppHandle) -> String {
-    let shell = app_handle.shell();
+pub fn open_url(
+    url: &str,
+    app_handle: tauri::AppHandle,
+    state: State<AppState>,
+) -> Result<String, template::ApiError> {
+    let response = app_handle.opener().open_url(url, None::<&str>);
 
-    #[cfg(target_os = "macos")]
-    let browser_cmd = "open";
-
-    #[cfg(target_os = "windows")]
-    let browser_cmd = "cmd /C start";
-
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    let browser_cmd = "xdg-open";
-
-    tauri::async_runtime::block_on(async move {
-        match shell.command(browser_cmd).args([url]).output().await {
-            Ok(resp) => format!("Result: {:?}", String::from_utf8(resp.stdout)),
-            Err(e) => {
-                eprintln!("Open URL Error: {e}");
-                format!("Open URL Error: {}", e)
-            }
-        }
-    })
+    match response {
+        Ok(_r) => Ok("".to_string()),
+        Err(e) => render_error(&state, &format!("failed to open url: {:?}", e)),
+    }
 }
 
 #[tauri::command]
@@ -79,7 +69,7 @@ pub fn movie(id: u32, state: State<'_, AppState>) -> Result<String, template::Ap
     context.insert("movie", &movie_db::MovieView::from(movie));
     context.insert("query", &query);
     context.insert("certification", &certification);
-    context.insert("optical_disks", &state.optical_disks);
+    context.insert("selected_disk", &state.selected_disk());
     template::render(&state.tera, "movies/show.html.turbo", &context, None)
 }
 
@@ -98,7 +88,6 @@ pub fn tv(id: u32, state: State<'_, AppState>) -> Result<String, template::ApiEr
     let mut context = Context::new();
     context.insert("tv", &movie_db::TvView::from(tv));
     context.insert("query", &query);
-    context.insert("optical_disks", &state.optical_disks);
 
     template::render(&state.tera, "tvs/show.html.turbo", &context, None)
 }
@@ -106,7 +95,7 @@ pub fn tv(id: u32, state: State<'_, AppState>) -> Result<String, template::ApiEr
 #[tauri::command]
 pub fn season(
     tv_id: u32,
-    season_id: u32,
+    season_number: u32,
     state: State<'_, AppState>,
 ) -> Result<String, template::ApiError> {
     let api_key = get_api_key(&state);
@@ -118,20 +107,15 @@ pub fn season(
         Err(e) => return render_tmdb_error(&state, &e.message),
     };
 
-    let season = match tv.find_season(season_id) {
-        Some(resp) => resp,
-        None => {
-            return render_error(
-                &state,
-                &format!("Failed to find Seasons {} in {}", season_id, tv.name),
-            )
-        }
+    let season = match movie_db.season(tv_id, season_number) {
+        Ok(resp) => resp,
+        Err(e) => return render_tmdb_error(&state, &e.message),
     };
 
     let mut context = Context::new();
     context.insert("tv", &movie_db::TvView::from(tv));
-    context.insert("season", &season);
-    context.insert("optical_disks", &state.optical_disks);
+    context.insert("season", &movie_db::SeasonView::from(season));
+    context.insert("selected_disk", &state.selected_disk());
 
     template::render(&state.tera, "seasons/show.html.turbo", &context, None)
 }

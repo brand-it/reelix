@@ -62,7 +62,7 @@ pub fn render_search_index(state: &State<'_, AppState>) -> Result<String, templa
     context.insert("optical_disks", &state.optical_disks);
     let binding_selected_disk_id = state
         .selected_optical_disk_id
-        .lock()
+        .read()
         .expect("failed to lock selected optical disk id");
     let guard_selected_disk_id = binding_selected_disk_id.as_ref();
     if guard_selected_disk_id.is_some() {

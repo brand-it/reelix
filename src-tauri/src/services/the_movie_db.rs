@@ -1,5 +1,5 @@
 use crate::models::movie_db::{
-    MovieReleaseDatesResponse, MovieResponse, SearchResponse, TvResponse,
+    MovieReleaseDatesResponse, MovieResponse, SearchResponse, SeasonResponse, TvResponse,
 };
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -72,6 +72,16 @@ impl TheMovieDb {
 
     pub fn tv(&self, id: u32) -> Result<TvResponse, Error> {
         let url = format!("{}/tv/{}", URL_ENDPOINT, id);
+
+        let mut params: HashMap<&str, &str> = HashMap::new();
+        params.insert("api_key", self.api_key.as_str());
+
+        let request = self.client.get(url).query(&params);
+        self.send_request(request)
+    }
+
+    pub fn season(&self, tv_id: u32, season_number: u32) -> Result<SeasonResponse, Error> {
+        let url = format!("{}/tv/{}/season/{}", URL_ENDPOINT, tv_id, season_number);
 
         let mut params: HashMap<&str, &str> = HashMap::new();
         params.insert("api_key", self.api_key.as_str());

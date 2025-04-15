@@ -39,7 +39,7 @@ pub fn rename_file(
     match state.find_optical_disk_by_id(&disk_id) {
         Some(optical_disk) => {
             let locked_disk = optical_disk
-                .lock()
+                .read()
                 .expect("failed to lock disk in rename_file");
             let dir = create_dir(&movie);
 

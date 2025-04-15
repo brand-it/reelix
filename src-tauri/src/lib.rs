@@ -146,11 +146,12 @@ pub fn run() {
         tera: Arc::new(tera),
         query: Arc::new(Mutex::new(String::new())),
         the_movie_db_key: Arc::new(RwLock::new(String::new())),
-        optical_disks: Arc::new(Mutex::new(Vec::<Arc<Mutex<OpticalDiskInfo>>>::new())),
-        selected_optical_disk_id: Arc::new(Mutex::new(None)),
+        optical_disks: Arc::new(RwLock::new(Vec::<Arc<RwLock<OpticalDiskInfo>>>::new())),
+        selected_optical_disk_id: Arc::new(RwLock::new(None)),
     };
 
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::new().build())
@@ -179,12 +180,12 @@ pub fn run() {
             let state = app_handle.state::<AppState>();
             let disks = state
                 .optical_disks
-                .lock()
+                .read()
                 .expect("Failed to get lock on optical_disks");
 
             // Iterate over the optical disks and kill the associated PID if it exists
             for disk in disks.iter() {
-                let locked_disk = disk.lock().expect("failed to get lock on disk");
+                let locked_disk = disk.read().expect("failed to get lock on disk");
                 let pid = locked_disk.pid.lock().expect("failed to lock pid");
                 if pid.is_some() {
                     kill_process(pid.expect("pid is not defined"));

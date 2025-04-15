@@ -213,9 +213,9 @@ impl TvResponse {
         };
     }
 
-    pub fn find_season(&self, id: u32) -> Option<TvSeason> {
-        self.seasons.iter().find(|s| s.id == id).cloned()
-    }
+    // pub fn find_season(&self, id: u32) -> Option<TvSeason> {
+    //     self.seasons.iter().find(|s| s.id == id).cloned()
+    // }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -368,6 +368,186 @@ impl From<TvResponse> for TvView {
             vote_count: tv.vote_count,
             name_year: name_year,
             year: year,
+        }
+    }
+}
+
+// ------------------------------------
+// ------- TV Season Response ---------
+// ------------------------------------
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SeasonResponse {
+    pub _id: String,
+    pub air_date: String,
+    pub episodes: Vec<SeasonEpisode>,
+    pub name: String,
+    pub overview: String,
+    pub id: u32,
+    pub poster_path: String,
+    pub season_number: u32,
+    pub vote_average: f32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SeasonEpisode {
+    pub air_date: String,
+    pub episode_number: u32,
+    pub episode_type: String,
+    pub id: u32,
+    pub name: String,
+    pub overview: String,
+    pub production_code: String,
+    pub runtime: u32,
+    pub season_number: u32,
+    pub show_id: u32,
+    pub still_path: String,
+    pub vote_average: f32,
+    pub vote_count: u32,
+    pub crew: Vec<SeasonCrewMember>,
+    pub guest_stars: Vec<SeasonGuestStar>,
+}
+
+impl SeasonEpisode {
+    pub fn year(&self) -> Option<u32> {
+        NaiveDate::parse_from_str(&self.air_date, "%Y-%m-%d")
+            .ok()
+            .and_then(|dt| dt.format("%Y").to_string().parse::<u32>().ok())
+    }
+
+    pub fn formatted_air_date(&self) -> String {
+        NaiveDate::parse_from_str(&self.air_date, "%Y-%m-%d")
+            .ok()
+            .map(|date| date.format("%B %-d, %Y").to_string())
+            .unwrap_or_else(|| "".to_string())
+    }
+
+    pub fn formatted_runtime(&self) -> String {
+        let hours = self.runtime / 60;
+        let minutes = self.runtime % 60;
+
+        if hours > 0 {
+            format!("{}h&nbsp;{}m", hours, minutes)
+        } else {
+            format!("{}m", minutes)
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SeasonCrewMember {
+    pub job: String,
+    pub department: String,
+    pub credit_id: String,
+    pub adult: bool,
+    pub gender: Option<u8>,
+    pub id: u32,
+    pub known_for_department: String,
+    pub name: String,
+    pub original_name: String,
+    pub popularity: f32,
+    pub profile_path: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SeasonGuestStar {
+    pub character: String,
+    pub credit_id: String,
+    pub order: u32,
+    pub adult: bool,
+    pub gender: Option<u8>,
+    pub id: u32,
+    pub known_for_department: String,
+    pub name: String,
+    pub original_name: String,
+    pub popularity: f32,
+    pub profile_path: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SeasonView {
+    pub _id: String,
+    pub air_date: String,
+    pub episodes: Vec<SeasonEpisodeView>,
+    pub name: String,
+    pub overview: String,
+    pub id: u32,
+    pub poster_path: String,
+    pub season_number: u32,
+    pub vote_average: f32,
+}
+
+// The view type you will expose, now with an extra computed field.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SeasonEpisodeView {
+    pub air_date: String,
+    pub year: Option<u32>,
+    pub formatted_air_date: String,
+    pub formatted_runtime: String,
+    pub episode_number: u32,
+    pub episode_type: String,
+    pub id: u32,
+    pub name: String,
+    pub overview: String,
+    pub production_code: String,
+    pub runtime: u32,
+    pub season_number: u32,
+    pub show_id: u32,
+    pub still_path: String,
+    pub vote_average: f32,
+    pub vote_count: u32,
+    // Computed field: converts the vote average to a percentage string.
+    pub vote_average_percentage: String,
+    pub crew: Vec<SeasonCrewMember>,
+    pub guest_stars: Vec<SeasonGuestStar>,
+}
+
+impl From<SeasonEpisode> for SeasonEpisodeView {
+    fn from(episode: SeasonEpisode) -> Self {
+        let formatted_air_date = episode.formatted_air_date();
+        let formatted_runtime = episode.formatted_runtime();
+        let year = episode.year();
+        SeasonEpisodeView {
+            air_date: episode.air_date,
+            formatted_air_date: formatted_air_date,
+            formatted_runtime: formatted_runtime,
+            year: year,
+            episode_number: episode.episode_number,
+            episode_type: episode.episode_type,
+            id: episode.id,
+            name: episode.name,
+            overview: episode.overview,
+            production_code: episode.production_code,
+            runtime: episode.runtime,
+            season_number: episode.season_number,
+            show_id: episode.show_id,
+            still_path: episode.still_path,
+            vote_average: episode.vote_average,
+            vote_count: episode.vote_count,
+            // Multiply by 10 and format to 1 decimal place, then append a percent sign.
+            vote_average_percentage: format!("{:.1}%", episode.vote_average * 10.0),
+            crew: episode.crew,
+            guest_stars: episode.guest_stars,
+        }
+    }
+}
+
+impl From<SeasonResponse> for SeasonView {
+    fn from(season: SeasonResponse) -> Self {
+        SeasonView {
+            _id: season._id,
+            air_date: season.air_date,
+            // Convert each SeasonEpisode into a SeasonEpisodeView
+            episodes: season
+                .episodes
+                .into_iter()
+                .map(SeasonEpisodeView::from)
+                .collect(),
+            name: season.name,
+            overview: season.overview,
+            id: season.id,
+            poster_path: season.poster_path,
+            season_number: season.season_number,
+            vote_average: season.vote_average,
         }
     }
 }
