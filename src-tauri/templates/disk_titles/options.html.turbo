@@ -4,4 +4,11 @@
   </template>
 </turbo-stream>
 
+<turbo-stream action="replace" target="parts">
+  <template>
+    {% include "seasons/parts.html" %}
+  </template>
+</turbo-stream>
+
+
 {% include "error.html.turbo" %}

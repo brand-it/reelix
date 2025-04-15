@@ -12,6 +12,17 @@ pub struct AppState {
 }
 
 impl AppState {
+    pub fn selected_disk(&self) -> Option<Arc<Mutex<OpticalDiskInfo>>> {
+        let disk_id = self
+            .selected_optical_disk_id
+            .lock()
+            .expect("failed to lock selected_optical_disk_id in find_selected_disk");
+        match disk_id.as_ref() {
+            Some(disk_id) => self.find_optical_disk_by_id(&disk_id),
+            None => None,
+        }
+    }
+
     pub fn find_optical_disk_by_id(&self, disk_id: &DiskId) -> Option<Arc<Mutex<OpticalDiskInfo>>> {
         let disks = self
             .optical_disks

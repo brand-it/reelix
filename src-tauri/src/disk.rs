@@ -132,7 +132,7 @@ fn emit_disk_titles_change(app_handle: &AppHandle) {
     let state = app_handle.state::<AppState>();
     let mut context = Context::new();
     let optical_disks = &state.optical_disks.lock().unwrap().to_vec();
-    context.insert("optical_disks", &unwrap_disks(optical_disks));
+    context.insert("selected_disk", &state.selected_disk());
     let result = template::render(
         &state.tera,
         "disk_titles/options.html.turbo",

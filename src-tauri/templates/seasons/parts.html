@@ -1,0 +1,62 @@
+<!-- Parts Selector (4 Parts) -->
+<div class="parts-selector pb-3" id="parts">
+  {% if selected_disk.titles | length > 0 %}
+
+  <div class="row g-2 align-items-center mb-2">
+    <label for="part1" class="col-auto col-form-label fw-bold">Part 1*</label>
+    <div class="col">
+      <select id="part1" class="form-select form-select-sm" required>
+        <option value="">Select a Disk Title</option>
+        {% for title in selected_disk.titles %}
+        <option value="1">{{ title.description }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div class="row g-2 align-items-center mb-2">
+    <label for="part2" class="col-auto col-form-label fw-bold">Part 2</label>
+    <div class="col">
+      <select id="part2" class="form-select form-select-sm">
+        <option value="">None</option>
+        {% for title in selected_disk.titles %}
+        <option value="1">{{ title.description }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div class="row g-2 align-items-center mb-2">
+    <label for="part3" class="col-auto col-form-label fw-bold">Part 3</label>
+    <div class="col">
+      <select id="part3" class="form-select form-select-sm">
+        <option value="">None</option>
+        {% for title in selected_disk.titles %}
+        <option value="1">{{ title.description }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <div class="row g-2 align-items-center">
+    <label for="part4" class="col-auto col-form-label fw-bold">Part 4</label>
+    <div class="col">
+      <select id="part4" class="form-select form-select-sm">
+        <option value="">None</option>
+        {% for title in selected_disk.titles %}
+        <option value="1">{{ title.description }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <small class="text-muted d-block mt-1">
+    * Part 1 is required; additional parts are optional.
+  </small>
+
+  {% else %}
+  <div class="d-flex justify-content-center align-items-center py-3">
+    <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+    <span class="ms-2">Loading title info…</span>
+  </div>
+  {% endif %}
+</div>

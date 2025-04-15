@@ -95,54 +95,7 @@
       </div>
 
       <!-- Parts Selector (4 Parts) -->
-      <div class="parts-selector pb-3">
-        <div class="row g-2 align-items-center mb-2">
-          <label for="part1" class="col-auto col-form-label fw-bold">Part 1*</label>
-          <div class="col">
-            <select id="part1" class="form-select form-select-sm" required>
-              <option value="">Select a Disk Title</option>
-              <option value="1">Main Feature (01:30:00)</option>
-              <option value="2">Bonus Scenes (00:45:00)</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="row g-2 align-items-center mb-2">
-          <label for="part2" class="col-auto col-form-label fw-bold">Part 2</label>
-          <div class="col">
-            <select id="part2" class="form-select form-select-sm">
-              <option value="">None</option>
-              <option value="1">Main Feature (01:30:00)</option>
-              <option value="2">Bonus Scenes (00:45:00)</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="row g-2 align-items-center mb-2">
-          <label for="part3" class="col-auto col-form-label fw-bold">Part 3</label>
-          <div class="col">
-            <select id="part3" class="form-select form-select-sm">
-              <option value="">None</option>
-              <option value="1">Main Feature (01:30:00)</option>
-              <option value="2">Bonus Scenes (00:45:00)</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="row g-2 align-items-center">
-          <label for="part4" class="col-auto col-form-label fw-bold">Part 4</label>
-          <div class="col">
-            <select id="part4" class="form-select form-select-sm">
-              <option value="">None</option>
-              <option value="1">Main Feature (01:30:00)</option>
-              <option value="2">Bonus Scenes (00:45:00)</option>
-            </select>
-          </div>
-        </div>
-        <small class="text-muted d-block mt-1">
-          * Part 1 is required; additional parts are optional.
-        </small>
-      </div>
+      {% include "seasons/parts.html" %}
     </div>
   </div>
   {% endfor %}
