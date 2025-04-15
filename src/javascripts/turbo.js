@@ -121,8 +121,8 @@ class LinkClickObserver {
             id: parseInt(id),
           };
           turboInvoke(command, params);
-        } else if (event.target.getAttribute('command') == 'open_url') {
-          let command = 'open_url';
+        } else if (event.target.getAttribute("command") == "open_url") {
+          let command = "open_url";
           let params = { url: event.target.href };
           turboInvoke(command, params);
         }
@@ -151,8 +151,12 @@ document.addEventListener("DOMContentLoaded", (event) => {
 });
 
 window.addEventListener("click", function (event) {
-  if (event.target.tagName !== "BUTTON") {
-    console.log("preventDefault", event.target.tagName);
+  // if (event.target.tagName !== "BUTTON") {
+  //   console.log("preventDefault", event.target.tagName);
+  //   event.preventDefault();
+  // }
+  const link = event.target.closest("a");
+  if (link) {
     event.preventDefault();
   }
   // Rework this to make it be powered by turbo.js

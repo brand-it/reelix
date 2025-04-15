@@ -15,6 +15,7 @@ macro_rules! all_commands {
             crate::commands::general::the_movie_db,
             crate::commands::general::tv,
             crate::commands::rip::rip_season,
+            crate::commands::general::selected_disk,
         )
     };
 }

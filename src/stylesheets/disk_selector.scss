@@ -1,0 +1,41 @@
+#disk-selector {
+  margin-right: 1em;
+
+  &.dropdown .btn {
+    background-color: #1e1e1e;
+    color: #ccc;
+    border: 1px solid #444;
+    padding: 1rem;
+    border-radius: 0.5rem;
+  }
+
+  .dropdown-item {
+    color: #ccc;
+    display: flex;
+    align-items: center;
+  }
+
+  .dropdown-toggle {
+    display: flex;
+  }
+
+  li .dropdown-item:hover {
+    background-color: #3a3a3a;
+  }
+
+  li .dropdown-selected {
+    background-color: #3a3a3a;
+  }
+
+  .icon-column {
+    width: 35px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .text-column {
+    overflow: hidden;
+    flex-grow: 1;
+  }
+}

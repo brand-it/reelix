@@ -13,3 +13,4 @@ import "./javascripts/turbo.js";
 import "./javascripts/controllers/index.js";
 import "@fortawesome/fontawesome-free/js/all.js";
 import "./javascripts/disk_listener.js";
+import "bootstrap/dist/js/bootstrap.min.js";

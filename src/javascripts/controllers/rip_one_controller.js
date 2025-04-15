@@ -13,7 +13,6 @@ export default class extends Controller {
       titleId: button.dataset.titleId,
       mvdbId: this.movieIdTarget.value,
     };
-    console.log(commandArgs);
 
     turboInvoke("rip_one", commandArgs)
       .then((response) => {

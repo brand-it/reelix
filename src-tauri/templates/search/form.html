@@ -1,10 +1,7 @@
 <nav class="navbar mb-3">
   <div class="container-fluid p-0">
     <div class="col-6">
-      <div class="form-floating me-1">
-        {% include "disks/options.html" %}
-        <label for="floatingSelect">Select Disk Drive</label>
-      </div>
+      {% include "disks/options.html" %}
     </div>
     <div class="col-6">
       <form class="simple_form d-flex" action="/search" method="post" data-controller="submit-on-keyup">
