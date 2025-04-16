@@ -12,6 +12,12 @@ use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 use tera::Context;
 
+#[cfg(all(target_os = "windows", target_pointer_width = "64"))]
+const MAKEMKVCON: &str = "makemkvcon64";
+
+#[cfg(not(all(target_os = "windows", target_pointer_width = "64")))]
+const MAKEMKVCON: &str = "makemkvcon";
+
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct RunResults {
@@ -218,9 +224,9 @@ async fn run(
         }
     }
     RunResults {
-        title_infos: title_infos,
-        drives: drives,
-        messages: messages,
+        title_infos,
+        drives,
+        messages,
     }
 }
 
@@ -265,7 +271,7 @@ fn spawn<I: IntoIterator<Item = S> + std::fmt::Debug + std::marker::Copy, S: AsR
 ) -> Receiver<CommandEvent> {
     let sidecar_command = app_handle
         .shell()
-        .sidecar("makemkvcon")
+        .sidecar(MAKEMKVCON)
         .expect("failed to get makemkvcon");
     let (receiver, child) = sidecar_command
         .args(args)
@@ -298,10 +304,6 @@ pub async fn rip_title(
                 disk.read()
                     .expect("Failed to acquire lock on disk from disk_arc in rip_title command")
                     .disc_name
-                    .lock()
-                    .expect(
-                        "failed to acquire lock on disk name from disk_arc in rip_title command",
-                    )
                     .clone()
             };
 
@@ -337,8 +339,9 @@ pub async fn rip_title(
     }
 }
 
-pub async fn title_info(disk_id: DiskId, app_handle: &AppHandle, path: &str) -> RunResults {
-    let disk_args = format!("file:{}", path);
+// dev:<DeviceName>  - open disc with OS device name <DeviceName>
+pub async fn title_info(disk_id: DiskId, app_handle: &AppHandle, dev: &str) -> RunResults {
+    let disk_args = format!("dev:{}", dev);
     let receiver = spawn(app_handle, &disk_id, ["-r", "info", &disk_args]);
     let app_handle_clone = app_handle.clone();
 
