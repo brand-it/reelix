@@ -3,13 +3,12 @@
 use crate::models::optical_disk_info;
 use crate::models::optical_disk_info::OpticalDiskInfo;
 use serde::Deserialize;
-use std::path::PathBuf;
 use std::sync::Mutex;
 
 #[cfg(target_os = "windows")]
 use wmi::{COMLibrary, WMIConnection};
 
-#[cfg(target_os = "macos")]
+#[cfg(not(target_os = "windows"))]
 use sysinfo::{Disk, Disks};
 
 // This struct maps to the WMI class Win32_CDROMDrive.
@@ -22,7 +21,7 @@ struct Win32_CDROMDrive {
     VolumeName: String,
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(not(target_os = "windows"))]
 pub fn opticals() -> Vec<OpticalDiskInfo> {
     let disks = Disks::new_with_refreshed_list();
     let mut opticals = Vec::new();
@@ -39,7 +38,7 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
                 is_removable: disk.is_removable(),
                 is_read_only: disk.is_removable(),
                 kind: format!("{:?}", disk.kind()),
-                disc_name: Mutex::new(String::new()),
+                disc_name: String::new(),
                 titles: Mutex::new(Vec::new()),
                 progress: Mutex::new(None),
                 pid: Mutex::new(None),
@@ -49,7 +48,7 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
     opticals
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(not(target_os = "windows"))]
 fn is_optical_disk(disk: &Disk) -> bool {
     let fs_bytes = disk.file_system();
     let fs_str = fs_bytes.to_str().unwrap_or("");
