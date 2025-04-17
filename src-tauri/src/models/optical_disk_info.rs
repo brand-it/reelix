@@ -72,6 +72,7 @@ impl Clone for OpticalDiskInfo {
             is_read_only: self.is_read_only,
             kind: self.kind.clone(),
             dev: self.dev.clone(),
+            mount_point: self.mount_point.clone(),
             titles: Mutex::new(cloned_titles),
             progress: Mutex::new(cloned_progress),
             pid: Mutex::new(None),
