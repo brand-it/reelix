@@ -1,9 +1,8 @@
-use crate::models::optical_disk_info;
 use crate::models::optical_disk_info::{DiskId, OpticalDiskInfo};
+use crate::services::drive_info::opticals;
 use crate::services::{makemkvcon, template};
 use crate::state::AppState;
-use std::sync::{Arc, Mutex, RwLock};
-use sysinfo::{Disk, Disks};
+use std::sync::{Arc, RwLock};
 use tauri::{AppHandle, Emitter, Manager};
 use tera::Context;
 use tokio::sync::broadcast;
@@ -34,40 +33,6 @@ use tokio::time::{sleep, Duration};
 //         println!("#-------------------END DISK-----------------#");
 //     }
 // }
-
-pub fn opticals() -> Vec<OpticalDiskInfo> {
-    let disks = Disks::new_with_refreshed_list();
-    let mut opticals = Vec::new();
-    disks
-        .iter()
-        .filter(|disk| is_optical_disk(disk))
-        .for_each(|disk| {
-            opticals.push(OpticalDiskInfo {
-                id: optical_disk_info::DiskId::new(),
-                name: disk.name().to_string_lossy().to_string(),
-                mount_point: disk.mount_point().to_path_buf(),
-                available_space: disk.available_space(),
-                total_space: disk.total_space(),
-                file_system: disk.file_system().to_string_lossy().to_string(),
-                is_removable: disk.is_removable(),
-                is_read_only: disk.is_removable(),
-                kind: format!("{:?}", disk.kind()),
-                disc_name: Mutex::new(String::new()),
-                titles: Mutex::new(Vec::new()),
-                progress: Mutex::new(None),
-                pid: Mutex::new(None),
-                movie_details: Mutex::new(None),
-            })
-        });
-    opticals
-}
-
-fn is_optical_disk(disk: &Disk) -> bool {
-    let fs_bytes = disk.file_system();
-    let fs_str = fs_bytes.to_str().unwrap_or("");
-
-    disk.is_removable() && (fs_str.contains("udf") || fs_str.contains("iso9660"))
-}
 
 fn changes(
     current_opticals: &Vec<OpticalDiskInfo>,
@@ -165,17 +130,7 @@ fn contains(
 
 async fn load_titles(app_handle: &AppHandle, disk_id: DiskId) {
     let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
-    let path = {
-        match state.find_optical_disk_by_id(&disk_id) {
-            Some(disk) => {
-                let locked_disk = disk.read().expect("Failed to grab disk");
-                locked_disk.mount_point.to_string_lossy().to_string()
-            }
-            None => "".to_string(),
-        }
-    };
-
-    let results = makemkvcon::title_info(disk_id, app_handle, &path).await;
+    let results = makemkvcon::title_info(disk_id, app_handle).await;
 
     match state.find_optical_disk_by_id(&disk_id) {
         Some(disk) => {
@@ -185,14 +140,6 @@ async fn load_titles(app_handle: &AppHandle, disk_id: DiskId) {
                 .lock()
                 .expect("failed to get titles")
                 .extend(results.title_infos);
-
-            let mut disk_name = locked_disk
-                .disc_name
-                .lock()
-                .expect("failed to grab disk_name");
-            if let Some(drive) = results.drives.first() {
-                *disk_name = drive.disc_name.to_string();
-            }
         }
         None => println!("Disk not found in state."),
     }

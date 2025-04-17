@@ -12,6 +12,12 @@ use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 use tera::Context;
 
+#[cfg(all(target_os = "windows", target_pointer_width = "64"))]
+const MAKEMKVCON: &str = "makemkvcon64";
+
+#[cfg(not(all(target_os = "windows", target_pointer_width = "64")))]
+const MAKEMKVCON: &str = "makemkvcon";
+
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct RunResults {
@@ -218,9 +224,9 @@ async fn run(
         }
     }
     RunResults {
-        title_infos: title_infos,
-        drives: drives,
-        messages: messages,
+        title_infos,
+        drives,
+        messages,
     }
 }
 
@@ -265,7 +271,7 @@ fn spawn<I: IntoIterator<Item = S> + std::fmt::Debug + std::marker::Copy, S: AsR
 ) -> Receiver<CommandEvent> {
     let sidecar_command = app_handle
         .shell()
-        .sidecar("makemkvcon")
+        .sidecar(MAKEMKVCON)
         .expect("failed to get makemkvcon");
     let (receiver, child) = sidecar_command
         .args(args)
@@ -292,54 +298,64 @@ pub async fn rip_title(
 ) -> Result<RunResults, String> {
     let state = app_handle.state::<AppState>();
 
-    match state.find_optical_disk_by_id(disk_id) {
+    let args = disk_args(&disk_id, app_handle);
+    let tmp_dir_str = tmp_dir.to_string_lossy();
+    let args = [
+        "mkv",
+        &args,
+        &title_id.to_string(),
+        &tmp_dir_str,
+        "--progress=-same",
+        "--robot",
+        "--profile=\"FLAC\"",
+    ];
+
+    let receiver = spawn(app_handle, disk_id, args);
+    let app_handle_clone = app_handle.clone();
+    let status = Ok(run(disk_id.clone(), receiver, app_handle_clone).await);
+
+    let result = template::render(
+        &state.tera,
+        "disks/toast_progress.html.turbo",
+        &Context::new(),
+        None,
+    )
+    .expect("Failed to render disks/toast_progress.html.turbo");
+    app_handle
+        .emit("disks-changed", result)
+        .expect("Failed to emit disks-changed");
+    status
+}
+
+#[cfg(target_os = "windows")]
+fn disk_args(disk_id: &DiskId, app_handle: &AppHandle) -> String {
+    let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
+
+    match state.find_optical_disk_by_id(&disk_id) {
         Some(disk) => {
-            let path = {
-                disk.read()
-                    .expect("Failed to acquire lock on disk from disk_arc in rip_title command")
-                    .disc_name
-                    .lock()
-                    .expect(
-                        "failed to acquire lock on disk name from disk_arc in rip_title command",
-                    )
-                    .clone()
-            };
-
-            let disc_arg = format!("dev:{}", path);
-            let tmp_dir_str = tmp_dir.to_string_lossy();
-            let args = [
-                "mkv",
-                &disc_arg,
-                &title_id.to_string(),
-                &tmp_dir_str,
-                "--progress=-same",
-                "--robot",
-                "--profile=\"FLAC\"",
-            ];
-
-            let receiver = spawn(app_handle, disk_id, args);
-            let app_handle_clone = app_handle.clone();
-            let status = Ok(run(disk_id.clone(), receiver, app_handle_clone).await);
-
-            let result = template::render(
-                &state.tera,
-                "disks/toast_progress.html.turbo",
-                &Context::new(),
-                None,
-            )
-            .expect("Failed to render disks/toast_progress.html.turbo");
-            app_handle
-                .emit("disks-changed", result)
-                .expect("Failed to emit disks-changed");
-            status
+            let locked_disk = disk.read().expect("Failed to grab disk");
+            format!("dev:{}", locked_disk.dev)
         }
-        None => Err(format!("Failed to find disk using id {:?}", disk_id)),
+        None => "".to_string(),
     }
 }
 
-pub async fn title_info(disk_id: DiskId, app_handle: &AppHandle, path: &str) -> RunResults {
-    let disk_args = format!("file:{}", path);
-    let receiver = spawn(app_handle, &disk_id, ["-r", "info", &disk_args]);
+#[cfg(not(target_os = "windows"))]
+fn disk_args(disk_id: &DiskId, app_handle: &AppHandle) -> String {
+    let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
+
+    match state.find_optical_disk_by_id(&disk_id) {
+        Some(disk) => {
+            let locked_disk = disk.read().expect("Failed to grab disk");
+            format!("file:{}", locked_disk.mount_point.to_string_lossy())
+        }
+        None => "".to_string(),
+    }
+}
+
+pub async fn title_info(disk_id: DiskId, app_handle: &AppHandle) -> RunResults {
+    let args = disk_args(&disk_id, app_handle);
+    let receiver = spawn(app_handle, &disk_id, ["-r", "info", &args]);
     let app_handle_clone = app_handle.clone();
 
     run(disk_id, receiver, app_handle_clone).await

@@ -17,7 +17,7 @@ pub struct OpticalDiskInfo {
     pub is_removable: bool,
     pub is_read_only: bool,
     pub kind: String,
-    pub disc_name: Mutex<String>,
+    pub dev: String, // AKA: Disk Name or Device Name
     pub titles: Mutex<Vec<title_info::TitleInfo>>,
     pub progress: Mutex<Option<Progress>>,
     pub pid: Mutex<Option<u32>>,
@@ -52,11 +52,6 @@ impl Clone for OpticalDiskInfo {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clone();
-        let cloned_disk_name = self
-            .disc_name
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .clone();
         let cloned_progress = self
             .progress
             .lock()
@@ -70,14 +65,14 @@ impl Clone for OpticalDiskInfo {
         OpticalDiskInfo {
             id: self.id.clone(),
             name: self.name.clone(),
-            mount_point: self.mount_point.clone(),
             available_space: self.available_space,
             total_space: self.total_space,
             file_system: self.file_system.clone(),
             is_removable: self.is_removable,
             is_read_only: self.is_read_only,
             kind: self.kind.clone(),
-            disc_name: Mutex::new(cloned_disk_name),
+            dev: self.dev.clone(),
+            mount_point: self.mount_point.clone(),
             titles: Mutex::new(cloned_titles),
             progress: Mutex::new(cloned_progress),
             pid: Mutex::new(None),
@@ -92,13 +87,13 @@ impl Clone for OpticalDiskInfo {
 impl PartialEq for OpticalDiskInfo {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name
-            && self.mount_point == other.mount_point
             && self.available_space == other.available_space
             && self.total_space == other.total_space
             && self.file_system == other.file_system
             && self.is_removable == other.is_removable
             && self.is_read_only == other.is_read_only
             && self.kind == other.kind
+            && self.dev == other.dev
     }
 }
 
