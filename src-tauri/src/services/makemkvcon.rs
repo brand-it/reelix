@@ -1,4 +1,3 @@
-use crate::disk;
 use crate::models::mkv::PRGV;
 use crate::models::optical_disk_info::{self, DiskId};
 use crate::models::{mkv, title_info};
@@ -7,7 +6,6 @@ use crate::services::{makemkvcon_parser, template};
 use crate::state::AppState;
 use std::ffi::OsStr;
 use std::path::PathBuf;
-use sysinfo::Disk;
 use tauri::async_runtime::Receiver;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_shell::process::CommandEvent;
