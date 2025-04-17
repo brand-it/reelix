@@ -1,3 +1,4 @@
+use crate::disk;
 use crate::models::mkv::PRGV;
 use crate::models::optical_disk_info::{self, DiskId};
 use crate::models::{mkv, title_info};
@@ -6,6 +7,7 @@ use crate::services::{makemkvcon_parser, template};
 use crate::state::AppState;
 use std::ffi::OsStr;
 use std::path::PathBuf;
+use sysinfo::Disk;
 use tauri::async_runtime::Receiver;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_shell::process::CommandEvent;
@@ -339,20 +341,35 @@ pub async fn rip_title(
     }
 }
 
-// dev:<DeviceName>  - open disc with OS device name <DeviceName>
-pub async fn title_info(
-    disk_id: DiskId,
-    app_handle: &AppHandle,
-    arg_type: &str,
-    value: &str,
-) -> RunResults {
-    assert!(
-        arg_type == "dev" || arg_type == "file",
-        "arg_type must be 'dev' or 'file'"
-    );
+#[cfg(target_os = "windows")]
+fn disk_args(disk_id: DiskId, app_handle: &AppHandle) -> String {
+    let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
 
-    let disk_args = format!("{}:{}", arg_type, value);
-    let receiver = spawn(app_handle, &disk_id, ["-r", "info", &disk_args]);
+    match state.find_optical_disk_by_id(&disk_id) {
+        Some(disk) => {
+            let locked_disk = disk.read().expect("Failed to grab disk");
+            format!("dev:{}", locked_disk.dev)
+        }
+        None => "".to_string(),
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn disk_args(disk_id: DiskId, app_handle: &AppHandle) -> String {
+    let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
+
+    match state.find_optical_disk_by_id(&disk_id) {
+        Some(disk) => {
+            let locked_disk = disk.read().expect("Failed to grab disk");
+            format!("file:{}", locked_disk.mount_point.to_string_lossy())
+        }
+        None => "".to_string(),
+    }
+}
+
+pub async fn title_info(disk_id: DiskId, app_handle: &AppHandle) -> RunResults {
+    let args = disk_args(disk_id, app_handle);
+    let receiver = spawn(app_handle, &disk_id, ["-r", "info", &args]);
     let app_handle_clone = app_handle.clone();
 
     run(disk_id, receiver, app_handle_clone).await
