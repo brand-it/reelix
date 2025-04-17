@@ -298,49 +298,37 @@ pub async fn rip_title(
 ) -> Result<RunResults, String> {
     let state = app_handle.state::<AppState>();
 
-    match state.find_optical_disk_by_id(disk_id) {
-        Some(disk) => {
-            let path = {
-                disk.read()
-                    .expect("Failed to acquire lock on disk from disk_arc in rip_title command")
-                    .dev
-                    .clone()
-            };
+    let args = disk_args(&disk_id, app_handle);
+    let tmp_dir_str = tmp_dir.to_string_lossy();
+    let args = [
+        "mkv",
+        &args,
+        &title_id.to_string(),
+        &tmp_dir_str,
+        "--progress=-same",
+        "--robot",
+        "--profile=\"FLAC\"",
+    ];
 
-            let disc_arg = format!("dev:{}", path);
-            let tmp_dir_str = tmp_dir.to_string_lossy();
-            let args = [
-                "mkv",
-                &disc_arg,
-                &title_id.to_string(),
-                &tmp_dir_str,
-                "--progress=-same",
-                "--robot",
-                "--profile=\"FLAC\"",
-            ];
+    let receiver = spawn(app_handle, disk_id, args);
+    let app_handle_clone = app_handle.clone();
+    let status = Ok(run(disk_id.clone(), receiver, app_handle_clone).await);
 
-            let receiver = spawn(app_handle, disk_id, args);
-            let app_handle_clone = app_handle.clone();
-            let status = Ok(run(disk_id.clone(), receiver, app_handle_clone).await);
-
-            let result = template::render(
-                &state.tera,
-                "disks/toast_progress.html.turbo",
-                &Context::new(),
-                None,
-            )
-            .expect("Failed to render disks/toast_progress.html.turbo");
-            app_handle
-                .emit("disks-changed", result)
-                .expect("Failed to emit disks-changed");
-            status
-        }
-        None => Err(format!("Failed to find disk using id {:?}", disk_id)),
-    }
+    let result = template::render(
+        &state.tera,
+        "disks/toast_progress.html.turbo",
+        &Context::new(),
+        None,
+    )
+    .expect("Failed to render disks/toast_progress.html.turbo");
+    app_handle
+        .emit("disks-changed", result)
+        .expect("Failed to emit disks-changed");
+    status
 }
 
 #[cfg(target_os = "windows")]
-fn disk_args(disk_id: DiskId, app_handle: &AppHandle) -> String {
+fn disk_args(disk_id: &DiskId, app_handle: &AppHandle) -> String {
     let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
 
     match state.find_optical_disk_by_id(&disk_id) {
@@ -353,7 +341,7 @@ fn disk_args(disk_id: DiskId, app_handle: &AppHandle) -> String {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn disk_args(disk_id: DiskId, app_handle: &AppHandle) -> String {
+fn disk_args(disk_id: &DiskId, app_handle: &AppHandle) -> String {
     let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
 
     match state.find_optical_disk_by_id(&disk_id) {
@@ -366,7 +354,7 @@ fn disk_args(disk_id: DiskId, app_handle: &AppHandle) -> String {
 }
 
 pub async fn title_info(disk_id: DiskId, app_handle: &AppHandle) -> RunResults {
-    let args = disk_args(disk_id, app_handle);
+    let args = disk_args(&disk_id, app_handle);
     let receiver = spawn(app_handle, &disk_id, ["-r", "info", &args]);
     let app_handle_clone = app_handle.clone();
 
