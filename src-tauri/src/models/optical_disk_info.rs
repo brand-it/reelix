@@ -1,5 +1,6 @@
 use crate::models::title_info;
 use serde::Serialize;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 
@@ -9,13 +10,14 @@ use super::movie_db::MovieResponse;
 pub struct OpticalDiskInfo {
     pub id: DiskId,
     pub name: String,
+    pub mount_point: PathBuf,
     pub available_space: u64,
     pub total_space: u64,
     pub file_system: String,
     pub is_removable: bool,
     pub is_read_only: bool,
     pub kind: String,
-    pub disc_name: String, // AKA: Disk Name or Device Name
+    pub dev: String, // AKA: Disk Name or Device Name
     pub titles: Mutex<Vec<title_info::TitleInfo>>,
     pub progress: Mutex<Option<Progress>>,
     pub pid: Mutex<Option<u32>>,
@@ -69,7 +71,7 @@ impl Clone for OpticalDiskInfo {
             is_removable: self.is_removable,
             is_read_only: self.is_read_only,
             kind: self.kind.clone(),
-            disc_name: self.disc_name.clone(),
+            dev: self.dev.clone(),
             titles: Mutex::new(cloned_titles),
             progress: Mutex::new(cloned_progress),
             pid: Mutex::new(None),
@@ -90,6 +92,7 @@ impl PartialEq for OpticalDiskInfo {
             && self.is_removable == other.is_removable
             && self.is_read_only == other.is_read_only
             && self.kind == other.kind
+            && self.dev == other.dev
     }
 }
 

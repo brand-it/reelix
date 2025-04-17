@@ -134,13 +134,13 @@ async fn load_titles(app_handle: &AppHandle, disk_id: DiskId) {
         match state.find_optical_disk_by_id(&disk_id) {
             Some(disk) => {
                 let locked_disk = disk.read().expect("Failed to grab disk");
-                locked_disk.disc_name.clone()
+                locked_disk.dev.clone()
             }
             None => "".to_string(),
         }
     };
 
-    let results = makemkvcon::title_info(disk_id, app_handle, &dev).await;
+    let results = makemkvcon::title_info(disk_id, app_handle, &"dev", &dev).await;
 
     match state.find_optical_disk_by_id(&disk_id) {
         Some(disk) => {

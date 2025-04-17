@@ -2,11 +2,14 @@
 #![allow(non_snake_case)]
 use crate::models::optical_disk_info;
 use crate::models::optical_disk_info::OpticalDiskInfo;
-use serde::Deserialize;
 use std::sync::Mutex;
 
 #[cfg(target_os = "windows")]
-use wmi::{COMLibrary, WMIConnection};
+use {
+    serde::Deserialize,
+    std::path::PathBuf,
+    wmi::{COMLibrary, WMIConnection},
+};
 
 #[cfg(not(target_os = "windows"))]
 use sysinfo::{Disk, Disks};
@@ -38,7 +41,8 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
                 is_removable: disk.is_removable(),
                 is_read_only: disk.is_removable(),
                 kind: format!("{:?}", disk.kind()),
-                disc_name: String::new(),
+                dev: String::new(),
+                mount_point: disk.mount_point().to_path_buf(),
                 titles: Mutex::new(Vec::new()),
                 progress: Mutex::new(None),
                 pid: Mutex::new(None),
@@ -58,6 +62,8 @@ fn is_optical_disk(disk: &Disk) -> bool {
 
 #[cfg(target_os = "windows")]
 pub fn opticals() -> Vec<OpticalDiskInfo> {
+    use std::path::PathBuf;
+
     let com_con = COMLibrary::new().expect("Failed to initialize COM library");
     let wmi_con = WMIConnection::new(com_con.into()).expect("Failed to create WMI connection");
 
@@ -69,7 +75,7 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
 
     // Convert each drive returned by WMI into your OpticalDiskInfo.
     for drive in results {
-        if let Some(disc_name) = drive.Drive {
+        if let Some(dev) = drive.Drive {
             // Use the Caption if available, otherwise use the drive letter.
             let name = drive.VolumeName;
             opticals.push(OpticalDiskInfo {
@@ -81,7 +87,8 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
                 is_removable: true,
                 is_read_only: true,
                 kind: "Optical Disk".to_string(),
-                disc_name,
+                dev,
+                mount_point: PathBuf::new(),
                 titles: Mutex::new(Vec::new()),
                 progress: Mutex::new(None),
                 pid: Mutex::new(None),

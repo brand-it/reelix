@@ -303,7 +303,7 @@ pub async fn rip_title(
             let path = {
                 disk.read()
                     .expect("Failed to acquire lock on disk from disk_arc in rip_title command")
-                    .disc_name
+                    .dev
                     .clone()
             };
 
@@ -340,8 +340,18 @@ pub async fn rip_title(
 }
 
 // dev:<DeviceName>  - open disc with OS device name <DeviceName>
-pub async fn title_info(disk_id: DiskId, app_handle: &AppHandle, dev: &str) -> RunResults {
-    let disk_args = format!("dev:{}", dev);
+pub async fn title_info(
+    disk_id: DiskId,
+    app_handle: &AppHandle,
+    arg_type: &str,
+    value: &str,
+) -> RunResults {
+    assert!(
+        arg_type == "dev" || arg_type == "file",
+        "arg_type must be 'dev' or 'file'"
+    );
+
+    let disk_args = format!("{}:{}", arg_type, value);
     let receiver = spawn(app_handle, &disk_id, ["-r", "info", &disk_args]);
     let app_handle_clone = app_handle.clone();
 
