@@ -1,10 +1,26 @@
-use crate::models::title_info;
+use super::movie_db::{MovieResponse, TvResponse};
+use super::title_info::TitleInfo;
 use serde::Serialize;
+use std::fmt;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 
-use super::movie_db::MovieResponse;
+#[derive(Serialize, Clone)]
+pub enum DiskContent {
+    Tv(TvResponse),
+    Movie(MovieResponse),
+}
+
+impl DiskContent {
+    pub fn into_movie(self) -> Option<MovieResponse> {
+        if let DiskContent::Movie(m) = self {
+            Some(m)
+        } else {
+            None
+        }
+    }
+}
 
 #[derive(Serialize)]
 pub struct OpticalDiskInfo {
@@ -18,20 +34,13 @@ pub struct OpticalDiskInfo {
     pub is_read_only: bool,
     pub kind: String,
     pub dev: String, // AKA: Disk Name or Device Name
-    pub titles: Mutex<Vec<title_info::TitleInfo>>,
+    pub titles: Mutex<Vec<TitleInfo>>,
     pub progress: Mutex<Option<Progress>>,
     pub pid: Mutex<Option<u32>>,
-    pub movie_details: Mutex<Option<MovieResponse>>,
+    pub content: Option<DiskContent>,
 }
 
 impl OpticalDiskInfo {
-    pub fn set_movie_details(&self, movie_details: Option<MovieResponse>) {
-        *self
-            .movie_details
-            .lock()
-            .expect("failed to unlock movie details") = movie_details;
-    }
-
     pub fn set_pid(&self, pid: Option<u32>) {
         *self.pid.lock().expect("failed to unlock pid") = pid;
     }
@@ -57,11 +66,6 @@ impl Clone for OpticalDiskInfo {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clone();
-        let cloned_movie_details = self
-            .movie_details
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .clone();
         OpticalDiskInfo {
             id: self.id.clone(),
             name: self.name.clone(),
@@ -76,7 +80,7 @@ impl Clone for OpticalDiskInfo {
             titles: Mutex::new(cloned_titles),
             progress: Mutex::new(cloned_progress),
             pid: Mutex::new(None),
-            movie_details: Mutex::new(cloned_movie_details),
+            content: self.content.clone(),
         }
     }
 }
@@ -94,6 +98,7 @@ impl PartialEq for OpticalDiskInfo {
             && self.is_read_only == other.is_read_only
             && self.kind == other.kind
             && self.dev == other.dev
+            && self.mount_point == other.mount_point
     }
 }
 

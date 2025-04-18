@@ -1,6 +1,13 @@
+use super::movie_db::{self, TvEpisode};
+use crate::{
+    services::the_movie_db,
+    state::{get_api_key, AppState},
+};
 use serde::Serialize;
+use tauri::AppHandle;
+use tauri::Manager;
 
-#[derive(Debug, Default, Serialize, Clone, PartialEq)]
+#[derive(Default, Serialize, Clone)]
 pub struct TitleInfo {
     pub id: u32,
     pub name: Option<String>,
@@ -16,6 +23,7 @@ pub struct TitleInfo {
     pub lang: Option<String>,
     pub language: Option<String>,
     pub description: Option<String>,
+    pub content: Option<Vec<TvEpisode>>,
 }
 
 impl TitleInfo {
@@ -25,7 +33,6 @@ impl TitleInfo {
             ..Default::default()
         }
     }
-
     // pub fn segment_map(&self) -> Option<Vec<i32>> {
     //     self.segment_map
     //         .as_ref()

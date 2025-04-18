@@ -1,5 +1,5 @@
 use crate::models::mkv::PRGV;
-use crate::models::optical_disk_info::{self, DiskId};
+use crate::models::optical_disk_info::{self, DiskContent, DiskId};
 use crate::models::{mkv, title_info};
 use crate::progress_tracker::{self, ProgressOptions};
 use crate::services::{makemkvcon_parser, template};
@@ -18,7 +18,6 @@ const MAKEMKVCON: &str = "makemkvcon64";
 #[cfg(not(all(target_os = "windows", target_pointer_width = "64")))]
 const MAKEMKVCON: &str = "makemkvcon";
 
-#[derive(Debug)]
 #[allow(dead_code)]
 pub struct RunResults {
     pub title_infos: Vec<title_info::TitleInfo>,
@@ -293,7 +292,7 @@ fn spawn<I: IntoIterator<Item = S> + std::fmt::Debug + std::marker::Copy, S: AsR
 pub async fn rip_title(
     app_handle: &AppHandle,
     disk_id: &DiskId,
-    title_id: u32,
+    title_id: &u32,
     tmp_dir: &PathBuf,
 ) -> Result<RunResults, String> {
     let state = app_handle.state::<AppState>();
@@ -429,14 +428,9 @@ fn emit_progress(disk_id: &DiskId, app_handle: &AppHandle) {
             }
         }
     };
-    let movie_title_year = match optical_disk_info
-        .movie_details
-        .lock()
-        .expect("failed to lock movie details in emit progress")
-        .as_ref()
-    {
-        Some(movie) => movie.title_year(),
-        None => "Unknown".to_string(),
+    let movie_title_year = match optical_disk_info.content.unwrap() {
+        DiskContent::Movie(movie) => movie.title_year(),
+        DiskContent::Tv(_tv) => "Unknown".to_string(),
     };
     let progress = optical_disk_info
         .progress

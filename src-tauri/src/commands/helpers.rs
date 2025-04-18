@@ -1,6 +1,13 @@
+use crate::models::movie_db::MovieResponse;
+use crate::models::optical_disk_info::{DiskContent, OpticalDiskInfo};
+use crate::models::title_info::TitleInfo;
+use crate::services::plex::create_dir;
 use crate::services::the_movie_db::Error;
 use crate::services::{template, the_movie_db};
 use crate::state::{get_api_key, AppState};
+use std::fs;
+use std::path::PathBuf;
+use std::sync::{Arc, RwLock};
 use tauri::State;
 use tera::Context;
 
@@ -71,4 +78,33 @@ pub fn render_search_index(state: &State<'_, AppState>) -> Result<String, templa
         context.insert("selected_optical_disk_id", &disk_id);
     }
     template::render(&state.tera, "search/index.html.turbo", &context, None)
+}
+
+pub fn set_optical_disk_as_movie(
+    optical_disk: &Arc<RwLock<OpticalDiskInfo>>,
+    movie: MovieResponse,
+) {
+    let mut locked_disk = optical_disk.write().unwrap();
+    locked_disk.content = Some(DiskContent::Movie(movie));
+}
+
+pub fn rename_movie_file(movie: &MovieResponse, title: &TitleInfo) -> Result<PathBuf, String> {
+    let dir = create_dir(&movie);
+    let filename = title.filename.as_ref().unwrap();
+    let from = dir.join(filename);
+    match fs::exists(&from) {
+        Ok(exist) => {
+            if exist {
+                let extension = from.extension().and_then(|ext| ext.to_str()).unwrap_or("");
+                let to = dir.join(format!("{}.{}", movie.title_year(), extension));
+                match fs::rename(from, &to) {
+                    Ok(_r) => return Ok(to),
+                    Err(_e) => return Err("Failed to rename file".to_string()),
+                }
+            } else {
+                return Err("File does not exist failed to rename".to_string());
+            }
+        }
+        Err(_e) => return Err("failed to check if from file exists".to_string()),
+    }
 }
