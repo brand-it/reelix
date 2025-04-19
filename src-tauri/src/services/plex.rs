@@ -5,9 +5,19 @@ use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
-pub fn create_dir(movie: &movie_db::MovieResponse) -> PathBuf {
+pub fn create_movie_dir(movie: &movie_db::MovieResponse) -> PathBuf {
     let home_dir = dirs::home_dir().expect("failed to find home dir");
     let dir = home_dir.join("Movies").join(movie.title_year());
+    let message = format!("Failed to create {}", dir.display());
+    if !dir.exists() {
+        fs::create_dir_all(&dir).expect(&message);
+    }
+    dir
+}
+
+pub fn create_season_episode_dir(season: &movie_db::SeasonResponse) -> PathBuf {
+    let home_dir = dirs::home_dir().expect("failed to find home dir");
+    let dir = home_dir.join("TVs").join(season.title_year());
     let message = format!("Failed to create {}", dir.display());
     if !dir.exists() {
         fs::create_dir_all(&dir).expect(&message);

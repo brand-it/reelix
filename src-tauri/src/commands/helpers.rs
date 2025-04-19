@@ -1,14 +1,13 @@
 use crate::models::movie_db::{MovieResponse, SeasonEpisode, SeasonResponse};
 use crate::models::optical_disk_info::{DiskContent, OpticalDiskInfo};
 use crate::models::title_info::TitleInfo;
-use crate::services::plex::create_dir;
+use crate::services::plex::{create_movie_dir, create_season_episode_dir};
 use crate::services::the_movie_db::Error;
 use crate::services::{template, the_movie_db};
 use crate::state::{get_api_key, AppState};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
-use sysinfo::Disk;
 use tauri::State;
 use tera::Context;
 
@@ -119,7 +118,15 @@ pub fn add_episode_to_title(title: &mut TitleInfo, episode: &SeasonEpisode, part
     } else {
         title.part = Some(part.clone());
         title.content.push(episode.clone());
+        title.rip = true
     }
+}
+
+pub fn mark_title_rippable(optical_disk: Arc<RwLock<OpticalDiskInfo>>, title_id: u32) {
+    let locked_disk = optical_disk.write().unwrap();
+    let mut titles = locked_disk.titles.lock().unwrap();
+    let title = titles.iter_mut().find(|t| t.id == title_id).unwrap();
+    title.rip = true;
 }
 
 pub fn remove_episode_from_title(title: &mut TitleInfo, episode: &SeasonEpisode) {
@@ -127,14 +134,15 @@ pub fn remove_episode_from_title(title: &mut TitleInfo, episode: &SeasonEpisode)
         title.content.remove(index);
         if title.content.len() < 1 {
             title.part = None;
+            title.rip = false
         }
     } else {
         println!("episode not associated with title");
     }
 }
 
-pub fn rename_movie_file(movie: &MovieResponse, title: &TitleInfo) -> Result<PathBuf, String> {
-    let dir = create_dir(&movie);
+pub fn rename_movie_file(title: &TitleInfo, movie: &MovieResponse) -> Result<PathBuf, String> {
+    let dir = create_movie_dir(&movie);
     let filename = title.filename.as_ref().unwrap();
     let from = dir.join(filename);
     match fs::exists(&from) {
@@ -142,6 +150,31 @@ pub fn rename_movie_file(movie: &MovieResponse, title: &TitleInfo) -> Result<Pat
             if exist {
                 let extension = from.extension().and_then(|ext| ext.to_str()).unwrap_or("");
                 let to = dir.join(format!("{}.{}", movie.title_year(), extension));
+                match fs::rename(from, &to) {
+                    Ok(_r) => return Ok(to),
+                    Err(_e) => return Err("Failed to rename file".to_string()),
+                }
+            } else {
+                return Err("File does not exist failed to rename".to_string());
+            }
+        }
+        Err(_e) => return Err("failed to check if from file exists".to_string()),
+    }
+}
+
+pub fn rename_tv_file(
+    title: &TitleInfo,
+    season: &SeasonResponse,
+    episode: &SeasonEpisode,
+) -> Result<PathBuf, String> {
+    let dir = create_season_episode_dir(season);
+    let filename = title.filename.as_ref().unwrap();
+    let from = dir.join(filename);
+    match fs::exists(&from) {
+        Ok(exist) => {
+            if exist {
+                let extension = from.extension().and_then(|ext| ext.to_str()).unwrap_or("");
+                let to = dir.join(format!("{}.{}", season.title_year(), extension));
                 match fs::rename(from, &to) {
                     Ok(_r) => return Ok(to),
                     Err(_e) => return Err("Failed to rename file".to_string()),

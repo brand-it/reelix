@@ -19,6 +19,7 @@ pub struct TitleInfo {
     pub description: Option<String>,
     pub content: Vec<SeasonEpisode>,
     pub part: Option<u16>,
+    pub rip: bool,
 }
 
 impl TitleInfo {
