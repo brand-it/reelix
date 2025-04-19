@@ -1,5 +1,6 @@
 {% import "_poster.html" as macros %}
 
+
 <div class="row">
   <div class="col show-img-posters">
     <a class="btn img-poster-btn p-0 mb-2 m-0" href="/tv/{{ tv.id }}">
@@ -52,7 +53,8 @@
     </div>
 
     <!-- Episode Info -->
-    <div class="col">
+    <div class="col" data-controller="episode" data-episode-episode-number-value="{{ episode.episode_number }}"
+      data-episode-season-number-value="{{ episode.season_number }}" data-episode-mvdb-id-value="{{ tv.id }}">
       <div class="d-flex align-items-start mb-1 pt-2">
         <!-- Episode Number -->
         <span class="episode-number">#{{ episode.episode_number }}</span>

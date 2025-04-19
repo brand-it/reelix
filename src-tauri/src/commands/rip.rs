@@ -1,18 +1,15 @@
-use core::panic;
-
-use super::helpers::{rename_movie_file, render_error, set_optical_disk_as_movie};
-use crate::{
-    models::{
-        movie_db::MovieResponse,
-        optical_disk_info::{DiskContent, DiskId},
-    },
-    services::{
-        makemkvcon,
-        plex::{create_dir, find_movie},
-        template,
-    },
-    state::AppState,
+use super::helpers::{
+    add_episode_to_title, remove_episode_from_title, rename_movie_file, render_error,
+    set_optical_disk_as_movie,
 };
+use crate::models::optical_disk_info::{DiskContent, DiskId};
+use crate::services::{
+    makemkvcon,
+    plex::{create_dir, find_movie, find_season},
+    template,
+};
+use crate::state::AppState;
+use core::panic;
 use serde::{Deserialize, Serialize};
 use tauri::{Manager, State};
 use tauri_plugin_notification::NotificationExt;
@@ -37,16 +34,108 @@ pub struct Episode {
     parts: Vec<Part>,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct SeasonData {
+#[tauri::command]
+pub fn assign_episode_to_title(
+    mvdb_id: u32,
     season_number: u32,
-    episodes: Vec<Episode>,
+    episode_number: u32,
+    title_id: u32,
+    part: u16,
+    app_state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<String, template::ApiError> {
+    let optical_disk = match app_state.selected_disk() {
+        Some(d) => d,
+        None => return render_error(&app_state, "No current selected disk"),
+    };
+
+    let locked_disk = match optical_disk.read() {
+        Ok(disk) => disk,
+        Err(e) => return render_error(&app_state, "Failed to read disk"),
+    };
+    let mut locked_titles = match locked_disk.titles.lock() {
+        Ok(titles) => titles,
+        Err(_e) => return render_error(&app_state, "Failed to lock titles"),
+    };
+
+    let title = match locked_titles.iter_mut().find(|t| t.id == title_id) {
+        Some(t) => t,
+        None => return render_error(&app_state, "Failed to find Title"),
+    };
+
+    let season = match find_season(&app_handle, mvdb_id, season_number) {
+        Ok(season) => season,
+        Err(e) => return render_error(&app_state, &e.message),
+    };
+
+    match season
+        .episodes
+        .iter()
+        .find(|e| e.episode_number == episode_number)
+    {
+        Some(e) => add_episode_to_title(title, e, &part),
+        None => return render_error(&app_state, "Failed to find episode number"),
+    };
+    println!(
+        "Added {} to {} {} {}",
+        title_id, mvdb_id, season_number, episode_number
+    );
+    println!("INspecting title {:?}", title);
+    Ok("Success".to_string())
 }
 
 #[tauri::command]
-pub fn rip_season(_season_data: SeasonData) -> Result<(), String> {
-    Ok(())
+pub fn withdraw_episode_from_title(
+    mvdb_id: u32,
+    season_number: u32,
+    episode_number: u32,
+    title_id: u32,
+    app_state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<String, template::ApiError> {
+    let optical_disk = match app_state.selected_disk() {
+        Some(d) => d,
+        None => return render_error(&app_state, "No current selected disk"),
+    };
+
+    let locked_disk = match optical_disk.read() {
+        Ok(disk) => disk,
+        Err(e) => return render_error(&app_state, "Failed to read disk"),
+    };
+    let mut locked_titles = match locked_disk.titles.lock() {
+        Ok(titles) => titles,
+        Err(_e) => return render_error(&app_state, "Failed to lock titles"),
+    };
+
+    let title = match locked_titles.iter_mut().find(|t| t.id == title_id) {
+        Some(t) => t,
+        None => return render_error(&app_state, "Failed to find Title"),
+    };
+
+    let season = match find_season(&app_handle, mvdb_id, season_number) {
+        Ok(season) => season,
+        Err(e) => return render_error(&app_state, &e.message),
+    };
+
+    match season
+        .episodes
+        .iter()
+        .find(|e| e.episode_number == episode_number)
+    {
+        Some(e) => remove_episode_from_title(title, e),
+        None => return render_error(&app_state, "Failed to find episode number"),
+    };
+    println!(
+        "Removed {} to {} {} {}",
+        title_id, mvdb_id, season_number, episode_number
+    );
+    Ok("Success".to_string())
 }
+
+// #[tauri::command]
+// pub fn rip_season(_season_data: SeasonData) -> Result<(), String> {
+//     Ok(())
+// }
 
 #[tauri::command]
 pub fn rip_one(

@@ -375,7 +375,7 @@ impl From<TvResponse> for TvView {
 // ------------------------------------
 // ------- TV Season Response ---------
 // ------------------------------------
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SeasonResponse {
     pub _id: String,
     pub air_date: String,
@@ -388,7 +388,7 @@ pub struct SeasonResponse {
     pub vote_average: f32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SeasonEpisode {
     pub air_date: String,
     pub episode_number: u32,
@@ -433,7 +433,7 @@ impl SeasonEpisode {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SeasonCrewMember {
     pub job: String,
     pub department: String,
@@ -448,7 +448,7 @@ pub struct SeasonCrewMember {
     pub profile_path: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SeasonGuestStar {
     pub character: String,
     pub credit_id: String,

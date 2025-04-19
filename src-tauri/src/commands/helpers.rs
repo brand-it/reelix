@@ -1,4 +1,4 @@
-use crate::models::movie_db::MovieResponse;
+use crate::models::movie_db::{MovieResponse, SeasonEpisode, TvResponse};
 use crate::models::optical_disk_info::{DiskContent, OpticalDiskInfo};
 use crate::models::title_info::TitleInfo;
 use crate::services::plex::create_dir;
@@ -86,6 +86,31 @@ pub fn set_optical_disk_as_movie(
 ) {
     let mut locked_disk = optical_disk.write().unwrap();
     locked_disk.content = Some(DiskContent::Movie(movie));
+}
+
+pub fn set_optical_disk_as_tv(optical_disk: &Arc<RwLock<OpticalDiskInfo>>, tv: TvResponse) {
+    let mut locked_disk = optical_disk.write().unwrap();
+    locked_disk.content = Some(DiskContent::Tv(tv));
+}
+
+pub fn add_episode_to_title(title: &mut TitleInfo, episode: &SeasonEpisode, part: &u16) {
+    if title.content.iter().any(|e| e.id == episode.id) {
+        println!("episode already associated with title");
+    } else {
+        title.part = Some(part.clone());
+        title.content.push(episode.clone());
+    }
+}
+
+pub fn remove_episode_from_title(title: &mut TitleInfo, episode: &SeasonEpisode) {
+    if let Some(index) = title.content.iter().position(|e| e.id == episode.id) {
+        title.content.remove(index);
+        if title.content.len() < 1 {
+            title.part = None;
+        }
+    } else {
+        println!("episode not associated with title");
+    }
 }
 
 pub fn rename_movie_file(movie: &MovieResponse, title: &TitleInfo) -> Result<PathBuf, String> {

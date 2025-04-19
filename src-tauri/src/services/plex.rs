@@ -26,3 +26,28 @@ pub fn find_movie(
     let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
     movie_db.movie(id)
 }
+
+pub fn find_tv(
+    app_handle: &AppHandle,
+    id: u32,
+) -> Result<movie_db::TvResponse, the_movie_db::Error> {
+    let state: tauri::State<AppState> = app_handle.state::<AppState>();
+    let api_key = get_api_key(&state);
+
+    let language = "en-US";
+    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+    movie_db.tv(id)
+}
+
+pub fn find_season(
+    app_handle: &AppHandle,
+    tv_id: u32,
+    season_number: u32,
+) -> Result<movie_db::SeasonResponse, the_movie_db::Error> {
+    let state: tauri::State<AppState> = app_handle.state::<AppState>();
+    let api_key = get_api_key(&state);
+
+    let language = "en-US";
+    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+    movie_db.season(tv_id, season_number)
+}

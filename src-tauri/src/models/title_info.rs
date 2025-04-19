@@ -1,13 +1,7 @@
-use super::movie_db::{self, TvEpisode};
-use crate::{
-    services::the_movie_db,
-    state::{get_api_key, AppState},
-};
+use super::movie_db::SeasonEpisode;
 use serde::Serialize;
-use tauri::AppHandle;
-use tauri::Manager;
 
-#[derive(Default, Serialize, Clone)]
+#[derive(Default, Serialize, Clone, Debug)]
 pub struct TitleInfo {
     pub id: u32,
     pub name: Option<String>,
@@ -23,7 +17,8 @@ pub struct TitleInfo {
     pub lang: Option<String>,
     pub language: Option<String>,
     pub description: Option<String>,
-    pub content: Option<Vec<TvEpisode>>,
+    pub content: Vec<SeasonEpisode>,
+    pub part: Option<u16>,
 }
 
 impl TitleInfo {

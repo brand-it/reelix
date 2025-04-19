@@ -12,16 +12,6 @@ pub enum DiskContent {
     Movie(MovieResponse),
 }
 
-impl DiskContent {
-    pub fn into_movie(self) -> Option<MovieResponse> {
-        if let DiskContent::Movie(m) = self {
-            Some(m)
-        } else {
-            None
-        }
-    }
-}
-
 #[derive(Serialize)]
 pub struct OpticalDiskInfo {
     pub id: DiskId,
