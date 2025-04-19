@@ -9,9 +9,9 @@ export default class extends Controller {
     const button = event.currentTarget;
 
     const commandArgs = {
-      diskId: button.dataset.diskId,
-      titleId: button.dataset.titleId,
-      mvdbId: this.movieIdTarget.value,
+      diskId: parseInt(button.dataset.diskId),
+      titleId: parseInt(button.dataset.titleId),
+      mvdbId: parseInt(this.movieIdTarget.value),
     };
 
     turboInvoke("rip_one", commandArgs)

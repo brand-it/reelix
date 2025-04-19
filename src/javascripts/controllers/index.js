@@ -11,3 +11,6 @@ application.register("rip-one", RipOneController);
 
 import DiskSelectController from "./disk_select_controller.js";
 application.register("disk-select", DiskSelectController);
+
+import EpisodeController from "./episode_controller.js";
+application.register("episode", EpisodeController);
