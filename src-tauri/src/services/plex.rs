@@ -17,7 +17,10 @@ pub fn create_movie_dir(movie: &movie_db::MovieResponse) -> PathBuf {
 
 pub fn create_season_episode_dir(season: &movie_db::SeasonResponse) -> PathBuf {
     let home_dir = dirs::home_dir().expect("failed to find home dir");
-    let dir = home_dir.join("TVs").join(season.title_year());
+    let dir = home_dir
+        .join("TV Shows")
+        .join(season.title_year())
+        .join(format!("Season {:02}", season.season_number));
     let message = format!("Failed to create {}", dir.display());
     if !dir.exists() {
         fs::create_dir_all(&dir).expect(&message);

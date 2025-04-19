@@ -2,7 +2,7 @@ use super::helpers::{
     add_episode_to_title, mark_title_rippable, remove_episode_from_title, rename_movie_file,
     render_error, set_optical_disk_as_movie,
 };
-use crate::commands::helpers::set_optical_disk_as_season;
+use crate::commands::helpers::{rename_tv_file, set_optical_disk_as_season};
 use crate::models::optical_disk_info::{DiskContent, DiskId};
 use crate::services::plex::create_season_episode_dir;
 use crate::services::{
@@ -219,7 +219,7 @@ fn spawn_rip(app_handle: tauri::AppHandle, disk_id: DiskId) {
             }
         };
 
-        for title in rip_titles {
+        for title in &rip_titles {
             match makemkvcon::rip_title(&app_handle, &disk_id, &title.id, &dir).await {
                 Ok(_) => {
                     println!("Ripped title {}", title.id);
@@ -228,10 +228,12 @@ fn spawn_rip(app_handle: tauri::AppHandle, disk_id: DiskId) {
                     let locked_disk = optical_disk.read().unwrap();
                     match locked_disk.content.as_ref().unwrap() {
                         DiskContent::Movie(movie) => {
-                            rename_movie_file(&title, &movie);
+                            rename_movie_file(&title, &movie)
+                                .expect("failed to rename movie title");
                         }
-                        DiskContent::Tv(tv) => {
-                            rename_tv_file(&title, &tv);
+                        DiskContent::Tv(season) => {
+                            rename_tv_file(&title, &season, &rip_titles)
+                                .expect("failed to rename tv title");
                         }
                     }
                 }
@@ -274,7 +276,7 @@ fn spawn_movie_rip(
                 };
                 match content {
                     DiskContent::Movie(movie) => {
-                        let file_path = match rename_movie_file(&movie, &title) {
+                        let file_path = match rename_movie_file(&title, &movie) {
                             Ok(name) => name.to_string_lossy().to_string(),
                             Err(e) => {
                                 return app_handle
