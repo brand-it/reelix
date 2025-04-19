@@ -1,14 +1,13 @@
-use super::movie_db::{MovieResponse, TvResponse};
+use super::movie_db::{MovieResponse, SeasonResponse};
 use super::title_info::TitleInfo;
 use serde::Serialize;
-use std::fmt;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 
 #[derive(Serialize, Clone)]
 pub enum DiskContent {
-    Tv(TvResponse),
+    Tv(SeasonResponse),
     Movie(MovieResponse),
 }
 

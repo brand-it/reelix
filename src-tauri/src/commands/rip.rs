@@ -2,6 +2,7 @@ use super::helpers::{
     add_episode_to_title, remove_episode_from_title, rename_movie_file, render_error,
     set_optical_disk_as_movie,
 };
+use crate::commands::helpers::set_optical_disk_as_season;
 use crate::models::optical_disk_info::{DiskContent, DiskId};
 use crate::services::{
     makemkvcon,
@@ -51,7 +52,7 @@ pub fn assign_episode_to_title(
 
     let locked_disk = match optical_disk.read() {
         Ok(disk) => disk,
-        Err(e) => return render_error(&app_state, "Failed to read disk"),
+        Err(_e) => return render_error(&app_state, "Failed to read disk"),
     };
     let mut locked_titles = match locked_disk.titles.lock() {
         Ok(titles) => titles,
@@ -64,7 +65,10 @@ pub fn assign_episode_to_title(
     };
 
     let season = match find_season(&app_handle, mvdb_id, season_number) {
-        Ok(season) => season,
+        Ok(season) => {
+            set_optical_disk_as_season(&optical_disk, &season);
+            season
+        }
         Err(e) => return render_error(&app_state, &e.message),
     };
 
@@ -100,7 +104,7 @@ pub fn withdraw_episode_from_title(
 
     let locked_disk = match optical_disk.read() {
         Ok(disk) => disk,
-        Err(e) => return render_error(&app_state, "Failed to read disk"),
+        Err(_e) => return render_error(&app_state, "Failed to read disk"),
     };
     let mut locked_titles = match locked_disk.titles.lock() {
         Ok(titles) => titles,
@@ -206,7 +210,9 @@ fn spawn_movie_rip(
                 };
                 let movie = match content {
                     DiskContent::Movie(m) => m,
-                    DiskContent::Tv(_t) => panic!("MOVIE OH NO"),
+                    DiskContent::Tv(t) => {
+                        panic!("I got a TV response no idea what to do with it {:?}", t.id)
+                    }
                 };
                 let file_path = match rename_movie_file(&movie, &title) {
                     Ok(name) => name.to_string_lossy().to_string(),

@@ -1,4 +1,4 @@
-use crate::models::movie_db::{MovieResponse, SeasonEpisode, TvResponse};
+use crate::models::movie_db::{MovieResponse, SeasonEpisode, SeasonResponse};
 use crate::models::optical_disk_info::{DiskContent, OpticalDiskInfo};
 use crate::models::title_info::TitleInfo;
 use crate::services::plex::create_dir;
@@ -7,7 +7,8 @@ use crate::services::{template, the_movie_db};
 use crate::state::{get_api_key, AppState};
 use std::fs;
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, RwLock, RwLockWriteGuard};
+use sysinfo::Disk;
 use tauri::State;
 use tera::Context;
 
@@ -88,9 +89,28 @@ pub fn set_optical_disk_as_movie(
     locked_disk.content = Some(DiskContent::Movie(movie));
 }
 
-pub fn set_optical_disk_as_tv(optical_disk: &Arc<RwLock<OpticalDiskInfo>>, tv: TvResponse) {
+pub fn set_optical_disk_as_season(
+    optical_disk: &Arc<RwLock<OpticalDiskInfo>>,
+    season: &SeasonResponse,
+) {
     let mut locked_disk = optical_disk.write().unwrap();
-    locked_disk.content = Some(DiskContent::Tv(tv));
+    match locked_disk.content.as_ref().unwrap() {
+        DiskContent::Movie(_) => {
+            locked_disk.content = Some(DiskContent::Tv(season.clone()));
+            clear_all_episodes_from_titles(&locked_disk);
+        }
+        DiskContent::Tv(season) => {
+            if season.id != season.id {
+                locked_disk.content = Some(DiskContent::Tv(season.clone()));
+                clear_all_episodes_from_titles(&locked_disk);
+            }
+        }
+    };
+}
+
+fn clear_all_episodes_from_titles(locked_disk: &RwLockWriteGuard<'_, OpticalDiskInfo>) {
+    let mut locked_titles = locked_disk.titles.lock().unwrap();
+    locked_titles.iter_mut().for_each(|t| t.content.clear());
 }
 
 pub fn add_episode_to_title(title: &mut TitleInfo, episode: &SeasonEpisode, part: &u16) {

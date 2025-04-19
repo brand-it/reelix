@@ -5,6 +5,7 @@ use super::helpers::{
 };
 use crate::models::movie_db;
 use crate::models::optical_disk_info::DiskId;
+use crate::services::plex::{find_season, find_tv};
 use crate::services::{template, the_movie_db};
 use crate::state::{get_api_key, AppState};
 use serde::Serialize;
@@ -75,13 +76,14 @@ pub fn movie(id: u32, state: State<'_, AppState>) -> Result<String, template::Ap
 }
 
 #[tauri::command]
-pub fn tv(id: u32, state: State<'_, AppState>) -> Result<String, template::ApiError> {
-    let api_key = get_api_key(&state);
-    let language = "en-US";
-    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+pub fn tv(
+    id: u32,
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<String, template::ApiError> {
     let query: String = get_query(&state);
 
-    let tv = match movie_db.tv(id) {
+    let tv = match find_tv(&app_handle, id) {
         Ok(resp) => resp,
         Err(e) => return render_tmdb_error(&state, &e.message),
     };
@@ -97,18 +99,15 @@ pub fn tv(id: u32, state: State<'_, AppState>) -> Result<String, template::ApiEr
 pub fn season(
     tv_id: u32,
     season_number: u32,
+    app_handle: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<String, template::ApiError> {
-    let api_key = get_api_key(&state);
-    let language = "en-US";
-    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
-
-    let tv = match movie_db.tv(tv_id) {
+    let tv = match find_tv(&app_handle, tv_id) {
         Ok(resp) => resp,
         Err(e) => return render_tmdb_error(&state, &e.message),
     };
 
-    let season = match movie_db.season(tv_id, season_number) {
+    let season = match find_season(&app_handle, tv_id, season_number) {
         Ok(resp) => resp,
         Err(e) => return render_tmdb_error(&state, &e.message),
     };
