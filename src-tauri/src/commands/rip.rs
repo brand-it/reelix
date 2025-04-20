@@ -175,7 +175,7 @@ pub fn rip_one(
     };
 
     mark_title_rippable(optical_disk, title_id);
-    // spawn_movie_rip(app_handle, disk_id, title_id);
+    spawn_rip(app_handle, disk_id);
 
     template::render(
         &app_state.tera,
@@ -240,75 +240,6 @@ fn spawn_rip(app_handle: tauri::AppHandle, disk_id: DiskId) {
                 Err(e) => {
                     eprintln!("Error ripping {}: {}", title.id, e);
                 }
-            }
-        }
-    });
-}
-
-fn spawn_movie_rip(
-    app_handle: tauri::AppHandle,
-    disk_id: DiskId,
-    title_id: u32,
-    dir: std::path::PathBuf,
-) {
-    tauri::async_runtime::spawn(async move {
-        match makemkvcon::rip_title(&app_handle, &disk_id, &title_id, &dir).await {
-            Ok(_p) => {
-                let state = app_handle.state::<AppState>();
-                let optical_disk = state.find_optical_disk_by_id(&disk_id).unwrap();
-                let title = optical_disk
-                    .read()
-                    .unwrap()
-                    .titles
-                    .lock()
-                    .unwrap()
-                    .iter()
-                    .find(|t| t.id == title_id)
-                    .unwrap()
-                    .to_owned();
-                let locked_disk = match optical_disk.read() {
-                    Ok(disk) => disk,
-                    Err(_e) => panic!("AHHHHHHH"),
-                };
-                let content = match &locked_disk.content {
-                    Some(c) => c,
-                    None => panic!("No content"),
-                };
-                match content {
-                    DiskContent::Movie(movie) => {
-                        let file_path = match rename_movie_file(&title, &movie) {
-                            Ok(name) => name.to_string_lossy().to_string(),
-                            Err(e) => {
-                                return app_handle
-                                    .notification()
-                                    .builder()
-                                    .title("Reelix")
-                                    .body(format!("Failed to Rename File {}", e))
-                                    .show()
-                                    .unwrap();
-                            }
-                        };
-                        app_handle
-                            .notification()
-                            .builder()
-                            .title("Reelix")
-                            .body(format!("Finished Ripping {}", &file_path))
-                            .show()
-                            .unwrap();
-                    }
-                    DiskContent::Tv(t) => {
-                        panic!("I got a TV response no idea what to do with it {:?}", t.id)
-                    }
-                };
-            }
-            Err(e) => {
-                app_handle
-                    .notification()
-                    .builder()
-                    .title("Reelix")
-                    .body(format!("Error Ripping {}", &e))
-                    .show()
-                    .unwrap();
             }
         }
     });
