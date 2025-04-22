@@ -4,13 +4,13 @@
   </template>
 </turbo-stream>
 
-<turbo-stream action="replace" target="disk-title-selector">
+<turbo-stream action="replace" method="morph" target="disk-title-selector">
   <template>
     {% include "disk_titles/options.html" %}
   </template>
 </turbo-stream>
 
-<turbo-stream action="replace" targets=".parts-selector">
+<turbo-stream action="replace" method="morph" targets=".parts-selector">
   <template>
     {% include "seasons/parts.html" %}
   </template>

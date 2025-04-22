@@ -1,27 +1,51 @@
 {% import "disks/_item.html" as macros %}
-<div class="dropdown" id="disk-selector" data-controller="disk-select">
-  <div class="btn dropdown-toggle dropdown-item w-100 text-start" type="button" data-bs-toggle="dropdown"
-    data-disk-select-target="selectedDropdown">
-    {% if selected_disk %}
-    {{ macros::disk_item(selected=true, name=selected_disk.name, value=selected_disk.id,
-    loading=(selected_disk.titles | length == 0)) }}
-    {% else %}
-    {{ macros::disk_item(selected=true, name='No Optical Drive Detected', value='', loading=false) }}
-    {% endif %}
-  </div>
-  {% if optical_disks %}
-  <ul class="dropdown-menu w-100 dropdown-menu-dark">
-    {% for optical_disk in optical_disks %}
-    <li>
-      {% if selected_optical_disk_id and optical_disk.id == selected_optical_disk_id %}
-      {{ macros::disk_item(selected=true, name=optical_disk.name, value=optical_disk.id, loading=(optical_disk.titles
-      | length == 0)) }}
+<div class="input-group input-group-lg" id="disk-selector" data-controller="disk-select">
+  {% if selected_disk_titles | length == 0 %}
+  <button type="button" class="btn btn-primary" disabled="disabled">
+    <i class="fa-solid fa-compact-disc"></i>
+  </button>
+  {% else %}
+  {% set_global any_ripped = false %}
+  {% for title in selected_disk_titles %}
+  {% if title.rip %}
+  {% set_global any_ripped = true %}
+  {% endif %}
+  {% endfor %}
+
+  {% if any_ripped %}
+  <button type="button" class="btn btn-primary">
+    <i class="fa-solid fa-compact-disc"></i>
+  </button>
+  {% else %}
+  <button type="button" class="btn btn-primary" disabled="disabled">
+    <i class="fa-solid fa-compact-disc"></i>
+  </button>
+  {% endif %}
+  {% endif %}
+  <div class="dropdown pe-1">
+    <div class="btn dropdown-toggle dropdown-item w-100 text-start rounded-end" type="button" data-bs-toggle="dropdown"
+      data-disk-select-target="selectedDropdown">
+      {% if selected_disk %}
+      {{ macros::disk_item(selected=(title.rip and title.part == part_num), name=selected_disk.name, value=selected_disk.id,
+      loading=(selected_disk_titles | length == 0)) }}
       {% else %}
-      {{ macros::disk_item(selected=false, name=optical_disk.name, value=optical_disk.id,
-      loading=(optical_disk.titles | length == 0)) }}
+      {{ macros::disk_item(selected=true, name='No Optical Drive Detected', value='', loading=false) }}
       {% endif %}
-    </li>
-    {% endfor %}
-    {% endif %}
-  </ul>
+    </div>
+    {% if optical_disks %}
+    <ul class="dropdown-menu w-100 dropdown-menu-dark">
+      {% for optical_disk in optical_disks %}
+      <li>
+        {% if selected_optical_disk_id and optical_disk.id == selected_optical_disk_id %}
+        {{ macros::disk_item(selected=true, name=optical_disk.name, value=optical_disk.id, loading=(optical_disk.titles
+        | length == 0)) }}
+        {% else %}
+        {{ macros::disk_item(selected=false, name=optical_disk.name, value=optical_disk.id,
+        loading=(optical_disk.titles | length == 0)) }}
+        {% endif %}
+      </li>
+      {% endfor %}
+      {% endif %}
+    </ul>
+  </div>
 </div>

@@ -64,3 +64,25 @@ pub fn find_season(
     let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
     movie_db.season(tv_id, season_number)
 }
+
+pub fn get_movie_certification(
+    app_handle: &AppHandle,
+    movie_id: &u32,
+) -> Result<Option<String>, the_movie_db::Error> {
+    let state: tauri::State<AppState> = app_handle.state::<AppState>();
+    let api_key = get_api_key(&state);
+
+    let language = "en-US";
+    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+    let release_dates = match movie_db.movie_release_dates(movie_id) {
+        Ok(resp) => resp,
+        Err(e) => return Err(e),
+    };
+
+    Ok(release_dates
+        .results
+        .iter()
+        .find(|entry| entry.iso_3166_1 == "US")
+        .and_then(|us| us.release_dates.first())
+        .map(|rd| rd.certification.trim().to_string()))
+}

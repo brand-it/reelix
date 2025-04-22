@@ -1,7 +1,7 @@
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct MovieResponse {
     pub adult: bool,
     pub backdrop_path: Option<String>,
@@ -88,7 +88,7 @@ impl MovieResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct MovieGenre {
     pub id: u32,
     pub name: String,

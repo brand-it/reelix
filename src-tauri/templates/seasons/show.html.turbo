@@ -1,4 +1,4 @@
-<turbo-stream action="update" method="morph" target="main-view">
+<turbo-stream action="replace" method="morph" target="main-view">
   <template>
     <div id="main-view">
       {% include "seasons/show.html" %}

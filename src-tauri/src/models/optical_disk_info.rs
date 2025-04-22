@@ -5,13 +5,13 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug)]
 pub enum DiskContent {
     Tv(SeasonResponse),
     Movie(MovieResponse),
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct OpticalDiskInfo {
     pub id: DiskId,
     pub name: String,

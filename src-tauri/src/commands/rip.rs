@@ -1,22 +1,18 @@
 use super::helpers::{
     add_episode_to_title, mark_title_rippable, remove_episode_from_title, rename_movie_file,
-    render_error, set_optical_disk_as_movie,
+    rename_tv_file, set_optical_disk_as_movie, set_optical_disk_as_season,
 };
-use crate::commands::helpers::{rename_tv_file, set_optical_disk_as_season};
 use crate::models::optical_disk_info::{DiskContent, DiskId};
 use crate::services::plex::create_season_episode_dir;
 use crate::services::{
     makemkvcon,
     plex::{create_movie_dir, find_movie, find_season},
-    template,
 };
 use crate::state::AppState;
-use core::panic;
+use crate::templates::{self};
 use serde::{Deserialize, Serialize};
-use sysinfo::Disk;
 use tauri::{Manager, State};
-use tauri_plugin_notification::NotificationExt;
-use tera::Context;
+use templates::render_error;
 
 #[derive(Serialize, Deserialize)]
 pub struct DiskTitle {
@@ -46,48 +42,35 @@ pub fn assign_episode_to_title(
     part: u16,
     app_state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
-) -> Result<String, template::ApiError> {
+) -> Result<String, templates::ApiError> {
     let optical_disk = match app_state.selected_disk() {
-        Some(d) => d,
+        Some(disk) => disk,
         None => return render_error(&app_state, "No current selected disk"),
     };
 
-    let locked_disk = match optical_disk.read() {
-        Ok(disk) => disk,
-        Err(_e) => return render_error(&app_state, "Failed to read disk"),
-    };
-    let mut locked_titles = match locked_disk.titles.lock() {
-        Ok(titles) => titles,
-        Err(_e) => return render_error(&app_state, "Failed to lock titles"),
-    };
-
-    let title = match locked_titles.iter_mut().find(|t| t.id == title_id) {
-        Some(t) => t,
-        None => return render_error(&app_state, "Failed to find Title"),
-    };
-
     let season = match find_season(&app_handle, mvdb_id, season_number) {
-        Ok(season) => {
-            set_optical_disk_as_season(&optical_disk, &season);
-            season
-        }
+        Ok(season) => season,
         Err(e) => return render_error(&app_state, &e.message),
     };
 
-    match season
+    let episode = match season
         .episodes
         .iter()
         .find(|e| e.episode_number == episode_number)
     {
-        Some(e) => add_episode_to_title(title, e, &part),
-        None => return render_error(&app_state, "Failed to find episode number"),
+        Some(episode) => episode,
+        None => return templates::render_error(&app_state, "Could not find episode to assign"),
     };
-    println!(
-        "Added {} to {} {} {}",
-        title_id, mvdb_id, season_number, episode_number
-    );
-    println!("INspecting title {:?}", title);
-    Ok("Success".to_string())
+    set_optical_disk_as_season(&optical_disk, &season);
+    match add_episode_to_title(&app_state, &optical_disk, episode, &part, &title_id) {
+        Ok(_) => println!(
+            "Added {} to {} {} {}",
+            title_id, mvdb_id, season_number, episode_number
+        ),
+        Err(e) => return Err(e),
+    }
+
+    templates::seasons::render_title_selected(&app_state, season)
 }
 
 #[tauri::command]
@@ -98,56 +81,39 @@ pub fn withdraw_episode_from_title(
     title_id: u32,
     app_state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
-) -> Result<String, template::ApiError> {
+) -> Result<String, templates::ApiError> {
     let optical_disk = match app_state.selected_disk() {
         Some(d) => d,
         None => return render_error(&app_state, "No current selected disk"),
     };
-
-    let locked_disk = match optical_disk.read() {
-        Ok(disk) => disk,
-        Err(_e) => return render_error(&app_state, "Failed to read disk"),
-    };
-    let mut locked_titles = match locked_disk.titles.lock() {
-        Ok(titles) => titles,
-        Err(_e) => return render_error(&app_state, "Failed to lock titles"),
-    };
-
-    let title = match locked_titles.iter_mut().find(|t| t.id == title_id) {
-        Some(t) => t,
-        None => return render_error(&app_state, "Failed to find Title"),
-    };
-
     let season = match find_season(&app_handle, mvdb_id, season_number) {
         Ok(season) => season,
         Err(e) => return render_error(&app_state, &e.message),
     };
-
-    match season
+    let episode = match season
         .episodes
         .iter()
         .find(|e| e.episode_number == episode_number)
     {
-        Some(e) => remove_episode_from_title(title, e),
-        None => return render_error(&app_state, "Failed to find episode number"),
+        Some(episode) => episode,
+        None => {
+            return templates::render_error(&app_state, "Failed to find episode to add to title")
+        }
     };
-    println!(
-        "Removed {} to {} {} {}",
-        title_id, mvdb_id, season_number, episode_number
-    );
-    Ok("Success".to_string())
+    match remove_episode_from_title(&app_state, &optical_disk, episode, &title_id) {
+        Ok(_) => println!(
+            "Removed {} to {} {} {}",
+            title_id, mvdb_id, season_number, episode_number
+        ),
+        Err(e) => return Err(e),
+    }
+
+    templates::seasons::render_title_selected(&app_state, season)
 }
 
 #[tauri::command]
-pub fn rip_season(app_state: State<'_, AppState>) -> Result<String, template::ApiError> {
-    let optical_disk = app_state.selected_disk();
-
-    template::render(
-        &app_state.tera,
-        "disks/toast_progress.html.turbo",
-        &Context::new(),
-        None,
-    )
+pub fn rip_season(app_state: State<'_, AppState>) -> Result<String, templates::ApiError> {
+    templates::disks::render_toast_progress(&app_state, &None, &None)
 }
 
 #[tauri::command]
@@ -157,7 +123,7 @@ pub fn rip_one(
     mvdb_id: u32,
     app_state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
-) -> Result<String, template::ApiError> {
+) -> Result<String, templates::ApiError> {
     // Make sure it is a DiskID object
     let disk_id = match DiskId::try_from(disk_id) {
         Ok(id) => id,
@@ -177,12 +143,7 @@ pub fn rip_one(
     mark_title_rippable(optical_disk, title_id);
     spawn_rip(app_handle, disk_id);
 
-    template::render(
-        &app_state.tera,
-        "disks/toast_progress.html.turbo",
-        &Context::new(),
-        None,
-    )
+    templates::disks::render_toast_progress(&app_state, &None, &None)
 }
 
 fn spawn_rip(app_handle: tauri::AppHandle, disk_id: DiskId) {

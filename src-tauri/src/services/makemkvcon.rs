@@ -2,15 +2,15 @@ use crate::models::mkv::PRGV;
 use crate::models::optical_disk_info::{self, DiskContent, DiskId};
 use crate::models::{mkv, title_info};
 use crate::progress_tracker::{self, ProgressOptions};
-use crate::services::{makemkvcon_parser, template};
+use crate::services::makemkvcon_parser;
 use crate::state::AppState;
+use crate::templates;
 use std::ffi::OsStr;
 use std::path::PathBuf;
 use tauri::async_runtime::Receiver;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
-use tera::Context;
 
 #[cfg(all(target_os = "windows", target_pointer_width = "64"))]
 const MAKEMKVCON: &str = "makemkvcon64";
@@ -313,13 +313,8 @@ pub async fn rip_title(
     let app_handle_clone = app_handle.clone();
     let status = Ok(run(disk_id.clone(), receiver, app_handle_clone).await);
 
-    let result = template::render(
-        &state.tera,
-        "disks/toast_progress.html.turbo",
-        &Context::new(),
-        None,
-    )
-    .expect("Failed to render disks/toast_progress.html.turbo");
+    let result = templates::disks::render_toast_progress(&state, &None, &None)
+        .expect("Failed to render disks/toast_progress.html.turbo");
     app_handle
         .emit("disks-changed", result)
         .expect("Failed to emit disks-changed");
@@ -432,23 +427,13 @@ fn emit_progress(disk_id: &DiskId, app_handle: &AppHandle) {
         DiskContent::Movie(movie) => movie.title_year(),
         DiskContent::Tv(_tv) => "Unknown".to_string(),
     };
-    let progress = optical_disk_info
-        .progress
-        .lock()
-        .expect("failure to lock progress");
+    let progress_binding = optical_disk_info.progress.lock().unwrap();
+    let progress = progress_binding.as_ref();
 
     if progress.is_some() {
-        let mut context = Context::new();
-        context.insert("progress", &*progress);
-        context.insert("movie_title_year", &movie_title_year);
-
-        let result = template::render(
-            &state.tera,
-            "disks/toast_progress.html.turbo",
-            &context,
-            None,
-        )
-        .expect("Failed to render disks/toast_progress.html.turbo");
+        let result =
+            templates::disks::render_toast_progress(&state, &Some(movie_title_year), &progress)
+                .expect("Failed to render disks/toast_progress");
         app_handle
             .emit("disks-changed", result)
             .expect("Failed to emit disks-changed");

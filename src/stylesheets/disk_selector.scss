@@ -1,12 +1,16 @@
 #disk-selector {
   margin-right: 1em;
-
-  &.dropdown .btn {
+  .dropdown {
+    position: relative;
+    flex: 1 1 auto;
+    width: 1%;
+    min-width: 0;
+  }
+  .dropdown .btn {
     background-color: #1e1e1e;
     color: #ccc;
     border: 1px solid #444;
     padding: 1rem;
-    border-radius: 0.5rem;
   }
 
   .dropdown-item {
