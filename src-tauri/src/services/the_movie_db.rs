@@ -90,7 +90,7 @@ impl TheMovieDb {
         self.send_request(request)
     }
 
-    pub fn movie_release_dates(&self, id: u32) -> Result<MovieReleaseDatesResponse, Error> {
+    pub fn movie_release_dates(&self, id: &u32) -> Result<MovieReleaseDatesResponse, Error> {
         let url = format!("https://api.themoviedb.org/3/movie/{}/release_dates", id);
 
         // Build the query parameters

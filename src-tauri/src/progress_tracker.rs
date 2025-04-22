@@ -7,7 +7,6 @@ use std::time::SystemTime;
 /// will be one of the foundations that makes this tool great.
 
 // --- Progress ---
-#[derive(Debug)]
 pub struct Progress {
     pub total: usize,
     pub progress: usize,
@@ -116,7 +115,6 @@ impl Progress {
 }
 
 // --- Timer ---
-#[derive(Debug)]
 pub struct Timer {
     pub started_at: Option<SystemTime>,
     pub stopped_at: Option<SystemTime>,

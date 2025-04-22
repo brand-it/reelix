@@ -1,0 +1,56 @@
+{% macro part_without_episode(part, selected_disk) %}
+<div class="row g-2 align-items-center mb-2">
+  <label for="part{{ part }}" class="col-auto col-form-label fw-bold">Part {{ part }}*</label>
+  <div class="col">
+    <select id="part{{ part }}" data-episode-target="selector" data-episode-part="{{ part }}"
+      data-action="episode#titleSelected" class="form-select form-select-sm" data-episode-previous-value="">
+      <option value="">Select a Disk Title</option>
+      {% for title in selected_disk.titles %}
+      <option value="{{ title.id }}">{{ title.description }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro part_with_episode(episode, part, selected_disk) %}
+<div class="row g-2 align-items-center mb-2">
+  {% set_global previous_value = "" %}
+  {% for title in selected_disk.titles %}
+  {% for ep in title.content %}
+  {% if ep.id == episode.id and title.part == part %}
+  {% set_global previous_value = title.id %}
+  {% endif %}
+  {% endfor %}
+  {% endfor %}
+
+  <label for="part{{episode.id}}-{{ part }}" class="col-auto col-form-label fw-bold">Part {{ part }}*</label>
+  <div class="col">
+    <select name="part{{episode.id}}-{{ part }}" data-episode-target="selector" data-episode-part="{{ part }}"
+      data-action="episode#titleSelected" class="form-select form-select-sm"
+      data-episode-previous-value="{{ previous_value }}">
+      <option value="">Select a Disk Title</option>
+      {% for title in selected_disk.titles %}
+      {# initialize a flag #}
+      {% set_global is_selected = false %}
+      {% set_global includes_episode = false %}
+
+      {# scan through every episode in this title #}
+      {% for ep in title.content %}
+      {% if ep.id == episode.id %}
+      {% set_global includes_episode = true %}
+      {% endif %}
+      {% if ep.id == episode.id and title.part == part %}
+      {% set_global is_selected = true %}
+      {% endif %}
+      {% endfor %}
+      {% if is_selected %}
+      <option value="{{ title.id }}" selected>{{ title.description }}</option>
+      {% elif not title.part or not includes_episode %}
+      <option value="{{ title.id }}">{{ title.description }}</option>
+      {% endif %}
+      {% endfor %}
+    </select>
+  </div>
+</div>
+{% endmacro %}

@@ -206,7 +206,7 @@ impl TvResponse {
         })
     }
 
-    pub fn name_year(&self) -> String {
+    pub fn title_year(&self) -> String {
         match self.year() {
             Some(v) => return format!("{} ({})", self.name, v.to_string()),
             None => return format!("{}", self.name),
@@ -307,7 +307,7 @@ pub struct TvView {
     pub languages: Vec<String>,
     pub last_air_date: Option<String>,
     pub last_episode_to_air: Option<TvEpisode>,
-    pub name_year: String,
+    pub title_year: String,
     pub name: String,
     pub networks: Vec<TvNetwork>,
     pub next_episode_to_air: Option<TvEpisode>,
@@ -333,7 +333,7 @@ pub struct TvView {
 impl From<TvResponse> for TvView {
     fn from(tv: TvResponse) -> Self {
         let year = tv.year();
-        let name_year = tv.name_year();
+        let title_year = tv.title_year();
         TvView {
             adult: tv.adult,
             backdrop_path: tv.backdrop_path,
@@ -364,9 +364,9 @@ impl From<TvResponse> for TvView {
             spoken_languages: tv.spoken_languages,
             status: tv.status,
             tagline: tv.tagline,
+            title_year,
             vote_average: tv.vote_average,
             vote_count: tv.vote_count,
-            name_year: name_year,
             year: year,
         }
     }
@@ -375,7 +375,7 @@ impl From<TvResponse> for TvView {
 // ------------------------------------
 // ------- TV Season Response ---------
 // ------------------------------------
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct SeasonResponse {
     pub _id: String,
     pub air_date: String,
@@ -388,7 +388,29 @@ pub struct SeasonResponse {
     pub vote_average: f32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl SeasonResponse {
+    // pub fn title_year(&self) -> String {
+    //     match self.year() {
+    //         Some(v) => return format!("{} ({})", self.name, v.to_string()),
+    //         None => return format!("{}", self.name),
+    //     };
+    // }
+
+    // pub fn year(&self) -> Option<u32> {
+    //     NaiveDate::parse_from_str(&self.air_date, "%Y-%m-%d")
+    //         .ok()
+    //         .and_then(|dt| dt.format("%Y").to_string().parse::<u32>().ok())
+    // }
+
+    // pub fn formatted_air_date(&self) -> String {
+    //     NaiveDate::parse_from_str(&self.air_date, "%Y-%m-%d")
+    //         .ok()
+    //         .map(|date| date.format("%B %-d, %Y").to_string())
+    //         .unwrap_or_else(|| "".to_string())
+    // }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct SeasonEpisode {
     pub air_date: String,
     pub episode_number: u32,
@@ -433,7 +455,7 @@ impl SeasonEpisode {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct SeasonCrewMember {
     pub job: String,
     pub department: String,
@@ -448,7 +470,7 @@ pub struct SeasonCrewMember {
     pub profile_path: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct SeasonGuestStar {
     pub character: String,
     pub credit_id: String,
@@ -463,7 +485,7 @@ pub struct SeasonGuestStar {
     pub profile_path: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct SeasonView {
     pub _id: String,
     pub air_date: String,
@@ -477,7 +499,7 @@ pub struct SeasonView {
 }
 
 // The view type you will expose, now with an extra computed field.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct SeasonEpisodeView {
     pub air_date: String,
     pub year: Option<u32>,

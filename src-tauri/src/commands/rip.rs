@@ -1,17 +1,18 @@
-use crate::{
-    models::optical_disk_info::DiskId,
-    services::{
-        converter::cast_to_u32,
-        makemkvcon,
-        plex::{create_dir, find_movie, rename_file},
-        template,
-    },
-    state::AppState,
+use super::helpers::{
+    add_episode_to_title, mark_title_rippable, remove_episode_from_title, rename_movie_file,
+    rename_tv_file, set_optical_disk_as_movie, set_optical_disk_as_season,
 };
+use crate::models::optical_disk_info::{DiskContent, DiskId};
+use crate::services::plex::{create_season_episode_dir, find_tv};
+use crate::services::{
+    makemkvcon,
+    plex::{create_movie_dir, find_movie, find_season},
+};
+use crate::state::AppState;
+use crate::templates::{self};
 use serde::{Deserialize, Serialize};
-use tauri::State;
-use tauri_plugin_notification::NotificationExt;
-use tera::Context;
+use tauri::{Manager, State};
+use templates::render_error;
 
 #[derive(Serialize, Deserialize)]
 pub struct DiskTitle {
@@ -32,81 +33,195 @@ pub struct Episode {
     parts: Vec<Part>,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct SeasonData {
+#[tauri::command]
+pub fn assign_episode_to_title(
+    mvdb_id: u32,
     season_number: u32,
-    episodes: Vec<Episode>,
+    episode_number: u32,
+    title_id: u32,
+    part: u16,
+    app_state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<String, templates::ApiError> {
+    let optical_disk = match app_state.selected_disk() {
+        Some(disk) => disk,
+        None => return render_error(&app_state, "No current selected disk"),
+    };
+    let tv = match find_tv(&app_handle, mvdb_id) {
+        Ok(tv) => tv,
+        Err(e) => return render_error(&app_state, &e.message),
+    };
+
+    let season = match find_season(&app_handle, mvdb_id, season_number) {
+        Ok(season) => season,
+        Err(e) => return render_error(&app_state, &e.message),
+    };
+
+    let episode = match season
+        .episodes
+        .iter()
+        .find(|e| e.episode_number == episode_number)
+    {
+        Some(episode) => episode,
+        None => return templates::render_error(&app_state, "Could not find episode to assign"),
+    };
+    set_optical_disk_as_season(&optical_disk, &tv, &season);
+    match add_episode_to_title(&app_state, &optical_disk, episode, &part, &title_id) {
+        Ok(_) => println!(
+            "Added {} to {} {} {}",
+            title_id, mvdb_id, season_number, episode_number
+        ),
+        Err(e) => return Err(e),
+    }
+
+    templates::seasons::render_title_selected(&app_state, season)
 }
 
 #[tauri::command]
-pub fn rip_season(_season_data: SeasonData) -> Result<(), String> {
-    Ok(())
+pub fn withdraw_episode_from_title(
+    mvdb_id: u32,
+    season_number: u32,
+    episode_number: u32,
+    title_id: u32,
+    app_state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<String, templates::ApiError> {
+    let optical_disk = match app_state.selected_disk() {
+        Some(d) => d,
+        None => return render_error(&app_state, "No current selected disk"),
+    };
+    let season = match find_season(&app_handle, mvdb_id, season_number) {
+        Ok(season) => season,
+        Err(e) => return render_error(&app_state, &e.message),
+    };
+    let episode = match season
+        .episodes
+        .iter()
+        .find(|e| e.episode_number == episode_number)
+    {
+        Some(episode) => episode,
+        None => {
+            return templates::render_error(&app_state, "Failed to find episode to add to title")
+        }
+    };
+    match remove_episode_from_title(&app_state, &optical_disk, episode, &title_id) {
+        Ok(_) => println!(
+            "Removed {} to {} {} {}",
+            title_id, mvdb_id, season_number, episode_number
+        ),
+        Err(e) => return Err(e),
+    }
+
+    templates::seasons::render_title_selected(&app_state, season)
+}
+
+#[tauri::command]
+pub fn rip_season(
+    app_handle: tauri::AppHandle,
+    app_state: State<'_, AppState>,
+) -> Result<String, templates::ApiError> {
+    let disk_id = app_state
+        .selected_optical_disk_id
+        .read()
+        .unwrap()
+        .to_owned();
+    let disk_id = match disk_id {
+        Some(id) => id,
+        None => {
+            println!("No optical disk is currently selected.");
+            return templates::render_error(&app_state, "No selected disk");
+        }
+    };
+    spawn_rip(app_handle, disk_id);
+    templates::disks::render_toast_progress(&app_state, &None, &None)
 }
 
 #[tauri::command]
 pub fn rip_one(
-    disk_id: &str,
-    title_id: &str,
-    mvdb_id: &str,
+    disk_id: u32,
+    title_id: u32,
+    mvdb_id: u32,
     app_state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
-) -> Result<String, template::ApiError> {
-    let title_id = cast_to_u32(title_id.to_string());
-    let mvdb_id = cast_to_u32(mvdb_id.to_string());
-    match DiskId::try_from(disk_id) {
-        Ok(id) => match app_state.find_optical_disk_by_id(&id) {
-            Some(optical_disk) => match find_movie(&app_handle, mvdb_id) {
-                Ok(movie) => {
-                    let movie_dir = create_dir(&movie);
-                    optical_disk
-                        .write()
+) -> Result<String, templates::ApiError> {
+    // Make sure it is a DiskID object
+    let disk_id = match DiskId::try_from(disk_id) {
+        Ok(id) => id,
+        Err(_e) => return render_error(&app_state, "Failed to Parse Disk ID"),
+    };
+    // Assign Optical Disk Title as movie type and mvdb ID
+    let optical_disk = match app_state.find_optical_disk_by_id(&disk_id) {
+        Some(optical_disk) => optical_disk,
+        None => return render_error(&app_state, "Failed to find Optical Disk"),
+    };
+    // Create Dir from Movie and Make Sure Movie Exists in MVDB
+    match find_movie(&app_handle, mvdb_id) {
+        Ok(movie) => set_optical_disk_as_movie(&optical_disk, movie),
+        Err(e) => return render_error(&app_state, &e.message),
+    };
+
+    mark_title_rippable(optical_disk, title_id);
+    spawn_rip(app_handle, disk_id);
+
+    templates::disks::render_toast_progress(&app_state, &None, &None)
+}
+
+fn spawn_rip(app_handle: tauri::AppHandle, disk_id: DiskId) {
+    tauri::async_runtime::spawn(async move {
+        let state = app_handle.state::<AppState>();
+        let optical_disk = state.find_optical_disk_by_id(&disk_id).unwrap();
+        let (dir, rip_titles) = {
+            let locked_disk = optical_disk.read().unwrap();
+            match locked_disk.content.as_ref().unwrap() {
+                DiskContent::Movie(movie) => {
+                    let dir = create_movie_dir(&movie);
+                    let titles = locked_disk
+                        .titles
+                        .lock()
                         .unwrap()
-                        .set_movie_details(Some(movie.clone()));
-                    tauri::async_runtime::spawn(async move {
-                        let results =
-                            makemkvcon::rip_title(&app_handle, &id, title_id, &movie_dir).await;
-                        match results {
-                            Ok(_r) => match rename_file(&app_handle, &movie, id, title_id) {
-                                Ok(p) => {
-                                    let file_path = p.to_string_lossy().to_string();
-                                    app_handle
-                                        .notification()
-                                        .builder()
-                                        .title("Reelix")
-                                        .body(format!("Finished Ripping {}", &file_path))
-                                        .show()
-                                        .unwrap();
-                                }
-                                Err(e) => {
-                                    app_handle
-                                        .notification()
-                                        .builder()
-                                        .title("Reelix")
-                                        .body(format!("Error Ripping {}", &e))
-                                        .show()
-                                        .unwrap();
-                                }
-                            },
-                            Err(message) => {
-                                println!("failed {}", message);
-                            }
-                        }
-                    });
+                        .iter()
+                        .filter(|t| t.rip)
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    (dir, titles)
                 }
-                Err(e) => eprintln!("Failure {}", e.message),
-            },
-            None => eprintln!("Failed to find optical disk"),
-        },
+                DiskContent::Tv(season) => {
+                    let dir = create_season_episode_dir(&season);
+                    let titles = locked_disk
+                        .titles
+                        .lock()
+                        .unwrap()
+                        .iter()
+                        .filter(|t| t.rip)
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    (dir, titles)
+                }
+            }
+        };
 
-        Err(e) => {
-            eprintln!("Error parsing disk_id in rip_one: {}", e);
+        for title in &rip_titles {
+            match makemkvcon::rip_title(&app_handle, &disk_id, &title.id, &dir).await {
+                Ok(_) => {
+                    println!("Ripped title {}", title.id);
+                    let state = app_handle.state::<AppState>();
+                    let optical_disk = state.find_optical_disk_by_id(&disk_id).unwrap();
+                    let locked_disk = optical_disk.read().unwrap();
+                    match locked_disk.content.as_ref().unwrap() {
+                        DiskContent::Movie(movie) => {
+                            rename_movie_file(&title, &movie)
+                                .expect("failed to rename movie title");
+                        }
+                        DiskContent::Tv(season) => {
+                            rename_tv_file(&title, &season, &rip_titles)
+                                .expect("failed to rename tv title");
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error ripping {}: {}", title.id, e);
+                }
+            }
         }
-    }
-
-    template::render(
-        &app_state.tera,
-        "disks/toast_progress.html.turbo",
-        &Context::new(),
-        None,
-    )
+    });
 }

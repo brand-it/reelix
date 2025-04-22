@@ -1,10 +1,10 @@
 use crate::models::optical_disk_info::{DiskId, OpticalDiskInfo};
 use crate::services::drive_info::opticals;
-use crate::services::{makemkvcon, template};
+use crate::services::makemkvcon;
 use crate::state::AppState;
+use crate::templates;
 use std::sync::{Arc, RwLock};
 use tauri::{AppHandle, Emitter, Manager};
-use tera::Context;
 use tokio::sync::broadcast;
 use tokio::time::{sleep, Duration};
 
@@ -74,38 +74,16 @@ pub async fn watch_for_changes(sender: broadcast::Sender<Vec<diff::Result<Optica
 
 fn emit_disk_change(app_handle: &AppHandle) {
     let state = app_handle.state::<AppState>();
-    let mut context = Context::new();
-    let optical_disks: &Vec<Arc<RwLock<OpticalDiskInfo>>> =
-        &state.optical_disks.read().unwrap().to_vec();
-    context.insert("optical_disks", &unwrap_disks(optical_disks));
-    let binding_selected_disk_id = state
-        .selected_optical_disk_id
-        .read()
-        .expect("failed to lock selected optical disk id");
-    let guard_selected_disk_id = binding_selected_disk_id.as_ref();
-    if guard_selected_disk_id.is_some() {
-        let disk_id = guard_selected_disk_id.unwrap().clone();
-        context.insert("selected_optical_disk_id", &disk_id);
-    }
-    context.insert("selected_disk", &state.selected_disk());
-    let result = template::render(&state.tera, "disks/options.html.turbo", &context, None)
-        .expect("Failed to render disks/options.html.turbo");
+    let result = templates::disks::render_options(&state).expect("Failed to render disks/options");
     app_handle
         .emit("disks-changed", result)
         .expect("Failed to emit disks-changed");
 }
 
 fn emit_disk_titles_change(app_handle: &AppHandle) {
-    let state = app_handle.state::<AppState>();
-    let mut context = Context::new();
-    context.insert("selected_disk", &state.selected_disk());
-    let result = template::render(
-        &state.tera,
-        "disk_titles/options.html.turbo",
-        &context,
-        None,
-    )
-    .expect("Failed to render disk_titles/options.html.turbo");
+    let app_state = app_handle.state::<AppState>();
+    let result = templates::disk_titles::render_options(&app_state)
+        .expect("Failed to render disk_titles/options");
     app_handle
         .emit("disks-changed", result)
         .expect("Failed to emit emit_disk_titles_change");
@@ -113,10 +91,6 @@ fn emit_disk_titles_change(app_handle: &AppHandle) {
 
 fn unwrap_disk(disk: &Arc<RwLock<OpticalDiskInfo>>) -> OpticalDiskInfo {
     disk.read().expect("Failed to lock").clone()
-}
-
-fn unwrap_disks(disks: &Vec<Arc<RwLock<OpticalDiskInfo>>>) -> Vec<OpticalDiskInfo> {
-    disks.iter().map(|disk| unwrap_disk(disk)).collect()
 }
 
 fn contains(
@@ -173,7 +147,7 @@ pub fn set_default_selected_disk(app_handle: &AppHandle, disk_id: DiskId) {
         .write()
         .expect("failed to lock selected disk ID");
     if selected_optical_disk_id.is_none() {
-        println!("changed default selected optical disk to {:?}", disk_id);
+        println!("changed default selected optical disk to {}", disk_id);
         *selected_optical_disk_id = Some(disk_id.clone());
     }
 }

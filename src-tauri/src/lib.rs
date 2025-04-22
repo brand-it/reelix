@@ -4,9 +4,10 @@ mod models;
 mod progress_tracker;
 mod services;
 mod state;
+mod templates;
 
 use crate::models::optical_disk_info::OpticalDiskInfo;
-use include_dir::{include_dir, Dir};
+use crate::templates::TEMPLATES_DIR;
 use state::AppState;
 use std::sync::{Arc, Mutex, RwLock};
 use sysinfo::System;
@@ -14,30 +15,11 @@ use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{App, Manager};
 use tauri_plugin_store::StoreExt;
+use templates::add_templates_from_dir;
 use tera::Tera;
 use tokio::sync::broadcast;
 
-// Embed the `templates` directory into the binary
-static TEMPLATES_DIR: Dir = include_dir!("templates");
 const ICON_BYTES: &[u8] = include_bytes!("../icons/menu-icon.png");
-
-fn add_templates_from_dir(tera: &mut Tera, dir: &Dir) {
-    for file in dir.files() {
-        if let Some(path) = file.path().to_str() {
-            let content = file
-                .contents_utf8()
-                .expect("Failed to read file content as UTF-8");
-            let name = path.replace("templates/", ""); // Strip the base path for Tera
-            println!("Adding template: {}", name);
-            tera.add_raw_template(&name, content)
-                .expect("Failed to add template");
-        }
-    }
-
-    for subdir in dir.dirs() {
-        add_templates_from_dir(tera, subdir);
-    }
-}
 
 fn spawn_disk_listener(app: &mut App) {
     let (sender, receiver) = broadcast::channel::<Vec<diff::Result<OpticalDiskInfo>>>(16);

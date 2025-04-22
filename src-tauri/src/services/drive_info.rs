@@ -16,7 +16,7 @@ use sysinfo::{Disk, Disks};
 
 // This struct maps to the WMI class Win32_CDROMDrive.
 // https://crates.io/crates/wmi
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 #[cfg(target_os = "windows")]
 struct Win32_CDROMDrive {
     Drive: Option<String>,
@@ -46,7 +46,7 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
                 titles: Mutex::new(Vec::new()),
                 progress: Mutex::new(None),
                 pid: Mutex::new(None),
-                movie_details: Mutex::new(None),
+                content: None,
             })
         });
     opticals
@@ -92,7 +92,7 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
                 titles: Mutex::new(Vec::new()),
                 progress: Mutex::new(None),
                 pid: Mutex::new(None),
-                movie_details: Mutex::new(None),
+                content: None,
             });
         }
     }

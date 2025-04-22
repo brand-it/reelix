@@ -1,16 +1,16 @@
 use crate::models::mkv::PRGV;
-use crate::models::optical_disk_info::{self, DiskId};
+use crate::models::optical_disk_info::{self, DiskContent, DiskId};
 use crate::models::{mkv, title_info};
 use crate::progress_tracker::{self, ProgressOptions};
-use crate::services::{makemkvcon_parser, template};
+use crate::services::makemkvcon_parser;
 use crate::state::AppState;
+use crate::templates;
 use std::ffi::OsStr;
 use std::path::PathBuf;
 use tauri::async_runtime::Receiver;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
-use tera::Context;
 
 #[cfg(all(target_os = "windows", target_pointer_width = "64"))]
 const MAKEMKVCON: &str = "makemkvcon64";
@@ -18,7 +18,6 @@ const MAKEMKVCON: &str = "makemkvcon64";
 #[cfg(not(all(target_os = "windows", target_pointer_width = "64")))]
 const MAKEMKVCON: &str = "makemkvcon";
 
-#[derive(Debug)]
 #[allow(dead_code)]
 pub struct RunResults {
     pub title_infos: Vec<title_info::TitleInfo>,
@@ -284,7 +283,7 @@ fn spawn<I: IntoIterator<Item = S> + std::fmt::Debug + std::marker::Copy, S: AsR
                 .expect("Failed to acquire lock on disk from disk_arc in spawn command")
                 .set_pid(Some(child.pid()));
         }
-        None => println!("failed to assign the sidecar to disk {:?}", disk_id),
+        None => println!("failed to assign the sidecar to disk {}", disk_id),
     }
     println!("Executing command: makemkvcon {:?}", args);
     receiver
@@ -293,7 +292,7 @@ fn spawn<I: IntoIterator<Item = S> + std::fmt::Debug + std::marker::Copy, S: AsR
 pub async fn rip_title(
     app_handle: &AppHandle,
     disk_id: &DiskId,
-    title_id: u32,
+    title_id: &u32,
     tmp_dir: &PathBuf,
 ) -> Result<RunResults, String> {
     let state = app_handle.state::<AppState>();
@@ -314,13 +313,8 @@ pub async fn rip_title(
     let app_handle_clone = app_handle.clone();
     let status = Ok(run(disk_id.clone(), receiver, app_handle_clone).await);
 
-    let result = template::render(
-        &state.tera,
-        "disks/toast_progress.html.turbo",
-        &Context::new(),
-        None,
-    )
-    .expect("Failed to render disks/toast_progress.html.turbo");
+    let result = templates::disks::render_toast_progress(&state, &None, &None)
+        .expect("Failed to render disks/toast_progress.html.turbo");
     app_handle
         .emit("disks-changed", result)
         .expect("Failed to emit disks-changed");
@@ -380,7 +374,7 @@ fn update_disk_progress_state(
     let disk_arc = match state.find_optical_disk_by_id(disk_id) {
         Some(disk) => disk,
         None => {
-            println!("Failed to find disk using {:?}", disk_id);
+            println!("Failed to find disk using {}", disk_id);
             return;
         }
     };
@@ -424,37 +418,22 @@ fn emit_progress(disk_id: &DiskId, app_handle: &AppHandle) {
         match state.find_optical_disk_by_id(disk_id) {
             Some(disk) => disk.read().expect("failed to lock disk").clone(),
             None => {
-                println!("failed to find disk using {:?}", disk_id);
+                println!("failed to find disk using {}", disk_id);
                 return;
             }
         }
     };
-    let movie_title_year = match optical_disk_info
-        .movie_details
-        .lock()
-        .expect("failed to lock movie details in emit progress")
-        .as_ref()
-    {
-        Some(movie) => movie.title_year(),
-        None => "Unknown".to_string(),
+    let movie_title_year = match optical_disk_info.content.unwrap() {
+        DiskContent::Movie(movie) => movie.title_year(),
+        DiskContent::Tv(content) => content.tv.title_year(),
     };
-    let progress = optical_disk_info
-        .progress
-        .lock()
-        .expect("failure to lock progress");
+    let progress_binding = optical_disk_info.progress.lock().unwrap();
+    let progress = progress_binding.as_ref();
 
     if progress.is_some() {
-        let mut context = Context::new();
-        context.insert("progress", &*progress);
-        context.insert("movie_title_year", &movie_title_year);
-
-        let result = template::render(
-            &state.tera,
-            "disks/toast_progress.html.turbo",
-            &context,
-            None,
-        )
-        .expect("Failed to render disks/toast_progress.html.turbo");
+        let result =
+            templates::disks::render_toast_progress(&state, &Some(movie_title_year), &progress)
+                .expect("Failed to render disks/toast_progress");
         app_handle
             .emit("disks-changed", result)
             .expect("Failed to emit disks-changed");

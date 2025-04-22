@@ -1,14 +1,27 @@
 use super::the_movie_db;
 use crate::models::movie_db;
-use crate::models::optical_disk_info::DiskId;
+use crate::models::optical_disk_info::TvSeasonContent;
 use crate::state::{get_api_key, AppState};
 use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
-pub fn create_dir(movie: &movie_db::MovieResponse) -> PathBuf {
+pub fn create_movie_dir(movie: &movie_db::MovieResponse) -> PathBuf {
     let home_dir = dirs::home_dir().expect("failed to find home dir");
     let dir = home_dir.join("Movies").join(movie.title_year());
+    let message = format!("Failed to create {}", dir.display());
+    if !dir.exists() {
+        fs::create_dir_all(&dir).expect(&message);
+    }
+    dir
+}
+
+pub fn create_season_episode_dir(content: &TvSeasonContent) -> PathBuf {
+    let home_dir = dirs::home_dir().expect("failed to find home dir");
+    let dir = home_dir
+        .join("TV Shows")
+        .join(content.tv.title_year())
+        .join(format!("Season {:02}", content.season.season_number));
     let message = format!("Failed to create {}", dir.display());
     if !dir.exists() {
         fs::create_dir_all(&dir).expect(&message);
@@ -28,49 +41,49 @@ pub fn find_movie(
     movie_db.movie(id)
 }
 
-pub fn rename_file(
+pub fn find_tv(
     app_handle: &AppHandle,
-    movie: &movie_db::MovieResponse,
-    disk_id: DiskId,
-    title_id: u32,
-) -> Result<PathBuf, String> {
-    let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
+    id: u32,
+) -> Result<movie_db::TvResponse, the_movie_db::Error> {
+    let state: tauri::State<AppState> = app_handle.state::<AppState>();
+    let api_key = get_api_key(&state);
 
-    match state.find_optical_disk_by_id(&disk_id) {
-        Some(optical_disk) => {
-            let locked_disk = optical_disk
-                .read()
-                .expect("failed to lock disk in rename_file");
-            let dir = create_dir(&movie);
+    let language = "en-US";
+    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+    movie_db.tv(id)
+}
 
-            let titles = &locked_disk
-                .titles
-                .lock()
-                .expect("failed to lock titles in rename_file");
-            let title = titles.iter().find(|t| t.id == title_id);
+pub fn find_season(
+    app_handle: &AppHandle,
+    tv_id: u32,
+    season_number: u32,
+) -> Result<movie_db::SeasonResponse, the_movie_db::Error> {
+    let state: tauri::State<AppState> = app_handle.state::<AppState>();
+    let api_key = get_api_key(&state);
 
-            let filename = title
-                .expect("Failed to find title in rename_file")
-                .filename
-                .clone()
-                .expect(&format!("failed to find file name for {}", title_id));
-            let from = dir.join(filename);
-            match fs::exists(&from) {
-                Ok(exist) => {
-                    if exist {
-                        let extension = from.extension().and_then(|ext| ext.to_str()).unwrap_or("");
-                        let to = dir.join(format!("{}.{}", movie.title_year(), extension));
-                        match fs::rename(from, &to) {
-                            Ok(_r) => return Ok(to),
-                            Err(_e) => return Err("Failed to rename file".to_string()),
-                        }
-                    } else {
-                        return Err("File does not exist failed to rename".to_string());
-                    }
-                }
-                Err(_e) => return Err("failed to check if from file exists".to_string()),
-            }
-        }
-        None => return Err("failed to rename disk".to_string()),
+    let language = "en-US";
+    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+    movie_db.season(tv_id, season_number)
+}
+
+pub fn get_movie_certification(
+    app_handle: &AppHandle,
+    movie_id: &u32,
+) -> Result<Option<String>, the_movie_db::Error> {
+    let state: tauri::State<AppState> = app_handle.state::<AppState>();
+    let api_key = get_api_key(&state);
+
+    let language = "en-US";
+    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+    let release_dates = match movie_db.movie_release_dates(movie_id) {
+        Ok(resp) => resp,
+        Err(e) => return Err(e),
     };
+
+    Ok(release_dates
+        .results
+        .iter()
+        .find(|entry| entry.iso_3166_1 == "US")
+        .and_then(|us| us.release_dates.first())
+        .map(|rd| rd.certification.trim().to_string()))
 }

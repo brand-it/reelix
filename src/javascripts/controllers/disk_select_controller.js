@@ -13,7 +13,6 @@ export default class extends Controller {
     });
     selectedItem.classList.add(this.selectedClass);
     this.selectedDropdownTarget.innerHTML = selectedItem.innerHTML;
-    debugger;
     window.turboInvoke("selected_disk", {
       diskId: parseInt(selectedItem.dataset.value),
     });
