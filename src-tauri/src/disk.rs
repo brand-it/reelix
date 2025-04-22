@@ -93,10 +93,6 @@ fn unwrap_disk(disk: &Arc<RwLock<OpticalDiskInfo>>) -> OpticalDiskInfo {
     disk.read().expect("Failed to lock").clone()
 }
 
-fn unwrap_disks(disks: &Vec<Arc<RwLock<OpticalDiskInfo>>>) -> Vec<OpticalDiskInfo> {
-    disks.iter().map(|disk| unwrap_disk(disk)).collect()
-}
-
 fn contains(
     optical_disks: &Vec<Arc<RwLock<OpticalDiskInfo>>>,
     disk: &Arc<RwLock<OpticalDiskInfo>>,

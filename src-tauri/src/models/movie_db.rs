@@ -396,18 +396,18 @@ impl SeasonResponse {
     //     };
     // }
 
-    pub fn year(&self) -> Option<u32> {
-        NaiveDate::parse_from_str(&self.air_date, "%Y-%m-%d")
-            .ok()
-            .and_then(|dt| dt.format("%Y").to_string().parse::<u32>().ok())
-    }
+    // pub fn year(&self) -> Option<u32> {
+    //     NaiveDate::parse_from_str(&self.air_date, "%Y-%m-%d")
+    //         .ok()
+    //         .and_then(|dt| dt.format("%Y").to_string().parse::<u32>().ok())
+    // }
 
-    pub fn formatted_air_date(&self) -> String {
-        NaiveDate::parse_from_str(&self.air_date, "%Y-%m-%d")
-            .ok()
-            .map(|date| date.format("%B %-d, %Y").to_string())
-            .unwrap_or_else(|| "".to_string())
-    }
+    // pub fn formatted_air_date(&self) -> String {
+    //     NaiveDate::parse_from_str(&self.air_date, "%Y-%m-%d")
+    //         .ok()
+    //         .map(|date| date.format("%B %-d, %Y").to_string())
+    //         .unwrap_or_else(|| "".to_string())
+    // }
 }
 
 #[derive(Serialize, Deserialize, Clone)]

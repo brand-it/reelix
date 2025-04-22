@@ -9,10 +9,6 @@ use std::path::PathBuf;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use tauri::State;
 
-pub fn get_query(state: &State<'_, AppState>) -> String {
-    state.query.lock().unwrap().to_string()
-}
-
 pub fn save_query(state: &State<'_, AppState>, search: &str) {
     let mut query = state.query.lock().unwrap();
     *query = search.to_string();
