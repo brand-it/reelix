@@ -1,17 +1,23 @@
-use super::movie_db::{MovieResponse, SeasonResponse};
+use super::movie_db::{MovieResponse, SeasonResponse, TvResponse};
 use super::title_info::TitleInfo;
 use serde::Serialize;
+use std::fmt;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
+#[derive(Serialize, Clone)]
+pub struct TvSeasonContent {
+    pub season: SeasonResponse,
+    pub tv: TvResponse,
+}
 
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Clone)]
 pub enum DiskContent {
-    Tv(SeasonResponse),
+    Tv(TvSeasonContent),
     Movie(MovieResponse),
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize)]
 pub struct OpticalDiskInfo {
     pub id: DiskId,
     pub name: String,
@@ -93,17 +99,19 @@ impl PartialEq for OpticalDiskInfo {
 
 static NEXT_DISK_ID: AtomicU64 = AtomicU64::new(1);
 
-#[derive(Debug, Serialize, Clone, PartialEq, Copy)]
+#[derive(Serialize, Clone, PartialEq, Copy)]
 pub struct DiskId(u64);
 
 impl DiskId {
     pub fn new() -> Self {
         DiskId(NEXT_DISK_ID.fetch_add(1, Ordering::Relaxed))
     }
+}
 
-    // pub fn from_any<Trait: Into<DiskId>>(id: Trait) -> Self {
-    //     id.into()
-    // }
+impl fmt::Display for DiskId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "DiskId({})", self.0)
+    }
 }
 
 // From unsigned types
@@ -190,7 +198,7 @@ impl TryFrom<&str> for DiskId {
 }
 
 // --- Optical Progress ---
-#[derive(Debug, Serialize, Clone)]
+#[derive(Serialize, Clone)]
 pub struct Progress {
     pub percentage: String,
     pub eta: String,

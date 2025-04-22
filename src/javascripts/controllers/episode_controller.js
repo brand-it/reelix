@@ -36,9 +36,4 @@ export default class extends Controller {
       selectedTitle.dataset.episodePreviousValue = currentValue;
     }
   }
-  // data-action="click->episode#rip"
-  rip(event) {
-    event.preventDefault();
-    window.turboInvoke("rip_season");
-  }
 }

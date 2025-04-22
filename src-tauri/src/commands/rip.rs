@@ -3,7 +3,7 @@ use super::helpers::{
     rename_tv_file, set_optical_disk_as_movie, set_optical_disk_as_season,
 };
 use crate::models::optical_disk_info::{DiskContent, DiskId};
-use crate::services::plex::create_season_episode_dir;
+use crate::services::plex::{create_season_episode_dir, find_tv};
 use crate::services::{
     makemkvcon,
     plex::{create_movie_dir, find_movie, find_season},
@@ -47,6 +47,10 @@ pub fn assign_episode_to_title(
         Some(disk) => disk,
         None => return render_error(&app_state, "No current selected disk"),
     };
+    let tv = match find_tv(&app_handle, mvdb_id) {
+        Ok(tv) => tv,
+        Err(e) => return render_error(&app_state, &e.message),
+    };
 
     let season = match find_season(&app_handle, mvdb_id, season_number) {
         Ok(season) => season,
@@ -61,7 +65,7 @@ pub fn assign_episode_to_title(
         Some(episode) => episode,
         None => return templates::render_error(&app_state, "Could not find episode to assign"),
     };
-    set_optical_disk_as_season(&optical_disk, &season);
+    set_optical_disk_as_season(&optical_disk, &tv, &season);
     match add_episode_to_title(&app_state, &optical_disk, episode, &part, &title_id) {
         Ok(_) => println!(
             "Added {} to {} {} {}",
@@ -112,7 +116,23 @@ pub fn withdraw_episode_from_title(
 }
 
 #[tauri::command]
-pub fn rip_season(app_state: State<'_, AppState>) -> Result<String, templates::ApiError> {
+pub fn rip_season(
+    app_handle: tauri::AppHandle,
+    app_state: State<'_, AppState>,
+) -> Result<String, templates::ApiError> {
+    let disk_id = app_state
+        .selected_optical_disk_id
+        .read()
+        .unwrap()
+        .to_owned();
+    let disk_id = match disk_id {
+        Some(id) => id,
+        None => {
+            println!("No optical disk is currently selected.");
+            return templates::render_error(&app_state, "No selected disk");
+        }
+    };
+    spawn_rip(app_handle, disk_id);
     templates::disks::render_toast_progress(&app_state, &None, &None)
 }
 

@@ -283,7 +283,7 @@ fn spawn<I: IntoIterator<Item = S> + std::fmt::Debug + std::marker::Copy, S: AsR
                 .expect("Failed to acquire lock on disk from disk_arc in spawn command")
                 .set_pid(Some(child.pid()));
         }
-        None => println!("failed to assign the sidecar to disk {:?}", disk_id),
+        None => println!("failed to assign the sidecar to disk {}", disk_id),
     }
     println!("Executing command: makemkvcon {:?}", args);
     receiver
@@ -374,7 +374,7 @@ fn update_disk_progress_state(
     let disk_arc = match state.find_optical_disk_by_id(disk_id) {
         Some(disk) => disk,
         None => {
-            println!("Failed to find disk using {:?}", disk_id);
+            println!("Failed to find disk using {}", disk_id);
             return;
         }
     };
@@ -418,14 +418,14 @@ fn emit_progress(disk_id: &DiskId, app_handle: &AppHandle) {
         match state.find_optical_disk_by_id(disk_id) {
             Some(disk) => disk.read().expect("failed to lock disk").clone(),
             None => {
-                println!("failed to find disk using {:?}", disk_id);
+                println!("failed to find disk using {}", disk_id);
                 return;
             }
         }
     };
     let movie_title_year = match optical_disk_info.content.unwrap() {
         DiskContent::Movie(movie) => movie.title_year(),
-        DiskContent::Tv(_tv) => "Unknown".to_string(),
+        DiskContent::Tv(content) => content.tv.title_year(),
     };
     let progress_binding = optical_disk_info.progress.lock().unwrap();
     let progress = progress_binding.as_ref();

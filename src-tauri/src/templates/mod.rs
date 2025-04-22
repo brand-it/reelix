@@ -1,6 +1,4 @@
-use crate::state::get_api_key;
 use crate::state::AppState;
-use core::error;
 use include_dir::{include_dir, Dir};
 use serde::Serialize;
 use std::error::Error;
@@ -19,7 +17,7 @@ pub mod tvs;
 
 type ErrorHandler = fn(&tera::Error) -> ApiError;
 
-#[derive(Debug, Serialize)]
+#[derive(Serialize, Debug)]
 pub struct ApiError {
     pub code: u16,
     pub message: String,

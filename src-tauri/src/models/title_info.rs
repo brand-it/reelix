@@ -1,7 +1,7 @@
 use super::movie_db::SeasonEpisode;
 use serde::Serialize;
 
-#[derive(Default, Serialize, Clone, Debug)]
+#[derive(Default, Serialize, Clone)]
 pub struct TitleInfo {
     pub id: u32,
     pub name: Option<String>,

@@ -74,8 +74,7 @@ pub async fn watch_for_changes(sender: broadcast::Sender<Vec<diff::Result<Optica
 
 fn emit_disk_change(app_handle: &AppHandle) {
     let state = app_handle.state::<AppState>();
-    let result =
-        templates::disks::render_options(&state).expect("Failed to render disks/options");
+    let result = templates::disks::render_options(&state).expect("Failed to render disks/options");
     app_handle
         .emit("disks-changed", result)
         .expect("Failed to emit disks-changed");
@@ -152,7 +151,7 @@ pub fn set_default_selected_disk(app_handle: &AppHandle, disk_id: DiskId) {
         .write()
         .expect("failed to lock selected disk ID");
     if selected_optical_disk_id.is_none() {
-        println!("changed default selected optical disk to {:?}", disk_id);
+        println!("changed default selected optical disk to {}", disk_id);
         *selected_optical_disk_id = Some(disk_id.clone());
     }
 }

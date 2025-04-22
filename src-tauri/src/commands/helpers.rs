@@ -1,5 +1,5 @@
-use crate::models::movie_db::{MovieResponse, SeasonEpisode, SeasonResponse};
-use crate::models::optical_disk_info::{DiskContent, OpticalDiskInfo};
+use crate::models::movie_db::{MovieResponse, SeasonEpisode, SeasonResponse, TvResponse};
+use crate::models::optical_disk_info::{DiskContent, OpticalDiskInfo, TvSeasonContent};
 use crate::models::title_info::TitleInfo;
 use crate::services::plex::{create_movie_dir, create_season_episode_dir};
 use crate::state::AppState;
@@ -7,9 +7,7 @@ use crate::templates;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
-use tauri::{App, State};
-
-use super::rip::Episode;
+use tauri::State;
 
 pub fn get_query(state: &State<'_, AppState>) -> String {
     state.query.lock().unwrap().to_string()
@@ -30,25 +28,30 @@ pub fn set_optical_disk_as_movie(
 
 pub fn set_optical_disk_as_season(
     optical_disk: &Arc<RwLock<OpticalDiskInfo>>,
+    tv: &TvResponse,
     season: &SeasonResponse,
 ) {
     let mut locked_disk = optical_disk.write().unwrap();
+    let tv_season_content = TvSeasonContent {
+        season: season.clone(),
+        tv: tv.clone(),
+    };
     match locked_disk.content.as_ref() {
         Some(content) => {
             match content {
                 DiskContent::Movie(_) => {
-                    locked_disk.content = Some(DiskContent::Tv(season.clone()));
+                    locked_disk.content = Some(DiskContent::Tv(tv_season_content));
                     clear_all_episodes_from_titles(&locked_disk);
                 }
-                DiskContent::Tv(season) => {
-                    if season.id != season.id {
-                        locked_disk.content = Some(DiskContent::Tv(season.clone()));
+                DiskContent::Tv(content) => {
+                    if content.season.id != season.id {
+                        locked_disk.content = Some(DiskContent::Tv(tv_season_content));
                         clear_all_episodes_from_titles(&locked_disk);
                     }
                 }
             };
         }
-        None => locked_disk.content = Some(DiskContent::Tv(season.clone())),
+        None => locked_disk.content = Some(DiskContent::Tv(tv_season_content)),
     };
 }
 
@@ -154,11 +157,11 @@ pub fn rename_movie_file(title: &TitleInfo, movie: &MovieResponse) -> Result<Pat
 /// - `all_titles`: slice of all TitleInfo objects being processed, to detect multi-part episodes.
 pub fn rename_tv_file(
     title: &TitleInfo,
-    season: &SeasonResponse,
+    content: &TvSeasonContent,
     all_titles: &[TitleInfo],
 ) -> Result<PathBuf, String> {
     // Ensure the output directory exists and construct source path
-    let dir = create_season_episode_dir(season);
+    let dir = create_season_episode_dir(content);
     let filename = title
         .filename
         .as_ref()
@@ -187,8 +190,8 @@ pub fn rename_tv_file(
         });
         format!(
             "{} - s{:02}e{:02}-e{:02}",
-            season.title_year(),
-            season.season_number,
+            content.tv.title_year(),
+            content.season.season_number,
             start,
             end
         )
@@ -206,8 +209,8 @@ pub fn rename_tv_file(
             let part_num = title.part.unwrap_or(1);
             format!(
                 "{} - s{:02}e{:02} - pt{}",
-                season.title_year(),
-                season.season_number,
+                content.tv.title_year(),
+                content.season.season_number,
                 ep_num,
                 part_num
             )
@@ -215,8 +218,8 @@ pub fn rename_tv_file(
             // Single episode: use the episode name
             format!(
                 "{} - s{:02}e{:02} - {}",
-                season.title_year(),
-                season.season_number,
+                content.tv.title_year(),
+                content.season.season_number,
                 ep_num,
                 ep.name
             )

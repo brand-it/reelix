@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 #[allow(dead_code)]
-#[derive(Debug)]
+
 pub struct CINFO {
     pub id: u32,
     pub type_: String,
@@ -9,7 +9,7 @@ pub struct CINFO {
     pub value: String,
 }
 #[allow(dead_code)]
-#[derive(Debug)]
+
 pub struct TINFO {
     pub id: u32,
     pub type_code: String,
@@ -17,7 +17,7 @@ pub struct TINFO {
     pub value: String,
 }
 #[allow(dead_code)]
-#[derive(Debug)]
+
 pub struct SINFO {
     pub id: u32,
     pub type_: String,
@@ -25,12 +25,12 @@ pub struct SINFO {
     pub value: String,
 }
 #[allow(dead_code)]
-#[derive(Debug)]
+
 pub struct TCOUNT {
     pub title_count: String,
 }
 #[allow(dead_code)]
-#[derive(Debug)]
+
 pub struct DRV {
     pub index: i32,
     pub visible: i32,
@@ -41,28 +41,28 @@ pub struct DRV {
     pub disc_name: String,
 }
 #[allow(dead_code)]
-#[derive(Debug, Serialize, Clone)]
+#[derive(Serialize, Clone)]
 pub struct PRGV {
     pub current: u32,
     pub total: u32,
     pub pmax: u32,
 }
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct PRGT {
     pub code: String,
     pub id: u32,
     pub name: String,
 }
 #[allow(dead_code)]
-#[derive(Debug)]
+
 pub struct PRGC {
     pub code: String,
     pub id: u32,
     pub name: String,
 }
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct MSG {
     pub code: String,
     pub flags: String,
@@ -72,7 +72,7 @@ pub struct MSG {
     pub params: String,
 }
 #[allow(dead_code)]
-#[derive(Debug)]
+
 pub struct ParseError {
     pub type_: String,
     pub line: Vec<String>,
@@ -80,7 +80,7 @@ pub struct ParseError {
 
 /// An enum to unify the parsed results.
 #[allow(dead_code)]
-#[derive(Debug)]
+
 pub enum MkvData {
     CINFO(CINFO),
     TINFO(TINFO),

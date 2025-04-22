@@ -1,6 +1,6 @@
 use super::disks::build_disk_option;
 use super::{render, ApiError};
-use crate::models::movie_db::{self, SeasonEpisode, SeasonResponse, TvResponse};
+use crate::models::movie_db::{self, SeasonResponse, TvResponse};
 use crate::state::AppState;
 use tauri::State;
 use tera::Context;

@@ -16,7 +16,7 @@ use sysinfo::{Disk, Disks};
 
 // This struct maps to the WMI class Win32_CDROMDrive.
 // https://crates.io/crates/wmi
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 #[cfg(target_os = "windows")]
 struct Win32_CDROMDrive {
     Drive: Option<String>,

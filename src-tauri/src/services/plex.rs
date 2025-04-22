@@ -1,5 +1,6 @@
 use super::the_movie_db;
 use crate::models::movie_db;
+use crate::models::optical_disk_info::TvSeasonContent;
 use crate::state::{get_api_key, AppState};
 use std::fs;
 use std::path::PathBuf;
@@ -15,12 +16,12 @@ pub fn create_movie_dir(movie: &movie_db::MovieResponse) -> PathBuf {
     dir
 }
 
-pub fn create_season_episode_dir(season: &movie_db::SeasonResponse) -> PathBuf {
+pub fn create_season_episode_dir(content: &TvSeasonContent) -> PathBuf {
     let home_dir = dirs::home_dir().expect("failed to find home dir");
     let dir = home_dir
         .join("TV Shows")
-        .join(season.title_year())
-        .join(format!("Season {:02}", season.season_number));
+        .join(content.tv.title_year())
+        .join(format!("Season {:02}", content.season.season_number));
     let message = format!("Failed to create {}", dir.display());
     if !dir.exists() {
         fs::create_dir_all(&dir).expect(&message);

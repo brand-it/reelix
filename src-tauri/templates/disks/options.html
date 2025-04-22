@@ -13,20 +13,21 @@
   {% endfor %}
 
   {% if any_ripped %}
-  <button type="button" class="btn btn-primary">
+  <a class="btn btn-primary" href="/rip_season">
     <i class="fa-solid fa-compact-disc"></i>
-  </button>
+  </a>
   {% else %}
-  <button type="button" class="btn btn-primary" disabled="disabled">
+  <a class="btn btn-primary" disabled="disabled">
     <i class="fa-solid fa-compact-disc"></i>
-  </button>
+  </a>
   {% endif %}
   {% endif %}
   <div class="dropdown pe-1">
     <div class="btn dropdown-toggle dropdown-item w-100 text-start rounded-end" type="button" data-bs-toggle="dropdown"
       data-disk-select-target="selectedDropdown">
       {% if selected_disk %}
-      {{ macros::disk_item(selected=(title.rip and title.part == part_num), name=selected_disk.name, value=selected_disk.id,
+      {{ macros::disk_item(selected=(title.rip and title.part == part_num), name=selected_disk.name,
+      value=selected_disk.id,
       loading=(selected_disk_titles | length == 0)) }}
       {% else %}
       {{ macros::disk_item(selected=true, name='No Optical Drive Detected', value='', loading=false) }}

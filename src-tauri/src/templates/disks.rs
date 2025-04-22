@@ -1,9 +1,6 @@
-use std::sync::{Arc, RwLock, RwLockReadGuard};
-
 use super::{render, ApiError};
 use crate::{
     models::{
-        movie_db::SeasonEpisode,
         optical_disk_info::{self, DiskId, OpticalDiskInfo},
         title_info::TitleInfo,
     },
@@ -13,7 +10,7 @@ use serde::Serialize;
 use tauri::State;
 use tera::Context;
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize)]
 pub struct DiskOption {
     optical_disks: Vec<OpticalDiskInfo>,
     selected_optical_disk_id: Option<DiskId>,
