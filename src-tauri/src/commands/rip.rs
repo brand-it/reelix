@@ -12,6 +12,7 @@ use crate::state::AppState;
 use crate::templates::{self};
 use serde::{Deserialize, Serialize};
 use tauri::{Manager, State};
+use tauri_plugin_notification::NotificationExt;
 use templates::render_error;
 
 #[derive(Serialize, Deserialize)]
@@ -208,18 +209,74 @@ fn spawn_rip(app_handle: tauri::AppHandle, disk_id: DiskId) {
                     let optical_disk = state.find_optical_disk_by_id(&disk_id).unwrap();
                     let locked_disk = optical_disk.read().unwrap();
                     match locked_disk.content.as_ref().unwrap() {
-                        DiskContent::Movie(movie) => {
-                            rename_movie_file(&title, &movie)
-                                .expect("failed to rename movie title");
-                        }
+                        DiskContent::Movie(movie) => match rename_movie_file(&title, &movie) {
+                            Ok(file_path) => {
+                                app_handle
+                                    .notification()
+                                    .builder()
+                                    .title(format!("{} Completed", movie.title_year(),))
+                                    .body(format!(
+                                        "File Path {}",
+                                        &file_path.to_string_lossy().to_string()
+                                    ))
+                                    .show()
+                                    .unwrap();
+                            }
+                            Err(e) => {
+                                app_handle
+                                    .notification()
+                                    .builder()
+                                    .title(format!("Failure {}", movie.title_year(),))
+                                    .body(format!("Failed to rename title {}", e))
+                                    .show()
+                                    .unwrap();
+                            }
+                        },
                         DiskContent::Tv(season) => {
-                            rename_tv_file(&title, &season, &rip_titles)
-                                .expect("failed to rename tv title");
+                            match rename_tv_file(&title, &season, &rip_titles) {
+                                Ok(file_path) => {
+                                    app_handle
+                                        .notification()
+                                        .builder()
+                                        .title(format!(
+                                            "{} {} Completed",
+                                            season.tv.title_year(),
+                                            season.season.name
+                                        ))
+                                        .body(format!(
+                                            "File Path {}",
+                                            &file_path.to_string_lossy().to_string()
+                                        ))
+                                        .show()
+                                        .unwrap();
+                                }
+                                Err(e) => {
+                                    app_handle
+                                        .notification()
+                                        .builder()
+                                        .title(format!(
+                                            "Failure {} {}",
+                                            season.tv.title_year(),
+                                            season.season.name
+                                        ))
+                                        .body(format!("Failed to rename title {}", e))
+                                        .show()
+                                        .unwrap();
+                                }
+                            }
                         }
                     }
                 }
                 Err(e) => {
-                    eprintln!("Error ripping {}: {}", title.id, e);
+                    let optical_disk = state.find_optical_disk_by_id(&disk_id).unwrap();
+                    let locked_disk = optical_disk.read().unwrap();
+                    app_handle
+                        .notification()
+                        .builder()
+                        .title(format!("Failure {}", locked_disk.name))
+                        .body(format!("Error Ripping {}", e))
+                        .show()
+                        .unwrap();
                 }
             }
         }
