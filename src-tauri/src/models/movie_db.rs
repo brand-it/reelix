@@ -16,8 +16,8 @@ pub struct MovieResponse {
     pub popularity: f32,
     pub poster_path: Option<String>,
     pub release_date: Option<String>,
-    pub revenue: i32,
-    pub runtime: i32,
+    pub revenue: u64,
+    pub runtime: u32,
     pub title: String,
 }
 
@@ -36,8 +36,8 @@ pub struct MovieView {
     pub popularity: f32,
     pub poster_path: Option<String>,
     pub release_date: Option<String>,
-    pub revenue: i32,
-    pub runtime: i32,
+    pub revenue: u64,
+    pub runtime: u32,
     pub title_year: String,
     pub title: String,
     pub year: Option<u32>,
