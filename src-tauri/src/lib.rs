@@ -13,7 +13,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use sysinfo::System;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{App, Manager};
+use tauri::{App, Manager, TitleBarStyle, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_store::StoreExt;
 use templates::add_templates_from_dir;
 use tera::Tera;
@@ -120,6 +120,44 @@ fn setup_tray_icon(app: &mut App) {
         .expect("Failed to build tray icon");
 }
 
+//   {
+//     "title": "Reelix",
+//     "width": 1075,
+//     "height": 800,
+//     "minWidth": 500,
+//     "minHeight": 500
+//   }
+fn setup_view_window(app: &mut App) {
+    let win_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
+        .title("Reelix")
+        .inner_size(1075.0, 800.0)
+        .min_inner_size(500.0, 500.0);
+
+    // set transparent title bar only when building for macOS
+    #[cfg(target_os = "macos")]
+    let win_builder = win_builder.title_bar_style(TitleBarStyle::Transparent);
+
+    let window = win_builder.build().unwrap();
+
+    // set background color only when building for macOS
+    #[cfg(target_os = "macos")]
+    {
+        use cocoa::appkit::{NSColor, NSWindow};
+        use cocoa::base::{id, nil};
+        let ns_window = window.ns_window().unwrap() as id;
+        unsafe {
+            let bg_color = NSColor::colorWithRed_green_blue_alpha_(
+                nil,
+                30.0 / 255.0,
+                33.0 / 255.0,
+                37.0 / 255.0,
+                1.0,
+            );
+            ns_window.setBackgroundColor_(bg_color);
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut tera = Tera::default();
@@ -143,6 +181,7 @@ pub fn run() {
             setup_store(app);
             spawn_disk_listener(app);
             setup_tray_icon(app);
+            setup_view_window(app);
             Ok(())
         })
         .on_window_event(|window, event| match event {

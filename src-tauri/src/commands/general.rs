@@ -1,7 +1,9 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use super::helpers::save_query;
 use crate::models::optical_disk_info::DiskId;
-use crate::services::plex::{find_movie, find_season, find_tv, get_movie_certification};
+use crate::services::plex::{
+    find_movie, find_season, find_tv, get_movie_certification, search_multi,
+};
 use crate::services::the_movie_db;
 use crate::state::{get_api_key, AppState};
 use crate::templates::{self, render_error};
@@ -13,11 +15,7 @@ use tauri_plugin_store::StoreExt;
 // This is the entry point, basically it decides what to first show the user
 #[tauri::command]
 pub fn index(state: State<'_, AppState>) -> Result<String, templates::ApiError> {
-    let api_key = get_api_key(&state);
-    let language = "en-US";
-    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
-
-    match movie_db.search_multi("Martian", 1) {
+    match search_multi(&state, &"Martian") {
         Ok(resp) => resp,
         Err(e) => return templates::the_movie_db::render_show(&state, &e.message),
     };
@@ -101,10 +99,7 @@ pub fn the_movie_db(
         .write()
         .expect("Failed to acquire lock on the_movie_db_key in the_movie_db command");
     *movie_db_key = key.to_string();
-    let api_key = key.to_string();
-    let language = "en-US";
-    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
-    let response = movie_db.search_multi("Avengers", 1);
+    let response = search_multi(&state, &"Avengers");
     match response {
         Ok(resp) => resp,
         Err(e) => return render_error(&state, &e.message),

@@ -1,11 +1,11 @@
 {%- for episode in season.episodes -%}
-<turbo-stream action="replace" method="morph" target="episode-{{episode.id}}">
+<turbo-stream action="replace" target="episode-{{episode.id}}">
   <template>
     {% include "seasons/episode.html" %}
   </template>
 </turbo-stream>
 {%- endfor -%}
-<turbo-stream action="replace" method="morph" target="disk-selector">
+<turbo-stream action="replace" target="disk-selector">
   <template>
     {% include "disks/options.html" %}
   </template>

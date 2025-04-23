@@ -1,18 +1,17 @@
 <div id="disk-progress-toast" class="toast-container position-fixed bottom-0 end-0 p-3">
-  {% if progress %}
-  <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="false">
+  <div class="toast {% if progress %}show{% endif %}" role="alert" aria-live="assertive" aria-atomic="true"
+    data-bs-autohide="false">
     <div class="toast-header">
-      <strong class="me-auto">{{ title }}</strong>
-      <small>{{ progress.eta }}</small>
+      <strong class="me-auto">{% if title %}{{ title }}{% endif %}</strong>
+      <small>{% if progress %}{{ progress.eta }}{% endif %}</small>
     </div>
     <div class="toast-body">
-      <div class="mb-2">{{ progress.label }}</div>
-      <div class="progress mb-2" role="progressbar" aria-label="{{ progress.label }}"
-        aria-valuenow="{{ progress.percentage }}" aria-valuemin="0" aria-valuemax="100">
-        <div class="progress-bar" style="width: {{ progress.percentage }}%">{{progress.percentage }}%</div>
+      <div class="mb-2">{% if progress %}{{ progress.label }}{% endif %}</div>
+      <div class="progress mb-2" role="progressbar" {% if progress %}aria-label="{{ progress.label }}"{% endif %}
+        {% if progress %}aria-valuenow="{{ progress.percentage }}"{% endif %} aria-valuemin="0" aria-valuemax="100">
+        <div class="progress-bar" {% if progress %}style="width: {{ progress.percentage }}%"{% endif %}>{% if progress %}{{progress.percentage }}%{% endif %}</div>
       </div>
-      <div class="overflow-hidden">{{ progress.message }}</div>
+      <div class="overflow-hidden">{% if progress %}{{ progress.message }}{% endif %}</div>
     </div>
   </div>
-  {% endif %}
 </div>

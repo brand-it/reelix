@@ -18,7 +18,6 @@ window.turboInvoke = async function turboInvoke(command, commandArgs) {
       // avoid innerHTML, just set plain text
       errorElem.textContent = error?.message?.toString() ?? String(error);
     }
-    // return a 500-level response so callers don’t hang waiting
     return new Response(String(error), { status: 500 });
   }
 };
