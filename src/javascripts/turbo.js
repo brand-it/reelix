@@ -5,30 +5,41 @@ function splitPath(location) {
 }
 
 window.turboInvoke = async function turboInvoke(command, commandArgs) {
-  const tauriResponse = await window.__TAURI__.core
-    .invoke(command, commandArgs)
-    .catch((error) => {
-      console.log("error", command, commandArgs, error);
-      if (error.message == undefined) {
-        document.getElementById("error").innerHTML = error;
-      } else {
-        document.getElementById("error").innerHTML = error.message;
-      }
-    });
-  console.log("tauriResponse", command, tauriResponse);
-  processTurboResponse(tauriResponse);
-  return new Response(tauriResponse, {
-    status: 200,
-  });
+  try {
+    const tauriResponse = await window.__TAURI__.core.invoke(
+      command,
+      commandArgs
+    );
+    window.processTurboResponse(tauriResponse);
+    return new Response(tauriResponse, { status: 200 });
+  } catch (error) {
+    const errorElem = document.getElementById("error");
+    if (errorElem) {
+      // avoid innerHTML, just set plain text
+      errorElem.textContent = error?.message?.toString() ?? String(error);
+    }
+    return new Response(String(error), { status: 500 });
+  }
 };
 
-window.processTurboResponse = function processTurboResponse(turboResponse) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(turboResponse, "text/html");
-  doc.querySelectorAll("turbo-stream").forEach((stream) => {
-    Turbo.renderStreamMessage(stream.outerHTML);
-  });
-};
+window.processTurboResponse = (function () {
+  const template = document.createElement("template");
+
+  return function processTurboResponse(turboResponse) {
+    if (typeof turboResponse !== "string") return;
+
+    // parse into a DocumentFragment via template
+    template.innerHTML = turboResponse.trim();
+    const streams = template.content.querySelectorAll("turbo-stream");
+
+    for (const stream of streams) {
+      Turbo.renderStreamMessage(stream.outerHTML);
+    }
+
+    // drop references immediately
+    template.innerHTML = "";
+  };
+})();
 
 function findClosestRecursively(element, selector) {
   if (element instanceof Element) {

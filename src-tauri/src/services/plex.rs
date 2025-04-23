@@ -29,6 +29,17 @@ pub fn create_season_episode_dir(content: &TvSeasonContent) -> PathBuf {
     dir
 }
 
+pub fn search_multi(
+    app_state: &tauri::State<'_, AppState>,
+    query: &str,
+) -> Result<movie_db::SearchResponse, the_movie_db::Error> {
+    let api_key = get_api_key(&app_state);
+    let language = "en-US";
+    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+
+    movie_db.search_multi(query, 1)
+}
+
 pub fn find_movie(
     app_handle: &AppHandle,
     id: u32,

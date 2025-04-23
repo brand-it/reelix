@@ -16,7 +16,7 @@ export default class extends Controller {
 
     turboInvoke("rip_one", commandArgs)
       .then((response) => {
-        console.log("Rip command sent successfully:", response);
+        // console.log("Rip command sent successfully:", response);
       })
       .catch((error) => {
         console.error("Rip command failed:", error);

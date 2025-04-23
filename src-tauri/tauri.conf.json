@@ -11,13 +11,7 @@
   "app": {
     "withGlobalTauri": true,
     "windows": [
-      {
-        "title": "Reelix",
-        "width": 1075,
-        "height": 800,
-        "minWidth": 500,
-        "minHeight": 500
-      }
+
     ],
     "security": {
       "csp": null
