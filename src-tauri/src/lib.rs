@@ -13,11 +13,15 @@ use std::sync::{Arc, Mutex, RwLock};
 use sysinfo::System;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{App, Manager, TitleBarStyle, WebviewUrl, WebviewWindowBuilder};
+use tauri::{App, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_store::StoreExt;
 use templates::add_templates_from_dir;
 use tera::Tera;
 use tokio::sync::broadcast;
+
+// only on macOS:
+#[cfg(target_os = "macos")]
+use tauri::TitleBarStyle;
 
 const ICON_BYTES: &[u8] = include_bytes!("../icons/menu-icon.png");
 
