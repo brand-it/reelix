@@ -120,7 +120,8 @@ pub struct SearchResult {
     original_title: Option<String>,
     #[serde(default)]
     overview: String,
-    popularity: f64,
+    #[serde(default)]
+    popularity: Option<f64>,
     profile_path: Option<String>,
     poster_path: Option<String>,
     release_date: Option<String>,

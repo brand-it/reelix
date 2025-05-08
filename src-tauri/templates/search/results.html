@@ -17,7 +17,7 @@
   <div class="display-flex">
     {% for result in search.results %}
     <div class="width-200 m-1 text-center">
-      {% if result.media_type == "person" %}
+      {% if result.media_type == "person" or result.media_type == 'collection' %}
       {% set poster_element = "div" %}
       {% set poster_classes = "img-poster"%}
       {% else %}
@@ -31,6 +31,8 @@
         {{ macros::poster(poster_path=result.poster_path, name=result.title, original_name=result.original_title) }}
         {% elif result.media_type == "person" %}
         {{ macros::poster(poster_path=result.profile_path, name=result.name, original_name=result.original_name) }}
+        {% elif result.media_type == "collection" %}
+        {{ macros::poster(poster_path=result.poster_path, name=result.name, original_name=result.original_name) }}
         {% endif %}
       </{{ poster_element }}>
       <h6 class="card-title overflow-hidden text-start height-60">
