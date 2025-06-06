@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "resources": {
+      "libraries/mac-osx/libdriveio.dylib": "libdriveio.dylib",
+      "libraries/mac-osx/libffm.dylib": "libffm.dylib",
+      "libraries/mac-osx/libmakemkv.dylib": "libmakemkv.dylib",
+      "libraries/mac-osx/libmqt.dylib": "libmqt.dylib"
+    },
+    "externalBin": [
+      "binaries/makemkvcon",
+      "binaries/mmccextr",
+      "binaries/mmgplsrv",
+      "binaries/sdftool"
+    ]
+  }
+}

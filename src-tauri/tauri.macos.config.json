@@ -9,11 +9,21 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "resources": {},
+    "macOS": {
+      "files": {
+        "MacOS/libdriveio.dylib": "libraries/mac-osx/libdriveio.dylib",
+        "MacOS/libffm.dylib": "libraries/mac-osx/libffm.dylib",
+        "MacOS/libmakemkv.dylib": "libraries/mac-osx/libmakemkv.dylib",
+        "MacOS/libmqt.dylib": "libraries/mac-osx/libmqt.dylib"
+      }
+    },
     "externalBin": [
-      "binaries/libdriveio.dylib",
-      "binaries/libffm.dylib",
-      "binaries/libmakemkv.dylib",
-      "binaries/makemkvcon"
+      "binaries/makemkvcon",
+      "binaries/mmccextr",
+      "binaries/mmgplsrv",
+      "binaries/sdftool"
     ]
   }
 }
+
