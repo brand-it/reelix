@@ -34,7 +34,7 @@ npm run tauri dev
 
 ```
 cargo install tauri-cli --version "^2.0.0" --locked
-cargo tauri dev
+cargo tauri dev --config src-tauri/tauri.dev.config.json
 ```
 
 ### Linux Packages

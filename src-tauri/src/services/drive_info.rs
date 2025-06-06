@@ -26,12 +26,16 @@ struct Win32_CDROMDrive {
 
 #[cfg(not(target_os = "windows"))]
 pub fn opticals() -> Vec<OpticalDiskInfo> {
+    use std::path::PathBuf;
+
     let disks = Disks::new_with_refreshed_list();
     let mut opticals = Vec::new();
     disks
         .iter()
         .filter(|disk| is_optical_disk(disk))
         .for_each(|disk| {
+            let mount_point =
+                PathBuf::from(format!("{}/VIDEO_TS", disk.mount_point().to_string_lossy()));
             opticals.push(OpticalDiskInfo {
                 id: optical_disk_info::DiskId::new(),
                 name: disk.name().to_string_lossy().to_string(),
@@ -42,7 +46,7 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
                 is_read_only: disk.is_removable(),
                 kind: format!("{:?}", disk.kind()),
                 dev: String::new(),
-                mount_point: disk.mount_point().to_path_buf(),
+                mount_point,
                 titles: Mutex::new(Vec::new()),
                 progress: Mutex::new(None),
                 pid: Mutex::new(None),

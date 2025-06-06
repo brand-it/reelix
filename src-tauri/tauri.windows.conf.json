@@ -10,12 +10,12 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "windows-x86_64/libdriveio.dll": "libdriveio.dll",
-      "windows-x86_64/libdriveio64.dll": "libdriveio64.dll",
-      "windows-x86_64/libffm.dll": "libffm.dll",
-      "windows-x86_64/libffm64.dll": "libffm64.dll",
-      "windows-x86_64/libmakemkv.dll": "libmakemkv.dll",
-      "windows-x86_64/libmakemkv64.dll": "libmakemkv64.dll"
+      "libraries/windows-x86_64/libdriveio.dll": "libdriveio.dll",
+      "libraries/windows-x86_64/libdriveio64.dll": "libdriveio64.dll",
+      "libraries/windows-x86_64/libffm.dll": "libffm.dll",
+      "libraries/windows-x86_64/libffm64.dll": "libffm64.dll",
+      "libraries/windows-x86_64/libmakemkv.dll": "libmakemkv.dll",
+      "libraries/windows-x86_64/libmakemkv64.dll": "libmakemkv64.dll"
     },
     "externalBin": [
       "binaries/makemkvcon",

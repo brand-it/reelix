@@ -9,6 +9,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "resources": {},
     "externalBin": [
       "binaries/makemkvcon"
     ]
