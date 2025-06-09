@@ -146,18 +146,23 @@ fn setup_view_window(app: &mut App) {
     // set background color only when building for macOS
     #[cfg(target_os = "macos")]
     {
-        use cocoa::appkit::{NSColor, NSWindow};
-        use cocoa::base::{id, nil};
-        let ns_window = window.ns_window().unwrap() as id;
+        use objc2::rc::Retained;
+        use objc2::runtime::AnyObject;
+        use objc2_app_kit::{NSColor, NSWindow};
+        let raw = window.ns_window().unwrap();
+        // SAFETY: We know this pointer is really an NSWindow instance.
+        let ns_window: Retained<NSWindow> = unsafe {
+            let obj_ptr = raw as *mut AnyObject;
+            Retained::from_raw(obj_ptr.cast()).unwrap()
+        };
         unsafe {
-            let bg_color = NSColor::colorWithRed_green_blue_alpha_(
-                nil,
-                30.0 / 255.0,
+            let bg_color: Retained<NSColor> = NSColor::colorWithSRGBRed_green_blue_alpha(
                 33.0 / 255.0,
-                37.0 / 255.0,
+                36.0 / 255.0,
+                41.0 / 255.0,
                 1.0,
             );
-            ns_window.setBackgroundColor_(bg_color);
+            ns_window.setBackgroundColor(Some(&bg_color));
         }
     }
 }
