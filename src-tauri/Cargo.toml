@@ -1,13 +1,13 @@
 [package]
 name = "Reelix"
-version = "0.21.0"
+version = "0.21.1"
 description = "A tool for ripping Movies & TV Shows"
 authors = ["Brandt Lareau"]
 edition = "2021"
 build = "build.rs"
 
 [profile.release]
-codegen-units = 1 # Allows LLVM to perform better optimization.
+codeine-units = 1 # Allows LLVM to perform better optimization.
 lto = true        # Enables link-time-optimizations.
 opt-level = "s"   # Prioritizes small binary size. Use `3` if you prefer speed.
 panic = "abort"   # Higher performance by disabling panic handlers.
@@ -45,4 +45,6 @@ tokio = ">=1.43.0"
 url = ">=2.5.4"
 wmi = ">=0.16.0"
 [target."cfg(target_os = \"macos\")".dependencies]
-cocoa = ">=0.26"
+objc2 = ">=0.6.0"
+objc2-app-kit = "0.3.1"
+objc2-foundation = "0.3.1"
