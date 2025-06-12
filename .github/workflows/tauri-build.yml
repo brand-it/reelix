@@ -8,6 +8,9 @@ on:
     types:
       - opened
       - synchronize
+concurrency:
+  group: build-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 jobs:
   build-tauri:
     permissions:
@@ -85,6 +88,9 @@ jobs:
           fi
           echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
           echo "Certificate imported successfully."
+      - name: Sign Dylibs (MacOS only)
+        if: matrix.platform == 'macos-latest'
+        run: scripts/sign-dylibs.sh src-tauri/libraries/mac-osx
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
         run: |
