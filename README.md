@@ -24,6 +24,18 @@ Really There is nothing better out there I could find then MakeMKV. The process 
 
 1. `asdf install`
 
+### Upgrade
+
+Commands to upgrade packages and dependencies
+
+```
+npm upgrade
+```
+
+```
+cargo update --manifest-path src-tauri/Cargo.toml
+```
+
 ### Using Node
 
 ```
@@ -34,7 +46,10 @@ npm run tauri dev
 
 ```
 cargo install tauri-cli --version "^2.0.0" --locked
-cargo tauri dev --config src-tauri/tauri.dev.config.json
+```
+
+```
+cargo tauri dev --config src-tauri/tauri.dev.conf.json
 ```
 
 ### Linux Packages
