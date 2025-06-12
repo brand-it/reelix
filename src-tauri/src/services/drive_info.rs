@@ -34,8 +34,7 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
         .iter()
         .filter(|disk| is_optical_disk(disk))
         .for_each(|disk| {
-            let mount_point =
-                PathBuf::from(format!("{}/VIDEO_TS", disk.mount_point().to_string_lossy()));
+            let mount_point = PathBuf::from(format!("{}", disk.mount_point().to_string_lossy()));
             opticals.push(OpticalDiskInfo {
                 id: optical_disk_info::DiskId::new(),
                 name: disk.name().to_string_lossy().to_string(),
