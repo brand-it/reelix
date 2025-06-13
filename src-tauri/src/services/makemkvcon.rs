@@ -147,6 +147,7 @@ pub struct RunResults {
 // makemvcon stream --upnp=1 --cache=128 --bindip=192.168.1.102 --bindport=51000 --messages=-none
 async fn run(
     disk_id: DiskId,
+    title_id: &Option<u32>,
     mut receiver: Receiver<CommandEvent>,
     app_handle: AppHandle,
 ) -> RunResults {
@@ -177,13 +178,21 @@ async fn run(
                         }
                         mkv::MkvData::PRGV(prgv) => {
                             update_tracker(&mut tracker, prgv);
-                            update_disk_progress_state(&disk_id, &tracker, &app_handle, None, None);
+                            update_disk_progress_state(
+                                &disk_id,
+                                title_id,
+                                &tracker,
+                                &app_handle,
+                                None,
+                                None,
+                            );
                             emit_progress(&disk_id, &app_handle);
                         }
                         mkv::MkvData::PRGT(prgt) => {
                             create_tracker(&mut tracker);
                             update_disk_progress_state(
                                 &disk_id,
+                                title_id,
                                 &tracker,
                                 &app_handle,
                                 Some(&prgt.name),
@@ -197,6 +206,7 @@ async fn run(
                             messages.push(msg.clone());
                             update_disk_progress_state(
                                 &disk_id,
+                                title_id,
                                 &tracker,
                                 &app_handle,
                                 None,
@@ -311,7 +321,13 @@ pub async fn rip_title(
 
     let receiver = spawn(app_handle, disk_id, args);
     let app_handle_clone = app_handle.clone();
-    let status = Ok(run(disk_id.clone(), receiver, app_handle_clone).await);
+    let status = Ok(run(
+        disk_id.clone(),
+        &Some(title_id.to_owned()),
+        receiver,
+        app_handle_clone,
+    )
+    .await);
 
     let result = templates::disks::render_toast_progress(&state, &None, &None)
         .expect("Failed to render disks/toast_progress.html.turbo");
@@ -352,11 +368,12 @@ pub async fn title_info(disk_id: DiskId, app_handle: &AppHandle) -> RunResults {
     let receiver = spawn(app_handle, &disk_id, ["-r", "info", &args]);
     let app_handle_clone = app_handle.clone();
 
-    run(disk_id, receiver, app_handle_clone).await
+    run(disk_id, &None, receiver, app_handle_clone).await
 }
 
 fn update_disk_progress_state(
     disk_id: &DiskId,
+    title_id: &Option<u32>,
     tracker: &Option<progress_tracker::Base>,
     app_handle: &AppHandle,
     label: Option<&String>,
@@ -406,6 +423,8 @@ fn update_disk_progress_state(
         percentage: tracker.percentage_component.percentage(),
         label: label.unwrap_or(&default_label).to_string(),
         message: message.unwrap_or(&default_message).to_string(),
+        title_id: title_id.clone(),
+        failed: false,
     };
 
     // Update the disk's progress.
@@ -424,7 +443,14 @@ fn emit_progress(disk_id: &DiskId, app_handle: &AppHandle) {
         }
     };
     let movie_title_year = match optical_disk_info.content.unwrap() {
-        DiskContent::Movie(movie) => movie.title_year(),
+        DiskContent::Movie(movie) => {
+            let result = templates::movies::render_cards(&state, &movie)
+                .expect("Failed to render movies/cards.html");
+            app_handle
+                .emit("disks-changed", result)
+                .expect("Failed to emit disks-changed");
+            movie.title_year()
+        }
         DiskContent::Tv(content) => content.tv.title_year(),
     };
     let progress_binding = optical_disk_info.progress.lock().unwrap();

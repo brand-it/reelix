@@ -6,8 +6,8 @@ application.register("submit-on-keyup", SubmitOnKeyupController);
 import RestoreButtonController from "./restore_button_controller.js";
 application.register("restore-button", RestoreButtonController);
 
-import RipOneController from "./rip_one_controller.js";
-application.register("rip-one", RipOneController);
+import RipOneController from "./rip_movie_controller.js";
+application.register("rip-movie", RipOneController);
 
 import DiskSelectController from "./disk_select_controller.js";
 application.register("disk-select", DiskSelectController);

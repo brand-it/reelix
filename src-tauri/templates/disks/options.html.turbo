@@ -1,18 +1,20 @@
+
 <turbo-stream action="replace" target="disk-selector">
   <template>
     {% include "disks/options.html" %}
   </template>
 </turbo-stream>
 
-<turbo-stream action="replace" method="morph" target="disk-title-selector">
-  <template>
-    {% include "disk_titles/options.html" %}
-  </template>
-</turbo-stream>
 
 <turbo-stream action="replace" method="morph" targets=".parts-selector">
   <template>
     {% include "seasons/parts.html" %}
+  </template>
+</turbo-stream>
+
+<turbo-stream action="replace" target="movie-cards-selector">
+  <template>
+    {% include "movies/cards.html" %}
   </template>
 </turbo-stream>
 

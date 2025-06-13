@@ -1,0 +1,18 @@
+<div class="row" id="movie-cards-selector">
+  {% if selected_disk and selected_disk.titles | length > 0 %}
+  {% for title in selected_disk.titles %}
+  {% include 'movies/card.html' %}
+  {% endfor %}
+  {% elif selected_disk %}
+  <div class="d-flex justify-content-center align-items-center py-3">
+    <i class="fad fa-spinner fa-pulse"></i>
+    <span class="ms-2">Loading {{ selected_disk.name }} Titles…</span>
+  </div>
+  {% include 'movies/card.html' %}
+  {% include 'movies/card.html' %}
+  {% include 'movies/card.html' %}
+  {% include 'movies/card.html' %}
+  {% include 'movies/card.html' %}
+  {% include 'movies/card.html' %}
+  {% endif %}
+</div>

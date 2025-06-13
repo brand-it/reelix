@@ -1,4 +1,4 @@
-use crate::models::optical_disk_info::{DiskId, OpticalDiskInfo};
+use crate::models::optical_disk_info::{self, DiskId, OpticalDiskInfo};
 use crate::services::drive_info::opticals;
 use crate::services::makemkvcon;
 use crate::state::AppState;
@@ -137,7 +137,18 @@ fn remove_optical_disks(app_handle: &AppHandle, disk: &OpticalDiskInfo) {
         .optical_disks
         .write()
         .expect("Failed to grab optical disks");
-    optical_disks.retain(|x| *x.read().expect("Failed to grab optical disk info") != *disk);
+    optical_disks.retain(|optical_disk_info| {
+        let optical_disk = optical_disk_info
+            .read()
+            .expect("Failed to grab optical disk info");
+
+        if *optical_disk == *disk {
+            optical_disk.kill_process();
+            false // Remove this disk
+        } else {
+            true // Keep this disk
+        }
+    });
 }
 
 pub fn set_default_selected_disk(app_handle: &AppHandle, disk_id: DiskId) {
