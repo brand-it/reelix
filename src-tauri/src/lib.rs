@@ -71,22 +71,6 @@ fn setup_store(app: &mut App) {
 //     to_value(formatted).map_err(Into::into)
 // }
 
-fn kill_process(pid: u32) {
-    println!("Killing process {:?}", pid);
-    let mut system = System::new_all();
-    system.refresh_all();
-    let sys_pid = sysinfo::Pid::from_u32(pid.clone());
-    if let Some(process) = system.process(sys_pid) {
-        if process.kill() {
-            println!("Killed {:?}", pid);
-        } else {
-            println!("Failed to kill process with PID {}", pid);
-        }
-    } else {
-        println!("Process with PID {} not found", pid);
-    }
-}
-
 fn setup_tray_icon(app: &mut App) {
     let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)
         .expect("failed to create quit item");
@@ -216,10 +200,7 @@ pub fn run() {
             // Iterate over the optical disks and kill the associated PID if it exists
             for disk in disks.iter() {
                 let locked_disk = disk.read().expect("failed to get lock on disk");
-                let pid = locked_disk.pid.lock().expect("failed to lock pid");
-                if pid.is_some() {
-                    kill_process(pid.expect("pid is not defined"));
-                }
+                locked_disk.kill_process();
             }
         }
     });

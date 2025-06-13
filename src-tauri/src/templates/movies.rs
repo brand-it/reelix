@@ -19,3 +19,14 @@ pub fn render_show(
     context.insert("selected_disk", &app_state.selected_disk());
     render(&app_state.tera, "movies/show.html.turbo", &context, None)
 }
+
+pub fn render_cards(
+    app_state: &State<'_, AppState>,
+    movie: &movie_db::MovieResponse,
+) -> Result<String, ApiError> {
+    let mut context = Context::new();
+
+    context.insert("movie", &movie_db::MovieView::from(movie.to_owned()));
+    context.insert("selected_disk", &app_state.selected_disk());
+    render(&app_state.tera, "movies/cards.html.turbo", &context, None)
+}

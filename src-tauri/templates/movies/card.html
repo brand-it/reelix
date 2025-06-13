@@ -1,0 +1,57 @@
+{% if title %}
+<div class="col-md-6" id="movie-card-title-{{ title.id }}">
+  <div class="card mb-3">
+    <div class="card-header">
+      {{ title.filename | default(value="") }} ({{ title.chapter_count | default(value="") }} Chapter(s))</div>
+    {% if selected_disk.progress and selected_disk.progress.title_id == title.id %}
+    <div class="progress" role="progressbar" aria-label="Example 1px high"
+      aria-valuenow="{{ selected_disk.progress.percentage }}" aria-valuemin="0" aria-valuemax="100" style="height: 2px">
+      <div class="progress-bar" style="width: {{ selected_disk.progress.percentage }}%"></div>
+    </div>
+    {% else %}
+    <div class="progress" role="progressbar" aria-label="Example 1px high" aria-valuenow="0" aria-valuemin="0"
+      aria-valuemax="100" style="height: 2px">
+      <div class="progress-bar" style="width: 0%"></div>
+    </div>
+    {% endif %}
+    <div class="card-body">
+
+      <strong>Duration:</strong> {{ title.duration | default(value="") }} |
+      <strong>Size:</strong> {{ title.size | default(value="") }} |
+      <strong>Lang:</strong> {{ title.lang | default(value="") }}
+      <strong>Seg Map:</strong> {{ title.segment_map | default(value="") }}
+      </p>
+      {% if selected_disk.progress and selected_disk.progress.title_id == title.id %}
+      <div class="btn btn-outline-primary btn-sm disabled" disabled="disabled"><i
+          class="fad fa-compact-disc fa-spinner fa-pulse"></i> Processing ...</div>
+      {% elif selected_disk.progress %}
+      <a class="btn btn-outline-secondary disabled placeholder col-4"></a>
+      {% else %}
+      <a class="btn btn-outline-success btn-sm" data-rip-movie-target="link" data-action="click->rip-movie#rip"
+        data-disk-id="{{ selected_disk.id }}" data-title-id="{{ title.id }}" tooltip="Create MKV From Title"><i
+          class="fad fa-compact-disc"></i> Create MKV</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="col-md-6">
+  <div class="card mb-3">
+    <div class="card-header placeholder-glow">
+      <span class="placeholder col-8"></span>
+    </div>
+    <div class="progress" style="height: 2px">
+      <div class="progress-bar" style="width: 0%"></div>
+    </div>
+    <div class="card-body placeholder-glow">
+      <p>
+        <span class="placeholder col-5"></span> |
+        <span class="placeholder col-4"></span> |
+        <span class="placeholder col-3"></span>
+      </p>
+      <p><span class="placeholder col-6"></span></p>
+      <a class="btn btn-outline-success disabled placeholder col-4"></a>
+    </div>
+  </div>
+</div>
+{% endif %}

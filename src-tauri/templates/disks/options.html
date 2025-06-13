@@ -2,7 +2,7 @@
 <div class="input-group input-group-lg" id="disk-selector" data-controller="disk-select">
   {% if selected_disk_titles | length == 0 %}
   <button type="button" class="btn btn-primary" disabled="disabled">
-    <i class="fa-solid fa-compact-disc"></i>
+    <i class="fad fa-compact-disc fa-lg"></i>
   </button>
   {% else %}
   {% set_global any_ripped = false %}
@@ -13,13 +13,13 @@
   {% endfor %}
 
   {% if any_ripped %}
-  <a class="btn btn-primary" href="/rip_season">
-    <i class="fa-solid fa-compact-disc"></i>
-  </a>
+  <button class="btn btn-primary" type="button" href="/rip_season">
+    <i class="fad fa-compact-disc fa-lg"></i>
+  </button>
   {% else %}
-  <a class="btn btn-primary" disabled="disabled">
-    <i class="fa-solid fa-compact-disc"></i>
-  </a>
+  <button class="btn btn-primary" type="button" disabled="disabled">
+    <i class="fad fa-compact-disc fa-lg"></i>
+  </button>
   {% endif %}
   {% endif %}
   <div class="dropdown pe-1">

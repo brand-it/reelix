@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus";
 
-// Connects to data-controller="rip-one"
+// Connects to data-controller="rip-movie"
 export default class extends Controller {
   static targets = ["movieId", "link"];
 
@@ -14,7 +14,7 @@ export default class extends Controller {
       mvdbId: parseInt(this.movieIdTarget.value),
     };
 
-    turboInvoke("rip_one", commandArgs)
+    turboInvoke("rip_movie", commandArgs)
       .then((response) => {
         // console.log("Rip command sent successfully:", response);
       })

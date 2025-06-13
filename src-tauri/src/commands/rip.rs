@@ -138,7 +138,7 @@ pub fn rip_season(
 }
 
 #[tauri::command]
-pub fn rip_one(
+pub fn rip_movie(
     disk_id: u32,
     title_id: u32,
     mvdb_id: u32,
@@ -206,43 +206,15 @@ fn spawn_rip(app_handle: tauri::AppHandle, disk_id: DiskId) {
                 Ok(_) => {
                     println!("Ripped title {}", title.id);
                     let state = app_handle.state::<AppState>();
-                    let optical_disk = state.find_optical_disk_by_id(&disk_id).unwrap();
-                    let locked_disk = optical_disk.read().unwrap();
-                    match locked_disk.content.as_ref().unwrap() {
-                        DiskContent::Movie(movie) => match rename_movie_file(&title, &movie) {
-                            Ok(file_path) => {
-                                app_handle
-                                    .notification()
-                                    .builder()
-                                    .title(format!("{} Completed", movie.title_year(),))
-                                    .body(format!(
-                                        "File Path {}",
-                                        &file_path.to_string_lossy().to_string()
-                                    ))
-                                    .show()
-                                    .unwrap();
-                            }
-                            Err(e) => {
-                                app_handle
-                                    .notification()
-                                    .builder()
-                                    .title(format!("Failure {}", movie.title_year(),))
-                                    .body(format!("Failed to rename title {}", e))
-                                    .show()
-                                    .unwrap();
-                            }
-                        },
-                        DiskContent::Tv(season) => {
-                            match rename_tv_file(&title, &season, &rip_titles) {
+                    if let Some(optical_disk) = state.find_optical_disk_by_id(&disk_id) {
+                        let locked_disk = optical_disk.read().unwrap();
+                        match locked_disk.content.as_ref().unwrap() {
+                            DiskContent::Movie(movie) => match rename_movie_file(&title, &movie) {
                                 Ok(file_path) => {
                                     app_handle
                                         .notification()
                                         .builder()
-                                        .title(format!(
-                                            "{} {} Completed",
-                                            season.tv.title_year(),
-                                            season.season.name
-                                        ))
+                                        .title(format!("{} Completed", movie.title_year(),))
                                         .body(format!(
                                             "File Path {}",
                                             &file_path.to_string_lossy().to_string()
@@ -254,14 +226,43 @@ fn spawn_rip(app_handle: tauri::AppHandle, disk_id: DiskId) {
                                     app_handle
                                         .notification()
                                         .builder()
-                                        .title(format!(
-                                            "Failure {} {}",
-                                            season.tv.title_year(),
-                                            season.season.name
-                                        ))
+                                        .title(format!("Failure {}", movie.title_year(),))
                                         .body(format!("Failed to rename title {}", e))
                                         .show()
                                         .unwrap();
+                                }
+                            },
+                            DiskContent::Tv(season) => {
+                                match rename_tv_file(&title, &season, &rip_titles) {
+                                    Ok(file_path) => {
+                                        app_handle
+                                            .notification()
+                                            .builder()
+                                            .title(format!(
+                                                "{} {} Completed",
+                                                season.tv.title_year(),
+                                                season.season.name
+                                            ))
+                                            .body(format!(
+                                                "File Path {}",
+                                                &file_path.to_string_lossy().to_string()
+                                            ))
+                                            .show()
+                                            .unwrap();
+                                    }
+                                    Err(e) => {
+                                        app_handle
+                                            .notification()
+                                            .builder()
+                                            .title(format!(
+                                                "Failure {} {}",
+                                                season.tv.title_year(),
+                                                season.season.name
+                                            ))
+                                            .body(format!("Failed to rename title {}", e))
+                                            .show()
+                                            .unwrap();
+                                    }
                                 }
                             }
                         }
