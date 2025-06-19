@@ -1,14 +1,18 @@
 use super::the_movie_db;
 use crate::models::movie_db;
 use crate::models::optical_disk_info::TvSeasonContent;
-use crate::state::{get_api_key, AppState};
+use crate::state::AppState;
 use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
-pub fn create_movie_dir(movie: &movie_db::MovieResponse) -> PathBuf {
+pub fn movies_dir() -> PathBuf {
     let home_dir = dirs::home_dir().expect("failed to find home dir");
-    let dir = home_dir.join("Movies").join(movie.title_year());
+    home_dir.join("Movies")
+}
+
+pub fn create_movie_dir(movie: &movie_db::MovieResponse) -> PathBuf {
+    let dir = movies_dir().join(movie.title_year());
     let message = format!("Failed to create {}", dir.display());
     if !dir.exists() {
         fs::create_dir_all(&dir).expect(&message);
@@ -33,9 +37,9 @@ pub fn search_multi(
     app_state: &tauri::State<'_, AppState>,
     query: &str,
 ) -> Result<movie_db::SearchResponse, the_movie_db::Error> {
-    let api_key = get_api_key(&app_state);
+    let api_key = &app_state.lock_the_movie_db_key().to_string();
     let language = "en-US";
-    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+    let movie_db = the_movie_db::TheMovieDb::new(api_key, &language);
 
     movie_db.search_multi(query, 1)
 }
@@ -45,10 +49,10 @@ pub fn find_movie(
     id: u32,
 ) -> Result<movie_db::MovieResponse, the_movie_db::Error> {
     let state: tauri::State<AppState> = app_handle.state::<AppState>();
-    let api_key = get_api_key(&state);
+    let api_key = &state.lock_the_movie_db_key().to_string();
 
     let language = "en-US";
-    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+    let movie_db = the_movie_db::TheMovieDb::new(api_key, &language);
     movie_db.movie(id)
 }
 
@@ -57,10 +61,10 @@ pub fn find_tv(
     id: u32,
 ) -> Result<movie_db::TvResponse, the_movie_db::Error> {
     let state: tauri::State<AppState> = app_handle.state::<AppState>();
-    let api_key = get_api_key(&state);
+    let api_key = &state.lock_the_movie_db_key().to_string();
 
     let language = "en-US";
-    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+    let movie_db = the_movie_db::TheMovieDb::new(api_key, &language);
     movie_db.tv(id)
 }
 
@@ -70,10 +74,10 @@ pub fn find_season(
     season_number: u32,
 ) -> Result<movie_db::SeasonResponse, the_movie_db::Error> {
     let state: tauri::State<AppState> = app_handle.state::<AppState>();
-    let api_key = get_api_key(&state);
+    let api_key = &state.lock_the_movie_db_key().to_string();
 
     let language = "en-US";
-    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+    let movie_db = the_movie_db::TheMovieDb::new(api_key, &language);
     movie_db.season(tv_id, season_number)
 }
 
@@ -82,10 +86,10 @@ pub fn get_movie_certification(
     movie_id: &u32,
 ) -> Result<Option<String>, the_movie_db::Error> {
     let state: tauri::State<AppState> = app_handle.state::<AppState>();
-    let api_key = get_api_key(&state);
+    let api_key = &state.lock_the_movie_db_key().to_string();
 
     let language = "en-US";
-    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+    let movie_db = the_movie_db::TheMovieDb::new(api_key, &language);
     let release_dates = match movie_db.movie_release_dates(movie_id) {
         Ok(resp) => resp,
         Err(e) => return Err(e),

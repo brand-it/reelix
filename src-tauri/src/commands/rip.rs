@@ -1,8 +1,13 @@
+use std::fs;
+use std::path::PathBuf;
+
 use super::helpers::{
     add_episode_to_title, mark_title_rippable, remove_episode_from_title, rename_movie_file,
     rename_tv_file, set_optical_disk_as_movie, set_optical_disk_as_season,
 };
+use crate::models::movie_db::MovieResponse;
 use crate::models::optical_disk_info::{DiskContent, DiskId};
+use crate::services;
 use crate::services::plex::{create_season_episode_dir, find_tv};
 use crate::services::{
     makemkvcon,
@@ -11,7 +16,7 @@ use crate::services::{
 use crate::state::AppState;
 use crate::templates::{self};
 use serde::{Deserialize, Serialize};
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 use tauri_plugin_notification::NotificationExt;
 use templates::render_error;
 
@@ -167,6 +172,101 @@ pub fn rip_movie(
     templates::disks::render_toast_progress(&app_state, &None, &None)
 }
 
+fn emit_render_cards(
+    state: &State<'_, AppState>,
+    app_handle: &tauri::AppHandle,
+    movie: &MovieResponse,
+) {
+    let result =
+        templates::movies::render_cards(state, movie).expect("Failed to render movies/cards.html");
+    app_handle
+        .emit("disks-changed", result)
+        .expect("Failed to emit disks-changed");
+}
+
+fn notify_movie_success(app_handle: &tauri::AppHandle, movie: &MovieResponse) {
+    app_handle
+        .notification()
+        .builder()
+        .title("Finished Ripping")
+        .body(&movie.title_year())
+        .show()
+        .unwrap();
+}
+
+fn notify_movie_failure(app_handle: &tauri::AppHandle, movie: &MovieResponse, error: &str) {
+    app_handle
+        .notification()
+        .builder()
+        .title(format!("Failure {}", movie.title_year(),))
+        .body(format!("Failed to rename title {}", error))
+        .show()
+        .unwrap();
+}
+
+fn notify_movie_upload_success(app_handle: &tauri::AppHandle, file_path: &PathBuf) {
+    app_handle
+        .notification()
+        .builder()
+        .title(format!("Finished Upload Movie"))
+        .body(format!("File Path {}", file_path.to_string_lossy()))
+        .show()
+        .unwrap();
+}
+
+fn notify_movie_upload_failure(app_handle: &tauri::AppHandle, file_path: &PathBuf, error: &str) {
+    println!(
+        "failed to upload: {} {}",
+        file_path.to_string_lossy(),
+        error
+    );
+    app_handle
+        .notification()
+        .builder()
+        .title("Failed to Upload")
+        .body(format!("{} {}", file_path.to_string_lossy(), error))
+        .show()
+        .unwrap();
+}
+
+fn delete_file_and_dir(file_path: &PathBuf) {
+    if let Err(response) = fs::remove_file(file_path) {
+        println!(
+            "Failed to delete file {} {:?} ",
+            file_path.display(),
+            response
+        );
+    };
+
+    if let Some(parent_dir) = file_path.parent() {
+        if parent_dir.is_dir() {
+            if let Err(error) = fs::remove_dir(parent_dir) {
+                eprintln!(
+                    "Failed to delete directory {}: {}",
+                    parent_dir.display(),
+                    error
+                );
+            }
+        }
+    };
+}
+
+fn spawn_upload(app_handle: &tauri::AppHandle, file_path: &PathBuf) {
+    let app_handle = app_handle.clone();
+    let file_path = file_path.clone();
+
+    tauri::async_runtime::spawn(async move {
+        let state = app_handle.state::<AppState>();
+        match services::ftp_uploader::upload(&state, &file_path).await {
+            Ok(_m) => {
+                notify_movie_upload_success(&app_handle, &file_path);
+                delete_file_and_dir(&file_path);
+            }
+            Err(e) => notify_movie_upload_failure(&app_handle, &file_path, &e),
+        };
+    });
+}
+
 fn spawn_rip(app_handle: tauri::AppHandle, disk_id: DiskId) {
     tauri::async_runtime::spawn(async move {
         let state = app_handle.state::<AppState>();
@@ -211,25 +311,13 @@ fn spawn_rip(app_handle: tauri::AppHandle, disk_id: DiskId) {
                         match locked_disk.content.as_ref().unwrap() {
                             DiskContent::Movie(movie) => match rename_movie_file(&title, &movie) {
                                 Ok(file_path) => {
-                                    app_handle
-                                        .notification()
-                                        .builder()
-                                        .title(format!("{} Completed", movie.title_year(),))
-                                        .body(format!(
-                                            "File Path {}",
-                                            &file_path.to_string_lossy().to_string()
-                                        ))
-                                        .show()
-                                        .unwrap();
+                                    notify_movie_success(&app_handle, movie);
+                                    emit_render_cards(&state, &app_handle, movie);
+                                    spawn_upload(&app_handle, &file_path);
                                 }
-                                Err(e) => {
-                                    app_handle
-                                        .notification()
-                                        .builder()
-                                        .title(format!("Failure {}", movie.title_year(),))
-                                        .body(format!("Failed to rename title {}", e))
-                                        .show()
-                                        .unwrap();
+                                Err(error) => {
+                                    emit_render_cards(&state, &app_handle, movie);
+                                    notify_movie_failure(&app_handle, movie, &error);
                                 }
                             },
                             DiskContent::Tv(season) => {

@@ -10,7 +10,6 @@ use crate::models::optical_disk_info::OpticalDiskInfo;
 use crate::templates::TEMPLATES_DIR;
 use state::AppState;
 use std::sync::{Arc, Mutex, RwLock};
-use sysinfo::System;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{App, Manager, WebviewUrl, WebviewWindowBuilder};
@@ -39,16 +38,18 @@ fn spawn_disk_listener(app: &mut App) {
 
 fn setup_store(app: &mut App) {
     let app_handle = app.handle();
-    let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
+    let state = app_handle.state::<AppState>();
     let store = app.store("store.json").unwrap();
-    let value = store.get("the_movie_db_key");
-
-    if let Some(key) = value {
-        if let Some(key_str) = key.as_str() {
-            let mut movie_db_key = state.the_movie_db_key.write().unwrap();
-            *movie_db_key = key_str.to_string();
+    store.keys().iter().for_each(|key| {
+        if let Some(value) = store.get(key) {
+            if let Some(value_str) = value.as_str() {
+                match state.update(key, Some(value_str.to_string())) {
+                    Ok(_n) => println!("set {} to {}", key, value_str),
+                    Err(e) => println!("setup store failure: {}", e),
+                };
+            }
         }
-    }
+    });
     store.close_resource();
 }
 
@@ -156,11 +157,15 @@ pub fn run() {
     let mut tera = Tera::default();
     add_templates_from_dir(&mut tera, &TEMPLATES_DIR);
     let app_state: AppState = AppState {
-        tera: Arc::new(tera),
-        query: Arc::new(Mutex::new(String::new())),
-        the_movie_db_key: Arc::new(RwLock::new(String::new())),
+        ftp_host: Arc::new(Mutex::new(None)),
+        ftp_movie_upload_path: Arc::new(Mutex::new(None)),
+        ftp_pass: Arc::new(Mutex::new(None)),
+        ftp_user: Arc::new(Mutex::new(None)),
         optical_disks: Arc::new(RwLock::new(Vec::<Arc<RwLock<OpticalDiskInfo>>>::new())),
+        query: Arc::new(Mutex::new(String::new())),
         selected_optical_disk_id: Arc::new(RwLock::new(None)),
+        tera: Arc::new(tera),
+        the_movie_db_key: Arc::new(Mutex::new(String::new())),
     };
 
     let app = tauri::Builder::default()

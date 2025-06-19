@@ -1,4 +1,4 @@
-use crate::models::optical_disk_info::{self, DiskId, OpticalDiskInfo};
+use crate::models::optical_disk_info::{DiskId, OpticalDiskInfo};
 use crate::services::drive_info::opticals;
 use crate::services::makemkvcon;
 use crate::state::AppState;

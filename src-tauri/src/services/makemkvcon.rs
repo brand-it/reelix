@@ -232,6 +232,8 @@ async fn run(
             }
         }
     }
+    remove_disk_progress(&disk_id, &app_handle);
+    emit_progress(&disk_id, &app_handle);
     RunResults {
         title_infos,
         drives,
@@ -286,6 +288,7 @@ fn spawn<I: IntoIterator<Item = S> + std::fmt::Debug + std::marker::Copy, S: AsR
         .args(args)
         .spawn()
         .expect("Failed to spawn sidecar for rip_title");
+
     let state = app_handle.state::<AppState>();
     match state.find_optical_disk_by_id(disk_id) {
         Some(disk) => {
@@ -305,8 +308,6 @@ pub async fn rip_title(
     title_id: &u32,
     tmp_dir: &PathBuf,
 ) -> Result<RunResults, String> {
-    let state = app_handle.state::<AppState>();
-
     let args = disk_args(&disk_id, app_handle);
     let tmp_dir_str = tmp_dir.to_string_lossy();
     let args = [
@@ -328,12 +329,6 @@ pub async fn rip_title(
         app_handle_clone,
     )
     .await);
-
-    let result = templates::disks::render_toast_progress(&state, &None, &None)
-        .expect("Failed to render disks/toast_progress.html.turbo");
-    app_handle
-        .emit("disks-changed", result)
-        .expect("Failed to emit disks-changed");
     status
 }
 
@@ -431,6 +426,21 @@ fn update_disk_progress_state(
     disk.set_progress(Some(new_progress));
 }
 
+fn remove_disk_progress(disk_id: &DiskId, app_handle: &AppHandle) {
+    let state = app_handle.state::<AppState>();
+    let disk_arc = match state.find_optical_disk_by_id(disk_id) {
+        Some(disk) => disk,
+        None => {
+            println!("Failed to find disk using {}", disk_id);
+            return;
+        }
+    };
+    let disk = disk_arc
+        .write()
+        .expect("failed to lock disk in update_disk_progress_state");
+    *disk.progress.lock().unwrap() = None;
+}
+
 fn emit_progress(disk_id: &DiskId, app_handle: &AppHandle) {
     let state = app_handle.state::<AppState>();
     let optical_disk_info = {
@@ -442,26 +452,26 @@ fn emit_progress(disk_id: &DiskId, app_handle: &AppHandle) {
             }
         }
     };
-    let movie_title_year = match optical_disk_info.content.unwrap() {
-        DiskContent::Movie(movie) => {
-            let result = templates::movies::render_cards(&state, &movie)
-                .expect("Failed to render movies/cards.html");
-            app_handle
-                .emit("disks-changed", result)
-                .expect("Failed to emit disks-changed");
-            movie.title_year()
-        }
-        DiskContent::Tv(content) => content.tv.title_year(),
+    let mut movie_title_year: Option<String> = None;
+    if let Some(content) = optical_disk_info.content {
+        movie_title_year = match content {
+            DiskContent::Movie(movie) => {
+                let result = templates::movies::render_cards(&state, &movie)
+                    .expect("Failed to render movies/cards.html");
+                app_handle
+                    .emit("disks-changed", result)
+                    .expect("Failed to emit disks-changed");
+                Some(movie.title_year())
+            }
+            DiskContent::Tv(content) => Some(content.tv.title_year()),
+        };
     };
     let progress_binding = optical_disk_info.progress.lock().unwrap();
     let progress = progress_binding.as_ref();
 
-    if progress.is_some() {
-        let result =
-            templates::disks::render_toast_progress(&state, &Some(movie_title_year), &progress)
-                .expect("Failed to render disks/toast_progress");
-        app_handle
-            .emit("disks-changed", result)
-            .expect("Failed to emit disks-changed");
-    }
+    let result = templates::disks::render_toast_progress(&state, &movie_title_year, &progress)
+        .expect("Failed to render disks/toast_progress");
+    app_handle
+        .emit("disks-changed", result)
+        .expect("Failed to emit disks-changed");
 }
