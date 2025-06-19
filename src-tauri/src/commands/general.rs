@@ -7,7 +7,6 @@ use crate::services::plex::{
 use crate::services::the_movie_db;
 use crate::state::AppState;
 use crate::templates::{self, render_error};
-
 use tauri::State;
 use tauri_plugin_opener::OpenerExt;
 

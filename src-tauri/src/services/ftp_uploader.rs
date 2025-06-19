@@ -4,7 +4,6 @@ use std::fs::File;
 use std::io::Write;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
-use suppaftp::sync_ftp::NoTlsStream;
 use suppaftp::{FtpError, FtpStream, ImplFtpStream};
 use tauri::State;
 
@@ -24,11 +23,6 @@ pub fn validate_ftp_settings(state: &State<'_, AppState>) -> Result<(), String> 
         connect_to_ftp(state).map_err(|e| format!("Failed to login and change directory {}", e))?;
 
     cwd(&mut ftp_stream, &movie_upload_path)?;
-    let test_file_path =
-        PathBuf::from("/Users/brandit/Movies/The Blind Side (2009)/The Blind Side (2009).mkv");
-    let output_dir = create_movie_dir(state, &mut ftp_stream, &test_file_path)?;
-    println!("created output directory {:?}", output_dir);
-
     ftp_stream
         .quit()
         .map_err(|e| format!("Failed to close connection: {}", e))?;
@@ -112,7 +106,7 @@ fn file_info(file_path: &PathBuf) -> Result<FileInfo, String> {
 
 fn create_movie_dir(
     state: &State<'_, AppState>,
-    ftp_stream: &mut ImplFtpStream<NoTlsStream>,
+    ftp_stream: &mut FtpStream,
     file_path: &PathBuf,
 ) -> Result<PathBuf, String> {
     let movie_dir = relative_movie_dir(file_path);
@@ -131,7 +125,7 @@ fn create_movie_dir(
     Ok(Path::new(&new_dir).to_path_buf())
 }
 
-fn cwd(ftp_stream: &mut ImplFtpStream<NoTlsStream>, path: &PathBuf) -> Result<(), String> {
+fn cwd(ftp_stream: &mut FtpStream, path: &PathBuf) -> Result<(), String> {
     println!("CWD changing directory to {:?}", path);
     match ftp_stream.cwd(&path.to_string_lossy()) {
         Ok(n) => Ok(n),
@@ -144,10 +138,7 @@ fn filename(filepath: &PathBuf) -> String {
     filename.to_string_lossy().to_string()
 }
 
-fn start_upload(
-    ftp_stream: &mut ImplFtpStream<NoTlsStream>,
-    file_path: &PathBuf,
-) -> Result<(), String> {
+fn start_upload(ftp_stream: &mut FtpStream, file_path: &PathBuf) -> Result<(), String> {
     println!(
         "Start uploading {} to {:?}",
         file_path.display(),
