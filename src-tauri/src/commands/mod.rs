@@ -1,6 +1,7 @@
 pub mod general;
 mod helpers;
 pub mod rip;
+pub mod setting;
 
 #[macro_export]
 macro_rules! all_commands {
@@ -12,12 +13,14 @@ macro_rules! all_commands {
             crate::commands::general::search,
             crate::commands::general::season,
             crate::commands::general::selected_disk,
-            crate::commands::general::the_movie_db,
             crate::commands::general::tv,
             crate::commands::rip::assign_episode_to_title,
             crate::commands::rip::rip_movie,
             crate::commands::rip::rip_season,
             crate::commands::rip::withdraw_episode_from_title,
+            crate::commands::setting::update_ftp_settings,
+            crate::commands::setting::ftp_settings,
+            crate::commands::setting::the_movie_db,
         )
     };
 }

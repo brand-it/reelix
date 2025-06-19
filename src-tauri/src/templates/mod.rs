@@ -9,6 +9,7 @@ use tera::Tera;
 
 pub mod disk_titles;
 pub mod disks;
+pub mod ftp_settings;
 pub mod movies;
 pub mod search;
 pub mod seasons;

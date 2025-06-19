@@ -1,0 +1,9 @@
+<turbo-stream action="replace" method="morph" target="main-content">
+  <template>
+    <main id="main-content">
+      {% include "ftp_settings/show.html" %}
+    </main>
+  </template>
+</turbo-stream>
+
+{% include "error.html.turbo" %}

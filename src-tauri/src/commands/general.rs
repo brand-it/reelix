@@ -5,12 +5,11 @@ use crate::services::plex::{
     find_movie, find_season, find_tv, get_movie_certification, search_multi,
 };
 use crate::services::the_movie_db;
-use crate::state::{get_api_key, AppState};
+use crate::state::AppState;
 use crate::templates::{self, render_error};
-use serde_json::json;
+
 use tauri::State;
 use tauri_plugin_opener::OpenerExt;
-use tauri_plugin_store::StoreExt;
 
 // This is the entry point, basically it decides what to first show the user
 #[tauri::command]
@@ -89,38 +88,12 @@ pub fn season(
 }
 
 #[tauri::command]
-pub fn the_movie_db(
-    key: &str,
-    state: State<'_, AppState>,
-    app_handle: tauri::AppHandle,
-) -> Result<String, templates::ApiError> {
-    let mut movie_db_key = state
-        .the_movie_db_key
-        .write()
-        .expect("Failed to acquire lock on the_movie_db_key in the_movie_db command");
-    *movie_db_key = key.to_string();
-    let response = search_multi(&state, &"Avengers");
-    match response {
-        Ok(resp) => resp,
-        Err(e) => return render_error(&state, &e.message),
-    };
-    let store = app_handle
-        .store("store.json")
-        .expect("Failed to load store.json for persistence in the_movie_db command");
-    store.set("the_movie_db_key", json!(key));
-    store
-        .save()
-        .expect("Failed to save store.json in the_movie_db command");
-    templates::search::render_index(&state)
-}
-
-#[tauri::command]
 pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, templates::ApiError> {
     save_query(&state, search);
 
-    let api_key = get_api_key(&state);
+    let api_key = &state.lock_the_movie_db_key();
     let language = "en-US";
-    let movie_db = the_movie_db::TheMovieDb::new(&api_key, &language);
+    let movie_db = the_movie_db::TheMovieDb::new(api_key, &language);
     let response = match movie_db.search_multi(search, 1) {
         Ok(resp) => resp,
         Err(e) => return templates::the_movie_db::render_show(&state, &e.message),
