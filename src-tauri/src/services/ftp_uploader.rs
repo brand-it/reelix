@@ -4,7 +4,8 @@ use std::fs::File;
 use std::io::Write;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
-use suppaftp::{FtpError, FtpStream, ImplFtpStream};
+use suppaftp::types::FileType;
+use suppaftp::{FtpError, FtpStream};
 use tauri::State;
 
 const CHUNK_SIZE: usize = 8192;
@@ -118,6 +119,13 @@ fn create_movie_dir(
     println!("creating movie dir {:?} {}", file_path, movie_dir_string);
     cwd(ftp_stream, &PathBuf::from(movie_upload_path.clone()))?;
 
+    // Check if the directory already exists
+    if ftp_stream.cwd(&movie_dir_string).is_ok() {
+        // Directory exists, return its path
+        let existing_dir = format!("{}/{}", movie_upload_path, movie_dir.to_string_lossy());
+        return Ok(Path::new(&existing_dir).to_path_buf());
+    }
+
     ftp_stream
         .mkdir(&movie_dir_string)
         .map_err(|e| format!("failed to create dir {} {}", movie_dir.display(), e))?;
@@ -147,11 +155,18 @@ fn start_upload(ftp_stream: &mut FtpStream, file_path: &PathBuf) -> Result<(), S
     let mut file_info = file_info(file_path)?;
     let filename = filename(file_path);
     println!("File name will be {}", filename);
+    ftp_stream
+        .transfer_type(FileType::Binary)
+        .expect("failed to set binary mode");
+
     // Start uploading stream by creating a data stream object
     let mut data_stream = ftp_stream
         .put_with_stream(filename)
         .map_err(|e| format!("failed to open data stream {}", e))?;
-
+    // Making extra sure there is nothing hanging around.
+    data_stream
+        .flush()
+        .map_err(|e| format!("failed to flush stream: {}", e))?;
     // Upload in chunks and track progress
     let mut buffer = [0u8; CHUNK_SIZE];
     let mut total_bytes_sent: u64 = 0;
