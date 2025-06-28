@@ -45,6 +45,17 @@ impl OpticalDiskInfo {
         *self.progress.lock().expect("failed to unlock progress") = progress;
     }
 
+    pub fn has_process(&self) -> bool {
+        if let Some(pid) = *self.pid.lock().unwrap() {
+            let mut system = System::new_all();
+            system.refresh_all();
+            let sys_pid = Pid::from_u32(pid);
+            system.process(sys_pid).is_some()
+        } else {
+            false
+        }
+    }
+
     pub fn kill_process(&self) {
         match *self.pid.lock().unwrap() {
             Some(pid) => {
@@ -216,6 +227,52 @@ impl TryFrom<&str> for DiskId {
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         let parsed = s.parse::<u64>()?;
         Ok(DiskId(parsed))
+    }
+}
+
+// Optical Disk View Struct, This takes things like functions and converts them into pub method defined values
+#[derive(Serialize)]
+pub struct OpticalDiskInfoView {
+    pub available_space: u64,
+    pub content: Option<DiskContent>,
+    pub dev: String, // AKA: Disk Name or Device Name
+    pub file_system: String,
+    pub has_process: bool,
+    pub id: DiskId,
+    pub is_read_only: bool,
+    pub is_removable: bool,
+    pub kind: String,
+    pub mount_point: PathBuf,
+    pub name: String,
+    pub pid: Option<u32>,
+    pub progress: Option<Progress>,
+    pub titles: Vec<TitleInfo>,
+    pub total_space: u64,
+}
+
+impl From<&OpticalDiskInfo> for OpticalDiskInfoView {
+    fn from(optical_disk: &OpticalDiskInfo) -> Self {
+        let has_process = optical_disk.has_process();
+        let pid = optical_disk.pid.lock().unwrap().clone();
+        let progress = optical_disk.progress.lock().unwrap().clone();
+        let titles = optical_disk.titles.lock().unwrap().clone();
+        OpticalDiskInfoView {
+            available_space: optical_disk.available_space.clone(),
+            content: optical_disk.content.clone(),
+            dev: optical_disk.dev.clone(),
+            file_system: optical_disk.file_system.clone(),
+            has_process: has_process,
+            id: optical_disk.id.clone(),
+            is_read_only: optical_disk.is_read_only.clone(),
+            is_removable: optical_disk.is_removable.clone(),
+            kind: optical_disk.kind.clone(),
+            mount_point: optical_disk.mount_point.clone(),
+            name: optical_disk.name.clone(),
+            pid: pid,
+            progress: progress.clone(),
+            titles: titles.clone(),
+            total_space: optical_disk.total_space.clone(),
+        }
     }
 }
 

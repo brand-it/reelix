@@ -94,7 +94,7 @@ fn define_type<I: IntoIterator<Item = String>>(type_str: &str, fields: I) -> Mkv
         "MSG" => {
             let mut iter = fields.into_iter();
             MkvData::MSG(MSG {
-                code: iter.next().unwrap(),
+                code: cast_to_i32(iter.next().unwrap()),
                 flags: iter.next().unwrap(),
                 mcount: iter.next().unwrap(),
                 message: iter.next().unwrap(),

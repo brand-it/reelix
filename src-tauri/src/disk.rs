@@ -72,14 +72,6 @@ pub async fn watch_for_changes(sender: broadcast::Sender<Vec<diff::Result<Optica
     }
 }
 
-fn emit_disk_change(app_handle: &AppHandle) {
-    let state = app_handle.state::<AppState>();
-    let result = templates::disks::render_options(&state).expect("Failed to render disks/options");
-    app_handle
-        .emit("disks-changed", result)
-        .expect("Failed to emit disks-changed");
-}
-
 fn emit_disk_titles_change(app_handle: &AppHandle) {
     let app_state = app_handle.state::<AppState>();
     let result = templates::disk_titles::render_options(&app_state)
@@ -104,8 +96,17 @@ fn contains(
 
 async fn load_titles(app_handle: &AppHandle, disk_id: DiskId) {
     let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
-    let results = makemkvcon::title_info(disk_id, app_handle).await;
+    let results = match makemkvcon::title_info(disk_id, app_handle).await {
+        Ok(run_result) => run_result,
+        Err(message) => {
+            println!("failed to load titles: {}", message);
+            return;
+        }
+    };
 
+    // extend or append the title info data to the optical disk
+    // This then makes it possible later use that title info
+    // without holding a lock on the memory
     match state.find_optical_disk_by_id(&disk_id) {
         Some(disk) => {
             let locked_disk = disk.write().expect("Failed to grab disk");
@@ -191,7 +192,7 @@ pub async fn handle_changes(
                             println!("- {:?}", disk.name);
                             clear_selected_disk(&app_handle, disk.id);
                             remove_optical_disks(&app_handle, &disk);
-                            emit_disk_change(&app_handle);
+                            templates::disks::emit_disk_change(&app_handle);
                             emit_disk_titles_change(&app_handle);
                         }
                         diff::Result::Both(disk, _) => {
@@ -201,12 +202,12 @@ pub async fn handle_changes(
                             println!("+ {:?}", disk.name);
                             add_optical_disk(&app_handle, &disk);
                             set_default_selected_disk(&app_handle, disk.id);
-                            emit_disk_change(&app_handle);
+                            templates::disks::emit_disk_change(&app_handle);
                             let app_handle_clone = app_handle.clone();
                             tokio::spawn(async move {
                                 load_titles(&app_handle_clone, disk.id).await;
                                 emit_disk_titles_change(&app_handle_clone);
-                                emit_disk_change(&app_handle_clone);
+                                templates::disks::emit_disk_change(&app_handle_clone);
                             });
                         }
                     }
