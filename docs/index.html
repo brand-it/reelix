@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Download Reelix</title>
+  <!-- Darkly theme from Bootswatch -->
+  <link
+    href="index.css"
+    rel="stylesheet"
+  />
+</head>
+<body class="bg-dark text-light">
+  <div class="container py-5 text-center">
+    <!-- App Icon -->
+    <img src="icon.png"
+         alt="Reelix Icon"
+         class="mx-auto rounded-3 mb-3 shadow"
+         style="width:120px;"/>
+    <!-- Title & tagline -->
+    <h1 id="page-title" class="fw-bold mb-2">Reelix</h1>
+    <!-- Main buttons -->
+    <div class="d-flex justify-content-center gap-4 mb-3 flex-wrap">
+      <!-- Download (filled) -->
+      <div>
+        <a id="btn-download" href="#"
+           class="btn btn-success btn-lg text-start px-4 py-3 d-block">
+          Download<br>
+          <small id="download-sub" class="text-light-50 text-white-50">Latest version v0.0.0</small>
+        </a>
+        <a id="link-changelog" href="#"
+           class="d-block text-secondary mt-2">Changelog</a>
+      </div>
+    </div>
+    <!-- Compatibility note -->
+    <p class="text-secondary small mt-4">
+      Compatible with Windows, macOS &amp; Linux
+    </p>
+  </div>
+  <script>
+
+    /**
+    * Detects platform +, on macOS, whether it’s Intel or Apple Silicon.
+    * @returns { 'windows' | 'linux' | 'mac-intel' | 'mac-arm' | 'mac' | 'unknown' }
+    */
+    function detectPlatform() {
+      const p = navigator.platform.toLowerCase();
+      const ua = navigator.userAgent.toLowerCase();
+
+      // 1) Windows?
+      if (p.includes("win")) return "windows";
+      // 2) Linux?
+      if (p.includes("linux") || ua.includes("x11") || ua.includes("ubuntu"))
+        return "linux";
+      // 3) Mac?
+      if (p.includes("mac")) {
+        const arch = detectMacArch();
+        if (arch === "intel") return "mac-intel";
+        if (arch === "arm") return "mac-arm";
+        return "mac";
+      }
+      return "unknown";
+    }
+
+    /**
+    * @returns { 'intel' | 'arm' | null }
+    */
+    function detectMacArch() {
+      // Client Hints (Chrome 107+)
+      if (navigator.userAgentData && navigator.userAgentData.architecture) {
+        const a = navigator.userAgentData.architecture.toLowerCase();
+        if (a.includes("arm")) return "arm";
+        if (a.includes("x86")) return "intel";
+      }
+
+      // WebGL renderer sniff
+      try {
+        const canvas = document.createElement("canvas");
+        const gl =
+          canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+        const dbg = gl && gl.getExtension("WEBGL_debug_renderer_info");
+        if (dbg) {
+          const renderer = gl
+            .getParameter(dbg.UNMASKED_RENDERER_WEBGL)
+            .toLowerCase();
+          if (renderer.includes("apple m") || renderer.includes("apple a"))
+            return "arm";
+          if (
+            renderer.includes("intel") ||
+            renderer.includes("radeon") ||
+            renderer.includes("nvidia")
+          )
+            return "intel";
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      // Fallback: UA string
+      const ua = navigator.userAgent.toLowerCase();
+      if (ua.includes("arm64") || ua.includes("aarch64")) return "arm";
+      if (ua.includes("intel") || ua.includes("x86_64")) return "intel";
+
+      return null;
+    }
+
+    async function getLatest() {
+      const r = await fetch('https://api.github.com/repos/brand-it/reelix/releases/latest');
+      if (!r.ok) throw new Error(r.status);
+      return r.json();
+    }
+
+    /**
+    * Chooses the correct release asset based on detected platform.
+    * @param {Array} assets  – the GitHub release assets
+    * @param {string} osKey  – one of 'windows','linux','mac-intel','mac-arm','mac'
+    * @returns {object|undefined} the matching asset, or undefined if none found
+    */
+    function pickAsset(assets, osKey) {
+      const list = name => assets.filter(a => a.name.toLowerCase().includes(name));
+      const ends  = ext => a => a.name.toLowerCase().endsWith(ext);
+
+      let candidate;
+
+      if (osKey === 'windows') {
+        // Prefer MSI over EXE
+        candidate = assets.find(ends('.msi')) || assets.find(ends('.exe'));
+
+      } else if (osKey === 'linux') {
+        // Prefer DEB, then RPM, then AppImage
+        candidate = assets.find(ends('.deb'))
+                || assets.find(ends('.rpm'))
+                || assets.find(ends('.appimage'));
+
+      } else if (osKey === 'mac-intel') {
+        // x64 DMG first, then x64 tar.gz
+        candidate = list('x64').find(ends('.dmg'))
+                || list('x64').find(ends('.app.tar.gz'));
+
+      } else if (osKey === 'mac-arm') {
+        // aarch64 DMG first, then aarch64 tar.gz
+        candidate = list('aarch64').find(ends('.dmg'))
+                || list('aarch64').find(ends('.app.tar.gz'));
+
+      } else if (osKey === 'mac') {
+        // Fallback: any DMG, then any tar.gz
+        candidate = assets.find(ends('.dmg'))
+                || assets.find(ends('.app.tar.gz'));
+      }
+
+      return candidate;
+    }
+
+    (async () => {
+      try {
+        const rel = await getLatest();
+        const tag = rel.tag_name;
+        const os  = detectPlatform();
+        console.log(os);
+        console.log(rel.assets);
+        const asset = pickAsset(rel.assets, os);
+
+        if (asset) {
+          document.getElementById('btn-download').href = asset.browser_download_url;
+          document.getElementById('download-sub')
+            .textContent = `Latest version ${tag} · ${ (asset.size/1024/1024).toFixed(1) } MB`;
+          document.getElementById('link-changelog')
+            .href = `https://github.com/brand-it/reelix/releases/tag/${tag}`;
+        } else {
+          document.getElementById('btn-download').href = 'https://github.com/brand-it/reelix/releases';
+          document.getElementById('download-sub')
+            .textContent = `View all releases`;
+        }
+      } catch (e) {
+        document.getElementById('btn-download').href = 'https://github.com/brand-it/reelix/releases';
+        document.getElementById('download-sub')
+          .textContent = `Could not load latest version`;
+      }
+    })();
+  </script>
+</body>
+</html>
