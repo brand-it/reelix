@@ -1,21 +1,23 @@
 use super::{render, ApiError};
-use crate::{
-    models::{
-        optical_disk_info::{self, DiskId, OpticalDiskInfo},
-        title_info::TitleInfo,
-    },
-    state::AppState,
-};
+use crate::models::optical_disk_info::{self, DiskId, OpticalDiskInfoView};
+use crate::state::AppState;
 use serde::Serialize;
-use tauri::State;
+use tauri::{AppHandle, Emitter, Manager, State};
 use tera::Context;
 
 #[derive(Serialize)]
 pub struct DiskOption {
-    optical_disks: Vec<OpticalDiskInfo>,
+    optical_disks: Vec<OpticalDiskInfoView>,
     selected_optical_disk_id: Option<DiskId>,
-    selected_disk: Option<OpticalDiskInfo>,
-    selected_disk_titles: Vec<TitleInfo>,
+    selected_disk: Option<OpticalDiskInfoView>,
+}
+
+pub fn emit_disk_change(app_handle: &AppHandle) {
+    let state = app_handle.state::<AppState>();
+    let result = render_options(&state).expect("Failed to render disks/options");
+    app_handle
+        .emit("disks-changed", result)
+        .expect("Failed to emit disks-changed");
 }
 
 pub fn render_options(app_state: &State<'_, AppState>) -> Result<String, ApiError> {
@@ -42,11 +44,11 @@ pub fn render_toast_progress(
 }
 
 pub fn build_disk_option(app_state: &State<'_, AppState>) -> DiskOption {
-    let optical_disks: Vec<OpticalDiskInfo> = {
+    let optical_disks: Vec<OpticalDiskInfoView> = {
         let guard = app_state.optical_disks.read().unwrap();
         guard
             .iter()
-            .map(|disk_arc| disk_arc.read().unwrap().clone())
+            .map(|disk_arc| OpticalDiskInfoView::from(&*disk_arc.read().unwrap()))
             .collect()
     };
 
@@ -56,20 +58,17 @@ pub fn build_disk_option(app_state: &State<'_, AppState>) -> DiskOption {
         .unwrap()
         .to_owned();
 
-    let (selected_disk, selected_disk_titles) = match app_state.selected_disk() {
+    let selected_disk = match app_state.selected_disk() {
         Some(disk_arc) => {
             let guard = disk_arc.read().unwrap();
-            let disk_clone = guard.clone(); // clone the struct
-            let titles = guard.titles.lock().unwrap().to_vec();
-            (Some(disk_clone), titles)
+            Some(OpticalDiskInfoView::from(&*guard))
         }
-        None => (None, Vec::new()),
+        None => None,
     };
 
     DiskOption {
         optical_disks,
         selected_optical_disk_id,
         selected_disk,
-        selected_disk_titles,
     }
 }

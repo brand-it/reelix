@@ -23,6 +23,24 @@ pub struct RunResults {
     pub title_infos: Vec<title_info::TitleInfo>,
     pub drives: Vec<mkv::DRV>,
     pub messages: Vec<mkv::MSG>,
+    pub err_messages: Vec<String>,
+}
+
+impl RunResults {
+    fn success(&self) -> bool {
+        self.messages.iter().any(|message| message.code == 5003)
+    }
+
+    // fn err_messages(&self) -> Vec<&mkv::MSG> {
+    //     self.messages
+    //         .iter()
+    //         .filter(|message| message.code == 5003 || message.code == 5004)
+    //         .collect()
+    // }
+
+    fn err_summary(&self) -> Option<&mkv::MSG> {
+        self.messages.iter().find(|message| message.code == 5003)
+    }
 }
 // makemkvcon [options] Command Parameters
 // https://www.makemkv.com/developers/usage.txt
@@ -150,72 +168,29 @@ async fn run(
     title_id: &Option<u32>,
     mut receiver: Receiver<CommandEvent>,
     app_handle: AppHandle,
-) -> RunResults {
-    let mut title_infos: Vec<title_info::TitleInfo> = Vec::new();
-    let mut drives: Vec<mkv::DRV> = Vec::new();
-    let mut messages: Vec<mkv::MSG> = Vec::new();
+) -> Result<RunResults, String> {
+    let mut run_results = RunResults {
+        messages: Vec::new(),
+        drives: Vec::new(),
+        title_infos: Vec::new(),
+        err_messages: Vec::new(),
+    };
+
     let mut tracker: Option<progress_tracker::Base> = None;
     while let Some(event) = receiver.recv().await {
         match event {
             CommandEvent::Stdout(line_bytes) => {
                 let line = String::from_utf8_lossy(&line_bytes);
-                let parsed_stdout = makemkvcon_parser::parse_mkv_string(&line);
-                for mkv_data in parsed_stdout {
-                    match mkv_data {
-                        mkv::MkvData::TINFO(tinfo) => {
-                            let title_info: &mut title_info::TitleInfo =
-                                match title_infos.iter_mut().find(|t| t.id == tinfo.id) {
-                                    Some(title) => title,
-                                    None => {
-                                        title_infos.push(title_info::TitleInfo::new(tinfo.id));
-                                        title_infos.last_mut().unwrap()
-                                    }
-                                };
-                            title_info.set_field(&tinfo.type_code, tinfo.value)
-                        }
-                        mkv::MkvData::DRV(drv) => {
-                            drives.push(drv);
-                        }
-                        mkv::MkvData::PRGV(prgv) => {
-                            update_tracker(&mut tracker, prgv);
-                            update_disk_progress_state(
-                                &disk_id,
-                                title_id,
-                                &tracker,
-                                &app_handle,
-                                None,
-                                None,
-                            );
-                            emit_progress(&disk_id, &app_handle);
-                        }
-                        mkv::MkvData::PRGT(prgt) => {
-                            create_tracker(&mut tracker);
-                            update_disk_progress_state(
-                                &disk_id,
-                                title_id,
-                                &tracker,
-                                &app_handle,
-                                Some(&prgt.name),
-                                None,
-                            );
-                        }
-                        mkv::MkvData::PRGC(_prgc) => {
-                            tracker = None;
-                        }
-                        mkv::MkvData::MSG(msg) => {
-                            messages.push(msg.clone());
-                            update_disk_progress_state(
-                                &disk_id,
-                                title_id,
-                                &tracker,
-                                &app_handle,
-                                None,
-                                Some(&msg.message),
-                            );
-                        }
-                        _ => {}
-                    }
-                }
+                let parse_mkv_string: Vec<mkv::MkvData> =
+                    makemkvcon_parser::parse_mkv_string(&line);
+                convert_to_run_result(
+                    &disk_id,
+                    title_id,
+                    parse_mkv_string,
+                    &mut run_results,
+                    &mut tracker,
+                    &app_handle,
+                );
             }
             CommandEvent::Stderr(line_bytes) => {
                 let line = String::from_utf8_lossy(&line_bytes);
@@ -234,10 +209,70 @@ async fn run(
     }
     remove_disk_progress(&disk_id, &app_handle);
     emit_progress(&disk_id, &app_handle);
-    RunResults {
-        title_infos,
-        drives,
-        messages,
+    Ok(run_results)
+}
+
+fn convert_to_run_result(
+    disk_id: &DiskId,
+    title_id: &Option<u32>,
+    parse_mkv_string: Vec<mkv::MkvData>,
+    run_results: &mut RunResults,
+    tracker: &mut Option<progress_tracker::Base>,
+    app_handle: &AppHandle,
+) {
+    for mkv_data in parse_mkv_string {
+        match mkv_data {
+            mkv::MkvData::TINFO(tinfo) => {
+                let title_info: &mut title_info::TitleInfo = match run_results
+                    .title_infos
+                    .iter_mut()
+                    .find(|t| t.id == tinfo.id)
+                {
+                    Some(title) => title,
+                    None => {
+                        run_results
+                            .title_infos
+                            .push(title_info::TitleInfo::new(tinfo.id));
+                        run_results.title_infos.last_mut().unwrap()
+                    }
+                };
+                title_info.set_field(&tinfo.type_code, tinfo.value)
+            }
+            mkv::MkvData::DRV(drv) => {
+                run_results.drives.push(drv);
+            }
+            mkv::MkvData::PRGV(prgv) => {
+                update_tracker(tracker, prgv);
+                update_disk_progress_state(&disk_id, title_id, &tracker, &app_handle, None, None);
+                emit_progress(&disk_id, &app_handle);
+            }
+            mkv::MkvData::PRGT(prgt) => {
+                create_tracker(tracker);
+                update_disk_progress_state(
+                    &disk_id,
+                    title_id,
+                    &tracker,
+                    &app_handle,
+                    Some(&prgt.name),
+                    None,
+                );
+            }
+            mkv::MkvData::PRGC(_prgc) => {
+                *tracker = None;
+            }
+            mkv::MkvData::MSG(msg) => {
+                run_results.messages.push(msg.clone());
+                update_disk_progress_state(
+                    &disk_id,
+                    title_id,
+                    &tracker,
+                    &app_handle,
+                    None,
+                    Some(&msg.message),
+                );
+            }
+            _ => {}
+        }
     }
 }
 
@@ -321,15 +356,25 @@ pub async fn rip_title(
     ];
 
     let receiver = spawn(app_handle, disk_id, args);
+    templates::disks::emit_disk_change(app_handle);
     let app_handle_clone = app_handle.clone();
-    let status = Ok(run(
+    let response = run(
         disk_id.clone(),
         &Some(title_id.to_owned()),
         receiver,
         app_handle_clone,
     )
-    .await);
-    status
+    .await;
+    match response {
+        Ok(run_results) => {
+            if let Some(err_summary) = run_results.err_summary() {
+                Err(err_summary.message.clone())
+            } else {
+                Ok(run_results)
+            }
+        }
+        Err(e) => Err(e),
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -358,9 +403,10 @@ fn disk_args(disk_id: &DiskId, app_handle: &AppHandle) -> String {
     }
 }
 
-pub async fn title_info(disk_id: DiskId, app_handle: &AppHandle) -> RunResults {
+pub async fn title_info(disk_id: DiskId, app_handle: &AppHandle) -> Result<RunResults, String> {
     let args = disk_args(&disk_id, app_handle);
     let receiver = spawn(app_handle, &disk_id, ["-r", "info", &args]);
+    templates::disks::emit_disk_change(app_handle);
     let app_handle_clone = app_handle.clone();
 
     run(disk_id, &None, receiver, app_handle_clone).await

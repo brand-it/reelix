@@ -61,10 +61,28 @@ pub struct PRGC {
     pub id: u32,
     pub name: String,
 }
+
+// Just trying to discribe the message codes to help me use that to print
+// error messages
+// fn describe_msg_code(code: u32) -> &'static str {
+//     match code {
+//         1002 => "Internal exception or trace log",
+//         2023 => "Summary of hash check errors",
+//         4004 => "File is corrupt or unreadable at a byte offset",
+//         4009 => "Too many AV synchronization issues",
+//         5003 => "Failed to save file",
+//         5004 => "Title save result summary",
+//         5037 => "Copy operation completed (summary)",
+//         5076 => "Hash check failed for a file at a given offset",
+//         5077 => "Too many hash check failures for one file",
+//         _ => "Unknown or uncategorized message code",
+//     }
+// }
+
 #[allow(dead_code)]
 #[derive(Clone)]
 pub struct MSG {
-    pub code: String,
+    pub code: i32,
     pub flags: String,
     pub mcount: String,
     pub message: String,
