@@ -6,6 +6,12 @@
 
 # Read Before Using
 
+I know your not going to read any of the things below so here is the download link.
+
+- [Download Now](https://brand-it.github.io/reelix)
+
+Now that you have download the file, here is what you need to know to make this tool work.
+
 ## Using MakeMKV for DVD Ripping
 
 This tool relies on [MakeMKV](https://www.makemkv.com/) to handle the DVD ripping and convert your discs into MKV files. Unfortunately, MakeMKV is not free forever — you’ll need to purchase a license to unlock full functionality. I know, it’s a bit of a bummer, especially since the goal here is to make ripping your movie collection for Plex as smooth and cost-free as possible.
