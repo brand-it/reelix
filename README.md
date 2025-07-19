@@ -102,3 +102,20 @@ cargo tauri add tara
 ```shell
 cargo add tera --manifest-path src-tauri/Cargo.toml
 ```
+
+## Develpment Problems Issues & Solutions
+
+Problem
+
+```
+cargo tauri dev --config src-tauri/tauri.dev.conf.json
+No version is set for command cargo-tauri
+Consider adding one of the following versions in your config file at /Users/brandit/apps/reelix/.tool-versions
+rust 1.83.0
+```
+
+Solution
+
+```
+cargo install tauri-cli --locked --version "^2"
+```

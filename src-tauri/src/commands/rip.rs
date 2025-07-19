@@ -1,14 +1,16 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use super::helpers::{
     add_episode_to_title, mark_title_rippable, remove_episode_from_title, rename_movie_file,
     rename_tv_file, set_optical_disk_as_movie, set_optical_disk_as_season,
 };
+use crate::commands::helpers::RipError;
 use crate::models::movie_db::MovieResponse;
-use crate::models::optical_disk_info::{DiskContent, DiskId};
-use crate::services;
+use crate::models::optical_disk_info::{DiskContent, DiskId, TvSeasonContent};
+use crate::models::title_info::TitleInfo;
 use crate::services::plex::{create_season_episode_dir, find_tv};
+use crate::services::{self, zip_directory};
 use crate::services::{
     makemkvcon,
     plex::{create_movie_dir, find_movie, find_season},
@@ -37,6 +39,13 @@ pub struct Episode {
     title: String,
     disk_titles: Vec<DiskTitle>,
     parts: Vec<Part>,
+}
+
+#[derive(Serialize)]
+struct RipInfo {
+    directory: PathBuf,
+    titles: Vec<TitleInfo>,
+    content: DiskContent,
 }
 
 #[tauri::command]
@@ -73,10 +82,7 @@ pub fn assign_episode_to_title(
     };
     set_optical_disk_as_season(&optical_disk, &tv, &season);
     match add_episode_to_title(&app_state, &optical_disk, episode, &part, &title_id) {
-        Ok(_) => println!(
-            "Added {} to {} {} {}",
-            title_id, mvdb_id, season_number, episode_number
-        ),
+        Ok(_) => println!("Added {title_id} to {mvdb_id} {season_number} {episode_number}"),
         Err(e) => return Err(e),
     }
 
@@ -111,10 +117,7 @@ pub fn withdraw_episode_from_title(
         }
     };
     match remove_episode_from_title(&app_state, &optical_disk, episode, &title_id) {
-        Ok(_) => println!(
-            "Removed {} to {} {} {}",
-            title_id, mvdb_id, season_number, episode_number
-        ),
+        Ok(_) => println!("Removed {title_id} to {mvdb_id} {season_number} {episode_number}"),
         Err(e) => return Err(e),
     }
 
@@ -151,10 +154,7 @@ pub fn rip_movie(
     app_handle: tauri::AppHandle,
 ) -> Result<String, templates::ApiError> {
     // Make sure it is a DiskID object
-    let disk_id = match DiskId::try_from(disk_id) {
-        Ok(id) => id,
-        Err(_e) => return render_error(&app_state, "Failed to Parse Disk ID"),
-    };
+    let disk_id = DiskId::from(disk_id);
     // Assign Optical Disk Title as movie type and mvdb ID
     let optical_disk = match app_state.find_optical_disk_by_id(&disk_id) {
         Some(optical_disk) => optical_disk,
@@ -189,32 +189,45 @@ fn notify_movie_success(app_handle: &tauri::AppHandle, movie: &MovieResponse) {
         .notification()
         .builder()
         .title("Finished Ripping")
-        .body(&movie.title_year())
+        .body(movie.title_year())
         .show()
         .unwrap();
 }
 
-fn notify_movie_failure(app_handle: &tauri::AppHandle, movie: &MovieResponse, error: &str) {
+fn notify_movie_backup_success(app_handle: &tauri::AppHandle, movie: &MovieResponse) {
     app_handle
         .notification()
         .builder()
-        .title(format!("Failure {}", movie.title_year(),))
-        .body(format!("Failed to rename title {}", error))
+        .title("Backup Finished Ripping")
+        .body(format!(
+            "Was Able to backup movie but not create MKV files for you {}",
+            movie.title_year()
+        ))
         .show()
         .unwrap();
 }
 
-fn notify_movie_upload_success(app_handle: &tauri::AppHandle, file_path: &PathBuf) {
+fn notify_failure(app_handle: &tauri::AppHandle, error: &RipError) {
     app_handle
         .notification()
         .builder()
-        .title(format!("Finished Upload Movie"))
+        .title(error.title.clone())
+        .body(error.message.clone())
+        .show()
+        .unwrap();
+}
+
+fn notify_movie_upload_success(app_handle: &tauri::AppHandle, file_path: &Path) {
+    app_handle
+        .notification()
+        .builder()
+        .title("Finished Upload Movie".to_string())
         .body(format!("File Path {}", file_path.to_string_lossy()))
         .show()
         .unwrap();
 }
 
-fn notify_movie_upload_failure(app_handle: &tauri::AppHandle, file_path: &PathBuf, error: &str) {
+fn notify_movie_upload_failure(app_handle: &tauri::AppHandle, file_path: &Path, error: &str) {
     println!(
         "failed to upload: {} {}",
         file_path.to_string_lossy(),
@@ -229,7 +242,7 @@ fn notify_movie_upload_failure(app_handle: &tauri::AppHandle, file_path: &PathBu
         .unwrap();
 }
 
-fn delete_file_and_dir(file_path: &PathBuf) {
+fn delete_file_and_dir(file_path: &Path) {
     if let Err(response) = fs::remove_file(file_path) {
         println!(
             "Failed to delete file {} {:?} ",
@@ -251,123 +264,191 @@ fn delete_file_and_dir(file_path: &PathBuf) {
     };
 }
 
-fn spawn_upload(app_handle: &tauri::AppHandle, file_path: &PathBuf) {
+fn spawn_upload(app_handle: &tauri::AppHandle, file_path: &Path) {
     let app_handle = app_handle.clone();
-    let file_path = file_path.clone();
+    let path = file_path.to_owned();
 
     tauri::async_runtime::spawn(async move {
         let state = app_handle.state::<AppState>();
-        match services::ftp_uploader::upload(&state, &file_path).await {
+        match services::ftp_uploader::upload(&state, &path).await {
             Ok(_m) => {
-                notify_movie_upload_success(&app_handle, &file_path);
-                delete_file_and_dir(&file_path);
+                notify_movie_upload_success(&app_handle, &path);
+                delete_file_and_dir(&path);
             }
-            Err(e) => notify_movie_upload_failure(&app_handle, &file_path, &e),
+            Err(e) => notify_movie_upload_failure(&app_handle, &path, &e),
         };
     });
 }
 
-fn spawn_rip(app_handle: tauri::AppHandle, disk_id: DiskId) {
-    tauri::async_runtime::spawn(async move {
-        let state = app_handle.state::<AppState>();
-        let optical_disk = state.find_optical_disk_by_id(&disk_id).unwrap();
-        let (dir, rip_titles) = {
+fn rename_ripped_title(
+    app_handle: &tauri::AppHandle,
+    title: &TitleInfo,
+    disk_id: &DiskId,
+    rip_titles: &[TitleInfo],
+) -> Result<PathBuf, RipError> {
+    println!("Ripped title {}", title.id);
+    let state = app_handle.state::<AppState>();
+    match state.find_optical_disk_by_id(disk_id) {
+        Some(optical_disk) => {
             let locked_disk = optical_disk.read().unwrap();
             match locked_disk.content.as_ref().unwrap() {
-                DiskContent::Movie(movie) => {
-                    let dir = create_movie_dir(&movie);
-                    let titles = locked_disk
-                        .titles
-                        .lock()
-                        .unwrap()
-                        .iter()
-                        .filter(|t| t.rip)
-                        .cloned()
-                        .collect::<Vec<_>>();
-                    (dir, titles)
-                }
-                DiskContent::Tv(season) => {
-                    let dir = create_season_episode_dir(&season);
-                    let titles = locked_disk
-                        .titles
-                        .lock()
-                        .unwrap()
-                        .iter()
-                        .filter(|t| t.rip)
-                        .cloned()
-                        .collect::<Vec<_>>();
-                    (dir, titles)
-                }
+                DiskContent::Movie(movie) => rename_movie_file(title, movie),
+                DiskContent::Tv(season) => rename_tv_file(title, season, rip_titles),
             }
-        };
+        }
+        None => Err(RipError {
+            title: "Rip Failure".to_string(),
+            message: "Optical Disk missing, can't access critical info to rename movie/tv show"
+                .to_string(),
+        }),
+    }
+}
 
-        for title in &rip_titles {
-            match makemkvcon::rip_title(&app_handle, &disk_id, &title.id, &dir).await {
-                Ok(_) => {
-                    println!("Ripped title {}", title.id);
-                    let state = app_handle.state::<AppState>();
-                    if let Some(optical_disk) = state.find_optical_disk_by_id(&disk_id) {
-                        let locked_disk = optical_disk.read().unwrap();
-                        match locked_disk.content.as_ref().unwrap() {
-                            DiskContent::Movie(movie) => match rename_movie_file(&title, &movie) {
-                                Ok(file_path) => {
-                                    notify_movie_success(&app_handle, movie);
-                                    emit_render_cards(&state, &app_handle, movie);
-                                    spawn_upload(&app_handle, &file_path);
-                                }
-                                Err(error) => {
-                                    emit_render_cards(&state, &app_handle, movie);
-                                    notify_movie_failure(&app_handle, movie, &error);
-                                }
-                            },
-                            DiskContent::Tv(season) => {
-                                match rename_tv_file(&title, &season, &rip_titles) {
-                                    Ok(file_path) => {
-                                        app_handle
-                                            .notification()
-                                            .builder()
-                                            .title(format!(
-                                                "{} {} Completed",
-                                                season.tv.title_year(),
-                                                season.season.name
-                                            ))
-                                            .body(format!(
-                                                "File Path {}",
-                                                &file_path.to_string_lossy().to_string()
-                                            ))
-                                            .show()
-                                            .unwrap();
-                                    }
-                                    Err(e) => {
-                                        app_handle
-                                            .notification()
-                                            .builder()
-                                            .title(format!(
-                                                "Failure {} {}",
-                                                season.tv.title_year(),
-                                                season.season.name
-                                            ))
-                                            .body(format!("Failed to rename title {}", e))
-                                            .show()
-                                            .unwrap();
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                Err(e) => {
-                    let optical_disk = state.find_optical_disk_by_id(&disk_id).unwrap();
-                    let locked_disk = optical_disk.read().unwrap();
-                    app_handle
-                        .notification()
-                        .builder()
-                        .title(format!("Failure {}", locked_disk.name))
-                        .body(format!("Error Ripping {}", e))
-                        .show()
-                        .unwrap();
+async fn rip_title(
+    app_handle: &tauri::AppHandle,
+    disk_id: &DiskId,
+    title: &TitleInfo,
+    rip_info: &RipInfo,
+) -> Result<PathBuf, RipError> {
+    match makemkvcon::rip_title(app_handle, disk_id, &title.id, &rip_info.directory).await {
+        Ok(_) => rename_ripped_title(app_handle, title, disk_id, &rip_info.titles),
+        Err(e) => Err(RipError {
+            title: "Rip Failure".into(),
+            message: e,
+        }),
+    }
+}
+
+async fn back_disk(
+    app_handle: &tauri::AppHandle,
+    disk_id: &DiskId,
+    rip_info: &RipInfo,
+) -> Result<(), RipError> {
+    match makemkvcon::back_disk(app_handle, disk_id, &rip_info.directory).await {
+        Ok(_) => Ok(()),
+        Err(e) => Err(RipError {
+            title: "Backup Failure".into(),
+            message: e,
+        }),
+    }
+}
+
+fn notify_tv_success(app_handle: &tauri::AppHandle, season: &TvSeasonContent) {
+    app_handle
+        .notification()
+        .builder()
+        .title("TV Show Completed".to_string())
+        .body(format!("{} {}", season.tv.title_year(), season.season.name))
+        .show()
+        .unwrap();
+}
+
+fn build_info(app_handle: &tauri::AppHandle, disk_id: &DiskId) -> RipInfo {
+    let state = app_handle.state::<AppState>();
+    let optical_disk = state.find_optical_disk_by_id(disk_id).unwrap();
+    {
+        let locked_disk = optical_disk.read().unwrap();
+        match locked_disk.content.as_ref().unwrap() {
+            DiskContent::Movie(movie) => {
+                let dir = create_movie_dir(movie);
+                let titles = locked_disk
+                    .titles
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .filter(|t| t.rip)
+                    .cloned()
+                    .collect::<Vec<_>>();
+                RipInfo {
+                    directory: dir,
+                    titles,
+                    content: DiskContent::Movie(movie.clone()),
                 }
             }
+            DiskContent::Tv(season) => {
+                let dir = create_season_episode_dir(season);
+                let titles = locked_disk
+                    .titles
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .filter(|t| t.rip)
+                    .cloned()
+                    .collect::<Vec<_>>();
+                RipInfo {
+                    directory: dir,
+                    titles,
+                    content: DiskContent::Tv(season.clone()),
+                }
+            }
+        }
+    }
+}
+
+fn spawn_rip(app_handle: tauri::AppHandle, disk_id: DiskId) {
+    tauri::async_runtime::spawn(async move {
+        let rip_info = build_info(&app_handle, &disk_id);
+        let state: State<'_, AppState> = app_handle.state::<AppState>();
+
+        for title in &rip_info.titles {
+            match rip_title(&app_handle, &disk_id, title, &rip_info).await {
+                Ok(file_path) => {
+                    match rip_info.content {
+                        DiskContent::Tv(ref season) => {
+                            notify_tv_success(&app_handle, season);
+                        }
+                        DiskContent::Movie(ref movie) => {
+                            notify_movie_success(&app_handle, movie);
+                            emit_render_cards(&state, &app_handle, movie);
+                            spawn_upload(&app_handle, &file_path);
+                        }
+                    };
+                }
+                Err(error) => {
+                    match rip_info.content {
+                        DiskContent::Tv(ref _season) => {}
+                        DiskContent::Movie(ref movie) => {
+                            emit_render_cards(&state, &app_handle, movie);
+                            match back_disk(&app_handle, &disk_id, &rip_info).await {
+                                Ok(_) => {
+                                    let dst_string = format!(
+                                        "{}/backup.zip",
+                                        rip_info.directory.to_string_lossy()
+                                    );
+                                    let dst_file = Path::new(&dst_string);
+                                    match zip_directory::zip_dir(
+                                        &rip_info.directory,
+                                        dst_file,
+                                        zip::CompressionMethod::Deflated,
+                                    ) {
+                                        Ok(()) => {
+                                            notify_movie_backup_success(&app_handle, movie);
+                                            spawn_upload(&app_handle, dst_file);
+                                            delete_file_and_dir(&rip_info.directory);
+                                        }
+                                        Err(error) => {
+                                            println!("{error}");
+                                            notify_failure(
+                                                &app_handle,
+                                                &RipError {
+                                                    title: "Backup Failed".into(),
+                                                    message: format!(
+                                                        "Was unable to zip Backup {}",
+                                                        rip_info.directory.to_string_lossy()
+                                                    ),
+                                                },
+                                            );
+                                        }
+                                    }
+                                }
+                                Err(error) => notify_failure(&app_handle, &error),
+                            };
+                        }
+                    };
+
+                    notify_failure(&app_handle, &error);
+                }
+            };
         }
     });
 }

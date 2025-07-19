@@ -4,10 +4,22 @@ use crate::models::title_info::TitleInfo;
 use crate::services::plex::{create_movie_dir, create_season_episode_dir};
 use crate::state::AppState;
 use crate::templates;
-use std::fs;
+use serde::{Deserialize, Serialize};
+use std::fs::{self};
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use tauri::State;
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct RipError {
+    pub title: String,
+    pub message: String,
+}
+impl std::fmt::Display for RipError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Error {}: {}", self.title, self.message)
+    }
+}
 
 pub fn save_query(state: &State<'_, AppState>, search: &str) {
     let mut query = state.query.lock().unwrap();
@@ -19,7 +31,7 @@ pub fn set_optical_disk_as_movie(
     movie: MovieResponse,
 ) {
     let mut locked_disk = optical_disk.write().unwrap();
-    locked_disk.content = Some(DiskContent::Movie(movie));
+    locked_disk.content = Some(DiskContent::Movie(Box::new(movie)));
 }
 
 pub fn set_optical_disk_as_season(
@@ -36,18 +48,18 @@ pub fn set_optical_disk_as_season(
         Some(content) => {
             match content {
                 DiskContent::Movie(_) => {
-                    locked_disk.content = Some(DiskContent::Tv(tv_season_content));
+                    locked_disk.content = Some(DiskContent::Tv(Box::new(tv_season_content)));
                     clear_all_episodes_from_titles(&locked_disk);
                 }
                 DiskContent::Tv(content) => {
                     if content.season.id != season.id {
-                        locked_disk.content = Some(DiskContent::Tv(tv_season_content));
+                        locked_disk.content = Some(DiskContent::Tv(Box::new(tv_season_content)));
                         clear_all_episodes_from_titles(&locked_disk);
                     }
                 }
             };
         }
-        None => locked_disk.content = Some(DiskContent::Tv(tv_season_content)),
+        None => locked_disk.content = Some(DiskContent::Tv(Box::new(tv_season_content))),
     };
 }
 
@@ -62,21 +74,21 @@ pub fn add_episode_to_title(
         Ok(locked_disk) => {
             let mut locked_titles = match locked_disk.titles.lock() {
                 Ok(titles) => titles,
-                Err(_e) => return templates::render_error(&app_state, "Failed to lock titles"),
+                Err(_e) => return templates::render_error(app_state, "Failed to lock titles"),
             };
             let title = match locked_titles.iter_mut().find(|t| &t.id == title_id) {
                 Some(t) => t,
-                None => return templates::render_error(&app_state, "Failed to find Title"),
+                None => return templates::render_error(app_state, "Failed to find Title"),
             };
             if title.content.iter().any(|e| e.id == episode.id) {
                 println!("episode already associated with title");
             } else {
-                title.part = Some(part.clone());
+                title.part = Some(*part);
                 title.content.push(episode.clone());
                 title.rip = true
             };
         }
-        Err(_e) => return templates::render_error(&app_state, "Failed to read disk"),
+        Err(_e) => return templates::render_error(app_state, "Failed to read disk"),
     };
     Ok("Success".to_string())
 }
@@ -103,16 +115,16 @@ pub fn remove_episode_from_title(
         Ok(locked_disk) => {
             let mut locked_titles = match locked_disk.titles.lock() {
                 Ok(titles) => titles,
-                Err(_e) => return templates::render_error(&app_state, "Failed to lock titles"),
+                Err(_e) => return templates::render_error(app_state, "Failed to lock titles"),
             };
             let title = match locked_titles.iter_mut().find(|t| &t.id == title_id) {
                 Some(t) => t,
-                None => return templates::render_error(&app_state, "Failed to find Title"),
+                None => return templates::render_error(app_state, "Failed to find Title"),
             };
 
             if let Some(index) = title.content.iter().position(|e| e.id == episode.id) {
                 title.content.remove(index);
-                if title.content.len() < 1 {
+                if title.content.is_empty() {
                     title.part = None;
                     title.rip = false
                 }
@@ -120,13 +132,13 @@ pub fn remove_episode_from_title(
                 println!("episode not associated with title");
             };
         }
-        Err(_e) => return templates::render_error(&app_state, "Failed to read disk"),
+        Err(_e) => return templates::render_error(app_state, "Failed to read disk"),
     };
     Ok("success".to_string())
 }
 
-pub fn rename_movie_file(title: &TitleInfo, movie: &MovieResponse) -> Result<PathBuf, String> {
-    let dir = create_movie_dir(&movie);
+pub fn rename_movie_file(title: &TitleInfo, movie: &MovieResponse) -> Result<PathBuf, RipError> {
+    let dir = create_movie_dir(movie);
     let filename = title.filename.as_ref().unwrap();
     let from = dir.join(filename);
     match fs::exists(&from) {
@@ -135,14 +147,23 @@ pub fn rename_movie_file(title: &TitleInfo, movie: &MovieResponse) -> Result<Pat
                 let extension = from.extension().and_then(|ext| ext.to_str()).unwrap_or("");
                 let to = dir.join(format!("{}.{}", movie.title_year(), extension));
                 match fs::rename(from, &to) {
-                    Ok(_r) => return Ok(to),
-                    Err(_e) => return Err("Failed to rename file".to_string()),
+                    Ok(_r) => Ok(to),
+                    Err(_e) => Err(RipError {
+                        title: "Rip Failure".to_string(),
+                        message: format!("Failed to rename file {filename}"),
+                    }),
                 }
             } else {
-                return Err("File does not exist failed to rename".to_string());
+                Err(RipError {
+                    title: "Rip Failure".to_string(),
+                    message: format!("File does not exist failed to rename movie {}", movie.title),
+                })
             }
         }
-        Err(_e) => return Err("failed to check if from file exists".to_string()),
+        Err(_e) => Err(RipError {
+            title: "Rip Failure".to_string(),
+            message: format!("failed to create MKV file for movie {}", movie.title),
+        }),
     }
 }
 
@@ -155,21 +176,30 @@ pub fn rename_tv_file(
     title: &TitleInfo,
     content: &TvSeasonContent,
     all_titles: &[TitleInfo],
-) -> Result<PathBuf, String> {
+) -> Result<PathBuf, RipError> {
     // Ensure the output directory exists and construct source path
     let dir = create_season_episode_dir(content);
-    let filename = title
-        .filename
-        .as_ref()
-        .ok_or_else(|| "Missing source filename".to_string())?;
+    let filename = title.filename.as_ref().ok_or_else(|| RipError {
+        title: "Rip Failure".into(),
+        message: format!(
+            "Missing source filename can't rename file for {}",
+            content.season.name
+        ),
+    })?;
     let from = dir.join(filename);
 
     // Check file existence
     if !fs::metadata(&from)
-        .map_err(|_| "Failed to check if source file exists".to_string())?
+        .map_err(|_| RipError {
+            title: "Rip Failure".into(),
+            message: format!("Failed to create MKV file for {}", content.season.name),
+        })?
         .is_file()
     {
-        return Err("Source file does not exist".to_string());
+        return Err(RipError {
+            title: "Rip Failure".into(),
+            message: "Source file does not exist".into(),
+        });
     }
 
     // Clone episodes for detection, without assuming sorted order
@@ -224,9 +254,12 @@ pub fn rename_tv_file(
 
     // Preserve original extension
     let extension = from.extension().and_then(|ext| ext.to_str()).unwrap_or("");
-    let to = dir.join(format!("{}.{}", file_stem, extension));
+    let to = dir.join(format!("{file_stem}.{extension}"));
 
     // Rename the file
-    fs::rename(&from, &to).map_err(|_| "Failed to rename file".to_string())?;
+    fs::rename(&from, &to).map_err(|_| RipError {
+        title: "TV Show Error".into(),
+        message: format!("Failed to rename TV show from {from:?} to {to:?}"),
+    })?;
     Ok(to)
 }

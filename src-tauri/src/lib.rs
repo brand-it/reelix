@@ -44,21 +44,19 @@ fn setup_store(app: &mut App) {
         if let Some(value) = store.get(key) {
             if let Some(value_str) = value.as_str() {
                 match state.update(key, Some(value_str.to_string())) {
-                    Ok(_n) => println!("set {} to {}", key, value_str),
-                    Err(e) => println!("setup store failure: {}", e),
+                    Ok(_n) => println!("set {key} to {value_str}"),
+                    Err(e) => println!("setup store failure: {e}"),
                 };
             }
         }
     });
     store.close_resource();
 }
-
 /// Custom filter that formats a datetime string into "YYYY"
 // pub fn to_year(value: &Value, _args: &HashMap<String, Value>) -> TeraResult<Value> {
 //     let date_str = value
 //         .as_str()
 //         .ok_or("format_date filter: expected a string")?;
-
 //     // Try parsing the string as an RFC3339 datetime.
 //     let formatted = if let Ok(dt) = DateTime::parse_from_rfc3339(date_str) {
 //         dt.format("%Y").to_string()
@@ -68,10 +66,8 @@ fn setup_store(app: &mut App) {
 //     } else {
 //         return Err(format!("format_date filter: failed to parse date: {}", date_str).into());
 //     };
-
 //     to_value(formatted).map_err(Into::into)
 // }
-
 fn setup_tray_icon(app: &mut App) {
     let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)
         .expect("failed to create quit item");
@@ -169,6 +165,7 @@ pub fn run() {
     };
 
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_shell::init())
@@ -182,12 +179,11 @@ pub fn run() {
             setup_view_window(app);
             Ok(())
         })
-        .on_window_event(|window, event| match event {
-            tauri::WindowEvent::CloseRequested { api, .. } => {
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 window.hide().unwrap();
                 api.prevent_close();
             }
-            _ => {}
         })
         .invoke_handler(all_commands!())
         .build(tauri::generate_context!())

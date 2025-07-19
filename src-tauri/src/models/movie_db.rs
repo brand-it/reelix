@@ -82,9 +82,9 @@ impl MovieResponse {
 
     pub fn title_year(&self) -> String {
         match self.year() {
-            Some(v) => return format!("{} ({})", self.title, v.to_string()),
-            None => return format!("{}", self.title),
-        };
+            Some(v) => format!("{} ({})", self.title, v),
+            None => self.title.to_string(),
+        }
     }
 }
 
@@ -209,9 +209,9 @@ impl TvResponse {
 
     pub fn title_year(&self) -> String {
         match self.year() {
-            Some(v) => return format!("{} ({})", self.name, v.to_string()),
-            None => return format!("{}", self.name),
-        };
+            Some(v) => format!("{} ({})", self.name, v),
+            None => self.name.to_string(),
+        }
     }
 
     // pub fn find_season(&self, id: u32) -> Option<TvSeason> {
@@ -368,7 +368,7 @@ impl From<TvResponse> for TvView {
             title_year,
             vote_average: tv.vote_average,
             vote_count: tv.vote_count,
-            year: year,
+            year,
         }
     }
 }
@@ -389,27 +389,27 @@ pub struct SeasonResponse {
     pub vote_average: f32,
 }
 
-impl SeasonResponse {
-    // pub fn title_year(&self) -> String {
-    //     match self.year() {
-    //         Some(v) => return format!("{} ({})", self.name, v.to_string()),
-    //         None => return format!("{}", self.name),
-    //     };
-    // }
+// impl SeasonResponse {
+// pub fn title_year(&self) -> String {
+//     match self.year() {
+//         Some(v) => return format!("{} ({})", self.name, v.to_string()),
+//         None => return format!("{}", self.name),
+//     };
+// }
 
-    // pub fn year(&self) -> Option<u32> {
-    //     NaiveDate::parse_from_str(&self.air_date, "%Y-%m-%d")
-    //         .ok()
-    //         .and_then(|dt| dt.format("%Y").to_string().parse::<u32>().ok())
-    // }
+// pub fn year(&self) -> Option<u32> {
+//     NaiveDate::parse_from_str(&self.air_date, "%Y-%m-%d")
+//         .ok()
+//         .and_then(|dt| dt.format("%Y").to_string().parse::<u32>().ok())
+// }
 
-    // pub fn formatted_air_date(&self) -> String {
-    //     NaiveDate::parse_from_str(&self.air_date, "%Y-%m-%d")
-    //         .ok()
-    //         .map(|date| date.format("%B %-d, %Y").to_string())
-    //         .unwrap_or_else(|| "".to_string())
-    // }
-}
+// pub fn formatted_air_date(&self) -> String {
+//     NaiveDate::parse_from_str(&self.air_date, "%Y-%m-%d")
+//         .ok()
+//         .map(|date| date.format("%B %-d, %Y").to_string())
+//         .unwrap_or_else(|| "".to_string())
+// }
+// }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SeasonEpisode {
@@ -441,7 +441,7 @@ impl SeasonEpisode {
         NaiveDate::parse_from_str(&self.air_date, "%Y-%m-%d")
             .ok()
             .map(|date| date.format("%B %-d, %Y").to_string())
-            .unwrap_or_else(|| "".to_string())
+            .unwrap_or_default()
     }
 
     pub fn formatted_runtime(&self) -> String {
@@ -449,9 +449,9 @@ impl SeasonEpisode {
         let minutes = self.runtime % 60;
 
         if hours > 0 {
-            format!("{}h&nbsp;{}m", hours, minutes)
+            format!("{hours}h&nbsp;{minutes}m")
         } else {
-            format!("{}m", minutes)
+            format!("{minutes}m")
         }
     }
 }
@@ -531,9 +531,9 @@ impl From<SeasonEpisode> for SeasonEpisodeView {
         let year = episode.year();
         SeasonEpisodeView {
             air_date: episode.air_date,
-            formatted_air_date: formatted_air_date,
-            formatted_runtime: formatted_runtime,
-            year: year,
+            formatted_air_date,
+            formatted_runtime,
+            year,
             episode_number: episode.episode_number,
             episode_type: episode.episode_type,
             id: episode.id,
