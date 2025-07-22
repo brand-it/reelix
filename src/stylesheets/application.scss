@@ -272,3 +272,12 @@ body {
 .parts-selector .form-select {
   font-size: 0.875rem;
 }
+
+.input-group {
+  a.btn,
+  button.btn {
+    display: inline-flex; /* instead of inline-block */
+    align-items: center; /* vertical centering of icon + text */
+    justify-content: center; /* horizontal centering (optional) */
+  }
+}

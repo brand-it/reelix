@@ -343,7 +343,7 @@ fn disk_index_args(disk_id: &DiskId, app_handle: &AppHandle) -> String {
     match state.find_optical_disk_by_id(disk_id) {
         Some(disk) => {
             let locked_disk = disk.read().expect("Failed to grab disk");
-            format!("disc:{}", locked_disk.mount_point.to_string_lossy())
+            format!("disc:{}", locked_disk.index)
         }
         None => "".to_string(),
     }
@@ -449,7 +449,7 @@ fn disk_args(disk_id: &DiskId, app_handle: &AppHandle) -> String {
 }
 
 pub async fn title_info(disk_id: DiskId, app_handle: &AppHandle) -> Result<RunResults, String> {
-    let args = disk_args(&disk_id, app_handle);
+    let args = disk_index_args(&disk_id, app_handle);
     let receiver = spawn(app_handle, &disk_id, ["-r", "info", &args]);
     templates::disks::emit_disk_change(app_handle);
     let app_handle_clone = app_handle.clone();

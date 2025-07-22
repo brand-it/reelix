@@ -1,4 +1,5 @@
 pub mod converter;
+pub mod disk_manager;
 pub mod drive_info;
 pub mod ftp_uploader;
 pub mod makemkvcon;

@@ -1,3 +1,4 @@
+pub mod disk;
 pub mod general;
 mod helpers;
 pub mod rip;
@@ -12,7 +13,8 @@ macro_rules! all_commands {
             $crate::commands::general::open_url,
             $crate::commands::general::search,
             $crate::commands::general::season,
-            $crate::commands::general::selected_disk,
+            $crate::commands::disk::selected_disk,
+            $crate::commands::disk::eject_disk,
             $crate::commands::general::tv,
             $crate::commands::rip::assign_episode_to_title,
             $crate::commands::rip::rip_movie,

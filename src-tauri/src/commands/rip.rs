@@ -10,7 +10,7 @@ use crate::models::movie_db::MovieResponse;
 use crate::models::optical_disk_info::{DiskContent, DiskId, TvSeasonContent};
 use crate::models::title_info::TitleInfo;
 use crate::services::plex::{create_season_episode_dir, find_tv};
-use crate::services::{self, zip_directory};
+use crate::services::{self, disk_manager, zip_directory};
 use crate::services::{
     makemkvcon,
     plex::{create_movie_dir, find_movie, find_season},
@@ -242,38 +242,23 @@ fn notify_movie_upload_failure(app_handle: &tauri::AppHandle, file_path: &Path, 
         .unwrap();
 }
 
-fn delete_file_and_dir(file_path: &Path) {
-    if let Err(response) = fs::remove_file(file_path) {
-        println!(
-            "Failed to delete file {} {:?} ",
-            file_path.display(),
-            response
-        );
-    };
-
-    if let Some(parent_dir) = file_path.parent() {
-        if parent_dir.is_dir() {
-            if let Err(error) = fs::remove_dir(parent_dir) {
-                eprintln!(
-                    "Failed to delete directory {}: {}",
-                    parent_dir.display(),
-                    error
-                );
-            }
-        }
+fn delete_dir(dir: &Path) {
+    if let Err(error) = fs::remove_dir_all(dir) {
+        eprintln!("Failed to delete directory {}: {}", dir.display(), error);
     };
 }
 
-fn spawn_upload(app_handle: &tauri::AppHandle, file_path: &Path) {
+fn spawn_upload(app_handle: &tauri::AppHandle, file_path: &Path, rip_info: &RipInfo) {
     let app_handle = app_handle.clone();
     let path = file_path.to_owned();
+    let directory = rip_info.directory.to_owned();
 
     tauri::async_runtime::spawn(async move {
         let state = app_handle.state::<AppState>();
         match services::ftp_uploader::upload(&state, &path).await {
             Ok(_m) => {
                 notify_movie_upload_success(&app_handle, &path);
-                delete_file_and_dir(&path);
+                delete_dir(&directory);
             }
             Err(e) => notify_movie_upload_failure(&app_handle, &path, &e),
         };
@@ -385,70 +370,95 @@ fn build_info(app_handle: &tauri::AppHandle, disk_id: &DiskId) -> RipInfo {
     }
 }
 
+fn eject_disk(state: &State<'_, AppState>, disk_id: &DiskId) {
+    match state.find_optical_disk_by_id(disk_id) {
+        Some(disk) => match disk.read() {
+            Ok(locked_disk) => disk_manager::eject(&locked_disk.mount_point),
+            Err(_) => println!("Failed to eject disk"),
+        },
+        None => {
+            println!("failed to find disk to eject")
+        }
+    }
+}
+
+async fn process_titles(
+    state: &State<'_, AppState>,
+    app_handle: &tauri::AppHandle,
+    disk_id: &DiskId,
+    rip_info: &RipInfo,
+) -> bool {
+    let mut success = false;
+    for title in &rip_info.titles {
+        match rip_title(app_handle, disk_id, title, rip_info).await {
+            Ok(file_path) => {
+                match rip_info.content {
+                    DiskContent::Tv(ref season) => {
+                        success = true;
+                        notify_tv_success(app_handle, season);
+                    }
+                    DiskContent::Movie(ref movie) => {
+                        success = true;
+                        notify_movie_success(app_handle, movie);
+                        emit_render_cards(state, app_handle, movie);
+                        spawn_upload(app_handle, &file_path, rip_info);
+                    }
+                };
+            }
+            Err(error) => {
+                match rip_info.content {
+                    DiskContent::Tv(ref _season) => {}
+                    DiskContent::Movie(ref movie) => {
+                        emit_render_cards(state, app_handle, movie);
+                        match back_disk(app_handle, disk_id, rip_info).await {
+                            Ok(_) => {
+                                let dst_string =
+                                    format!("{}/backup.zip", rip_info.directory.to_string_lossy());
+                                let dst_file = Path::new(&dst_string);
+                                match zip_directory::zip_dir(
+                                    &rip_info.directory,
+                                    dst_file,
+                                    zip::CompressionMethod::Deflated,
+                                ) {
+                                    Ok(()) => {
+                                        notify_movie_backup_success(app_handle, movie);
+                                        spawn_upload(app_handle, dst_file, rip_info);
+                                        delete_dir(&rip_info.directory);
+                                    }
+                                    Err(error) => {
+                                        println!("{error}");
+                                        notify_failure(
+                                            app_handle,
+                                            &RipError {
+                                                title: "Backup Failed".into(),
+                                                message: format!(
+                                                    "Was unable to zip Backup {}",
+                                                    rip_info.directory.to_string_lossy()
+                                                ),
+                                            },
+                                        );
+                                    }
+                                }
+                            }
+                            Err(error) => notify_failure(app_handle, &error),
+                        };
+                    }
+                };
+
+                notify_failure(app_handle, &error);
+            }
+        };
+    }
+    success
+}
+
 fn spawn_rip(app_handle: tauri::AppHandle, disk_id: DiskId) {
     tauri::async_runtime::spawn(async move {
         let rip_info = build_info(&app_handle, &disk_id);
-        let state: State<'_, AppState> = app_handle.state::<AppState>();
-
-        for title in &rip_info.titles {
-            match rip_title(&app_handle, &disk_id, title, &rip_info).await {
-                Ok(file_path) => {
-                    match rip_info.content {
-                        DiskContent::Tv(ref season) => {
-                            notify_tv_success(&app_handle, season);
-                        }
-                        DiskContent::Movie(ref movie) => {
-                            notify_movie_success(&app_handle, movie);
-                            emit_render_cards(&state, &app_handle, movie);
-                            spawn_upload(&app_handle, &file_path);
-                        }
-                    };
-                }
-                Err(error) => {
-                    match rip_info.content {
-                        DiskContent::Tv(ref _season) => {}
-                        DiskContent::Movie(ref movie) => {
-                            emit_render_cards(&state, &app_handle, movie);
-                            match back_disk(&app_handle, &disk_id, &rip_info).await {
-                                Ok(_) => {
-                                    let dst_string = format!(
-                                        "{}/backup.zip",
-                                        rip_info.directory.to_string_lossy()
-                                    );
-                                    let dst_file = Path::new(&dst_string);
-                                    match zip_directory::zip_dir(
-                                        &rip_info.directory,
-                                        dst_file,
-                                        zip::CompressionMethod::Deflated,
-                                    ) {
-                                        Ok(()) => {
-                                            notify_movie_backup_success(&app_handle, movie);
-                                            spawn_upload(&app_handle, dst_file);
-                                            delete_file_and_dir(&rip_info.directory);
-                                        }
-                                        Err(error) => {
-                                            println!("{error}");
-                                            notify_failure(
-                                                &app_handle,
-                                                &RipError {
-                                                    title: "Backup Failed".into(),
-                                                    message: format!(
-                                                        "Was unable to zip Backup {}",
-                                                        rip_info.directory.to_string_lossy()
-                                                    ),
-                                                },
-                                            );
-                                        }
-                                    }
-                                }
-                                Err(error) => notify_failure(&app_handle, &error),
-                            };
-                        }
-                    };
-
-                    notify_failure(&app_handle, &error);
-                }
-            };
+        let state = app_handle.state::<AppState>();
+        let success = process_titles(&state, &app_handle, &disk_id, &rip_info).await;
+        if success {
+            eject_disk(&state, &disk_id);
         }
     });
 }

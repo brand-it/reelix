@@ -1,6 +1,5 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use super::helpers::save_query;
-use crate::models::optical_disk_info::DiskId;
 use crate::services::plex::{
     find_movie, find_season, find_tv, get_movie_certification, search_multi,
 };
@@ -99,20 +98,4 @@ pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, templa
     };
 
     templates::search::render_results(&state, search, &response)
-}
-
-#[tauri::command]
-pub fn selected_disk(
-    disk_id: u32,
-    state: State<'_, AppState>,
-) -> Result<String, templates::ApiError> {
-    let id = DiskId::from(disk_id);
-
-    let mut selected_optical_disk_id = state
-        .selected_optical_disk_id
-        .write()
-        .expect("failed to lock selected disk ID");
-    *selected_optical_disk_id = Some(id);
-
-    templates::disk_titles::render_options(&state)
 }
