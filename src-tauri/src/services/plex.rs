@@ -39,7 +39,7 @@ pub fn search_multi(
 ) -> Result<movie_db::SearchResponse, the_movie_db::Error> {
     let api_key = &app_state.lock_the_movie_db_key().to_string();
     let language = "en-US";
-    let movie_db = the_movie_db::TheMovieDb::new(api_key, &language);
+    let movie_db = the_movie_db::TheMovieDb::new(api_key, language);
 
     movie_db.search_multi(query, 1)
 }
@@ -52,7 +52,7 @@ pub fn find_movie(
     let api_key = &state.lock_the_movie_db_key().to_string();
 
     let language = "en-US";
-    let movie_db = the_movie_db::TheMovieDb::new(api_key, &language);
+    let movie_db = the_movie_db::TheMovieDb::new(api_key, language);
     movie_db.movie(id)
 }
 
@@ -64,7 +64,7 @@ pub fn find_tv(
     let api_key = &state.lock_the_movie_db_key().to_string();
 
     let language = "en-US";
-    let movie_db = the_movie_db::TheMovieDb::new(api_key, &language);
+    let movie_db = the_movie_db::TheMovieDb::new(api_key, language);
     movie_db.tv(id)
 }
 
@@ -77,7 +77,7 @@ pub fn find_season(
     let api_key = &state.lock_the_movie_db_key().to_string();
 
     let language = "en-US";
-    let movie_db = the_movie_db::TheMovieDb::new(api_key, &language);
+    let movie_db = the_movie_db::TheMovieDb::new(api_key, language);
     movie_db.season(tv_id, season_number)
 }
 
@@ -89,11 +89,8 @@ pub fn get_movie_certification(
     let api_key = &state.lock_the_movie_db_key().to_string();
 
     let language = "en-US";
-    let movie_db = the_movie_db::TheMovieDb::new(api_key, &language);
-    let release_dates = match movie_db.movie_release_dates(movie_id) {
-        Ok(resp) => resp,
-        Err(e) => return Err(e),
-    };
+    let movie_db = the_movie_db::TheMovieDb::new(api_key, language);
+    let release_dates = movie_db.movie_release_dates(movie_id)?;
 
     Ok(release_dates
         .results

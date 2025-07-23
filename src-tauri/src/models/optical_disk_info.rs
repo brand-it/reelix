@@ -14,8 +14,8 @@ pub struct TvSeasonContent {
 
 #[derive(Serialize, Clone)]
 pub enum DiskContent {
-    Tv(TvSeasonContent),
-    Movie(MovieResponse),
+    Tv(Box<TvSeasonContent>),
+    Movie(Box<MovieResponse>),
 }
 
 #[derive(Serialize)]
@@ -34,6 +34,7 @@ pub struct OpticalDiskInfo {
     pub progress: Mutex<Option<Progress>>,
     pub pid: Mutex<Option<u32>>,
     pub content: Option<DiskContent>,
+    pub index: u32,
 }
 
 impl OpticalDiskInfo {
@@ -59,18 +60,18 @@ impl OpticalDiskInfo {
     pub fn kill_process(&self) {
         match *self.pid.lock().unwrap() {
             Some(pid) => {
-                println!("Killing process {:?}", pid);
+                println!("Killing process {pid:?}");
                 let mut system = System::new_all();
                 system.refresh_all();
-                let sys_pid = Pid::from_u32(pid.clone());
+                let sys_pid = Pid::from_u32(pid);
                 if let Some(process) = system.process(sys_pid) {
                     if process.kill() {
-                        println!("Killed {:?}", pid);
+                        println!("Killed {pid:?}");
                     } else {
-                        println!("Failed to kill process with PID {}", pid);
+                        println!("Failed to kill process with PID {pid}");
                     }
                 } else {
-                    println!("Process with PID {} not found", pid);
+                    println!("Process with PID {pid} not found");
                 }
             }
             None => println!("No PID defined for Disk {}", self.id),
@@ -95,7 +96,7 @@ impl Clone for OpticalDiskInfo {
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clone();
         OpticalDiskInfo {
-            id: self.id.clone(),
+            id: self.id,
             name: self.name.clone(),
             available_space: self.available_space,
             total_space: self.total_space,
@@ -109,6 +110,7 @@ impl Clone for OpticalDiskInfo {
             progress: Mutex::new(cloned_progress),
             pid: Mutex::new(None),
             content: self.content.clone(),
+            index: self.index,
         }
     }
 }
@@ -253,25 +255,25 @@ pub struct OpticalDiskInfoView {
 impl From<&OpticalDiskInfo> for OpticalDiskInfoView {
     fn from(optical_disk: &OpticalDiskInfo) -> Self {
         let has_process = optical_disk.has_process();
-        let pid = optical_disk.pid.lock().unwrap().clone();
+        let pid = *optical_disk.pid.lock().unwrap();
         let progress = optical_disk.progress.lock().unwrap().clone();
         let titles = optical_disk.titles.lock().unwrap().clone();
         OpticalDiskInfoView {
-            available_space: optical_disk.available_space.clone(),
+            available_space: optical_disk.available_space,
             content: optical_disk.content.clone(),
             dev: optical_disk.dev.clone(),
             file_system: optical_disk.file_system.clone(),
-            has_process: has_process,
-            id: optical_disk.id.clone(),
-            is_read_only: optical_disk.is_read_only.clone(),
-            is_removable: optical_disk.is_removable.clone(),
+            has_process,
+            id: optical_disk.id,
+            is_read_only: optical_disk.is_read_only,
+            is_removable: optical_disk.is_removable,
             kind: optical_disk.kind.clone(),
             mount_point: optical_disk.mount_point.clone(),
             name: optical_disk.name.clone(),
-            pid: pid,
+            pid,
             progress: progress.clone(),
             titles: titles.clone(),
-            total_space: optical_disk.total_space.clone(),
+            total_space: optical_disk.total_space,
         }
     }
 }

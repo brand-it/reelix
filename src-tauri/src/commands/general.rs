@@ -1,6 +1,5 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use super::helpers::save_query;
-use crate::models::optical_disk_info::DiskId;
 use crate::services::plex::{
     find_movie, find_season, find_tv, get_movie_certification, search_multi,
 };
@@ -13,7 +12,7 @@ use tauri_plugin_opener::OpenerExt;
 // This is the entry point, basically it decides what to first show the user
 #[tauri::command]
 pub fn index(state: State<'_, AppState>) -> Result<String, templates::ApiError> {
-    match search_multi(&state, &"Martian") {
+    match search_multi(&state, "Martian") {
         Ok(resp) => resp,
         Err(e) => return templates::the_movie_db::render_show(&state, &e.message),
     };
@@ -30,7 +29,7 @@ pub fn open_url(
 
     match response {
         Ok(_r) => Ok("".to_string()),
-        Err(e) => render_error(&state, &format!("failed to open url: {:?}", e)),
+        Err(e) => render_error(&state, &format!("failed to open url: {e:?}")),
     }
 }
 
@@ -92,32 +91,11 @@ pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, templa
 
     let api_key = &state.lock_the_movie_db_key();
     let language = "en-US";
-    let movie_db = the_movie_db::TheMovieDb::new(api_key, &language);
+    let movie_db = the_movie_db::TheMovieDb::new(api_key, language);
     let response = match movie_db.search_multi(search, 1) {
         Ok(resp) => resp,
         Err(e) => return templates::the_movie_db::render_show(&state, &e.message),
     };
 
-    templates::search::render_results(&state, &search, &response)
-}
-
-#[tauri::command]
-pub fn selected_disk(
-    disk_id: u32,
-    state: State<'_, AppState>,
-) -> Result<String, templates::ApiError> {
-    match DiskId::try_from(disk_id) {
-        Ok(id) => {
-            let mut selected_optical_disk_id = state
-                .selected_optical_disk_id
-                .write()
-                .expect("failed to lock selected disk ID");
-            *selected_optical_disk_id = Some(id);
-        }
-        Err(_e) => {
-            return render_error(&state, &format!("Failed to covert {} to DiskID", &disk_id))
-        }
-    };
-
-    templates::disk_titles::render_options(&state)
+    templates::search::render_results(&state, search, &response)
 }

@@ -32,7 +32,8 @@
     "store:default",
     "http:default",
     "notification:default",
-    "opener:allow-default-urls"
+    "opener:allow-default-urls",
+    "dialog:default"
   ],
   "platforms": [
     "macOS",

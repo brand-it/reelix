@@ -5,7 +5,6 @@ use std::time::SystemTime;
 /// Later on down the road. ETA is going to be a big part of
 /// this system and have a good system that calculates estimated times
 /// will be one of the foundations that makes this tool great.
-
 // --- Progress ---
 pub struct Progress {
     pub total: usize,
@@ -102,13 +101,11 @@ impl Progress {
     //         format!("{:5.2}", percent)
     //     }
     // }
-
     /// Returns the “absolute” progress (progress minus starting position).
     // Unused: warning: method `absolute` is never used
     // pub fn absolute(&self) -> isize {
     //     self.progress as isize - self.starting_position as isize
     // }
-
     pub fn none(&self) -> bool {
         self.progress == 0
     }
@@ -452,7 +449,7 @@ pub mod components {
         }
 
         fn format_time(&self, hours: u64, minutes: u64, seconds: u64) -> String {
-            format!("{:02}:{:02}:{:02}", hours, minutes, seconds)
+            format!("{hours:02}:{minutes:02}:{seconds:02}")
         }
 
         // Unused: warning: method `estimated_with_label` is never used
