@@ -11,14 +11,15 @@
   />
 </head>
 <body class="bg-dark text-light">
+
   <div class="container py-5 text-center">
     <!-- App Icon -->
     <img src="icon.png"
          alt="Reelix Icon"
-         class="mx-auto rounded-3 mb-3"
-         style="width:120px;"/>
+         class="mx-auto rounded-3 mb-1"
+         style="width:100px;"/>
     <!-- Title & tagline -->
-    <h1 id="page-title" class="fw-bold mb-2">Reelix</h1>
+    <h2 id="page-title" class="fw-bold mb-2">Reelix</h2>
     <!-- Main buttons -->
     <div class="d-flex justify-content-center gap-4 mb-3 flex-wrap">
       <!-- Download (filled) -->
@@ -32,11 +33,35 @@
            class="d-block text-secondary mt-2">Changelog</a>
       </div>
     </div>
-    <!-- Compatibility note -->
-    <p class="text-secondary small mt-4">
-      Compatible with Windows, macOS &amp; Linux
-    </p>
+    <div class="card border-dark mb-3 bg-dark text-light">
+      <div class="card-body">
+
+        <p class="card-text ">
+          <strong>Reelix</strong> is a simple, cross-platform tool that helps you rip your DVDs and Blu-ray discs into Plex-friendly digital files.
+        </p>
+
+        <!-- Supported Platforms -->
+        <h6 class="card-subtitle mb-2 ">Supported Platforms</h6>
+        <ul class="list-group list-group-flush ">
+          <li class="bg-dark text-light list-group-item d-flex justify-content-between align-items-center">
+            macOS
+            <span class="badge bg-success rounded-pill">Extensively Tested</span>
+          </li>
+          <li class="bg-dark text-light  list-group-item d-flex justify-content-between align-items-center">
+            Windows
+            <span class="badge bg-secondary rounded-pill">Less Tested</span>
+          </li>
+          <li class="bg-dark text-light  list-group-item d-flex justify-content-between align-items-center">
+            Linux
+            <span class="badge bg-secondary rounded-pill">Never Tested</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <img src="preview.gif" class="rounded mx-auto d-block img-fluid" alt="Reelix Preview GIF" width="700" loading="lazy">
   </div>
+
+
   <script>
 
     /**

@@ -4,6 +4,7 @@ use std::fs::File;
 use std::io::Write;
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 use suppaftp::types::FileType;
 use suppaftp::{FtpError, FtpStream};
 use tauri::State;
@@ -167,6 +168,8 @@ fn start_upload(ftp_stream: &mut FtpStream, file_path: &Path) -> Result<(), Stri
     // Upload in chunks and track progress
     let mut buffer = [0u8; CHUNK_SIZE];
     let mut total_bytes_sent: u64 = 0;
+    // Throttle: print at most once per second
+    let mut last_print = Instant::now() - Duration::from_secs(1);
     loop {
         let bytes_read = file_info
             .reader
@@ -182,11 +185,15 @@ fn start_upload(ftp_stream: &mut FtpStream, file_path: &Path) -> Result<(), Stri
         total_bytes_sent += bytes_read as u64;
 
         // Print progress
-        let percent = (total_bytes_sent as f64 / file_info.file_size as f64) * 100.0;
-        println!(
-            "Uploaded: {} / {} bytes ({:.2}%)",
-            total_bytes_sent, file_info.file_size, percent
-        );
+        let now = Instant::now();
+        if now.duration_since(last_print) >= Duration::from_secs(1) {
+            let percent = (total_bytes_sent as f64 / file_info.file_size as f64) * 100.0;
+            println!(
+                "Uploaded: {} / {} bytes ({:.2}%)",
+                total_bytes_sent, file_info.file_size, percent
+            );
+            last_print = now;
+        }
     }
 
     // Finalize upload

@@ -392,13 +392,12 @@ async fn process_titles(
     for title in &rip_info.titles {
         match rip_title(app_handle, disk_id, title, rip_info).await {
             Ok(file_path) => {
+                success = true;
                 match rip_info.content {
                     DiskContent::Tv(ref season) => {
-                        success = true;
                         notify_tv_success(app_handle, season);
                     }
                     DiskContent::Movie(ref movie) => {
-                        success = true;
                         notify_movie_success(app_handle, movie);
                         emit_render_cards(state, app_handle, movie);
                         spawn_upload(app_handle, &file_path, rip_info);
