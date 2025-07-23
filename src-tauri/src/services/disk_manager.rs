@@ -43,3 +43,8 @@ pub fn eject(volume: &Path) {
 pub fn eject(volume: &Path) {
     println!("Can't eject on windows yet {}", volume.display())
 }
+
+#[cfg(target_os = "linux")]
+pub fn eject(volume: &Path) {
+    println!("Can't eject on linux yet {}", volume.display())
+}
