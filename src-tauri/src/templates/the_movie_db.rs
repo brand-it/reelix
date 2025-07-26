@@ -9,7 +9,7 @@ pub fn render_show(
 ) -> Result<String, ApiError> {
     let mut context = Context::new();
     context.insert("code", "500");
-    context.insert("message", &format!("Error from TMDB: {}", error_message));
+    context.insert("message", &format!("Error from TMDB: {error_message}"));
     let api_key = &app_state.lock_the_movie_db_key().to_string();
     context.insert("api_key", api_key);
     render(

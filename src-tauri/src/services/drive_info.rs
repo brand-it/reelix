@@ -33,7 +33,8 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
     disks
         .iter()
         .filter(|disk| is_optical_disk(disk))
-        .for_each(|disk| {
+        .enumerate()
+        .for_each(|(idx, disk)| {
             let mount_point = PathBuf::from(format!("{}", disk.mount_point().to_string_lossy()));
             opticals.push(OpticalDiskInfo {
                 id: optical_disk_info::DiskId::new(),
@@ -50,6 +51,7 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
                 progress: Mutex::new(None),
                 pid: Mutex::new(None),
                 content: None,
+                index: idx as u32,
             })
         });
     opticals
@@ -77,7 +79,7 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
     let mut opticals = Vec::new();
 
     // Convert each drive returned by WMI into your OpticalDiskInfo.
-    for drive in results {
+    for (idx, drive) in results.into_iter().enumerate() {
         if let Some(dev) = drive.Drive {
             // Use the Caption if available, otherwise use the drive letter.
             let name = drive.VolumeName;
@@ -96,6 +98,7 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
                 progress: Mutex::new(None),
                 pid: Mutex::new(None),
                 content: None,
+                index: idx as u32,
             });
         }
     }

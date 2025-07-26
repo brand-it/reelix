@@ -6,6 +6,12 @@
 
 # Read Before Using
 
+I know your not going to read any of the things below so here is the download link.
+
+- [Download Now](https://brand-it.github.io/reelix)
+
+Now that you have download the file, here is what you need to know to make this tool work.
+
 ## Using MakeMKV for DVD Ripping
 
 This tool relies on [MakeMKV](https://www.makemkv.com/) to handle the DVD ripping and convert your discs into MKV files. Unfortunately, MakeMKV is not free forever — you’ll need to purchase a license to unlock full functionality. I know, it’s a bit of a bummer, especially since the goal here is to make ripping your movie collection for Plex as smooth and cost-free as possible.
@@ -95,4 +101,21 @@ cargo tauri add tara
 
 ```shell
 cargo add tera --manifest-path src-tauri/Cargo.toml
+```
+
+## Develpment Problems Issues & Solutions
+
+Problem
+
+```
+cargo tauri dev --config src-tauri/tauri.dev.conf.json
+No version is set for command cargo-tauri
+Consider adding one of the following versions in your config file at /Users/brandit/apps/reelix/.tool-versions
+rust 1.83.0
+```
+
+Solution
+
+```
+cargo install tauri-cli --locked --version "^2"
 ```

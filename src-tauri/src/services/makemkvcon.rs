@@ -6,7 +6,7 @@ use crate::services::makemkvcon_parser;
 use crate::state::AppState;
 use crate::templates;
 use std::ffi::OsStr;
-use std::path::PathBuf;
+use std::path::Path;
 use tauri::async_runtime::Receiver;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_shell::process::CommandEvent;
@@ -27,9 +27,9 @@ pub struct RunResults {
 }
 
 impl RunResults {
-    fn success(&self) -> bool {
-        self.messages.iter().any(|message| message.code == 5003)
-    }
+    // fn success(&self) -> bool {
+    //     self.messages.iter().any(|message| message.code == 5003)
+    // }
 
     // fn err_messages(&self) -> Vec<&mkv::MSG> {
     //     self.messages
@@ -194,16 +194,16 @@ async fn run(
             }
             CommandEvent::Stderr(line_bytes) => {
                 let line = String::from_utf8_lossy(&line_bytes);
-                eprintln!("Stderr: {}", line);
+                eprintln!("Stderr: {line}");
             }
             CommandEvent::Error(error) => {
-                eprintln!("Error: {}", error);
+                eprintln!("Error: {error}");
             }
             CommandEvent::Terminated(payload) => {
-                eprintln!("Terminated: {:?}", payload);
+                eprintln!("Terminated: {payload:?}");
             }
             other => {
-                eprintln!("Other command event: {:?}", other);
+                eprintln!("Other command event: {other:?}");
             }
         }
     }
@@ -243,16 +243,16 @@ fn convert_to_run_result(
             }
             mkv::MkvData::PRGV(prgv) => {
                 update_tracker(tracker, prgv);
-                update_disk_progress_state(&disk_id, title_id, &tracker, &app_handle, None, None);
-                emit_progress(&disk_id, &app_handle);
+                update_disk_progress_state(disk_id, title_id, tracker, app_handle, None, None);
+                emit_progress(disk_id, app_handle);
             }
             mkv::MkvData::PRGT(prgt) => {
                 create_tracker(tracker);
                 update_disk_progress_state(
-                    &disk_id,
+                    disk_id,
                     title_id,
-                    &tracker,
-                    &app_handle,
+                    tracker,
+                    app_handle,
                     Some(&prgt.name),
                     None,
                 );
@@ -263,10 +263,10 @@ fn convert_to_run_result(
             mkv::MkvData::MSG(msg) => {
                 run_results.messages.push(msg.clone());
                 update_disk_progress_state(
-                    &disk_id,
+                    disk_id,
                     title_id,
-                    &tracker,
-                    &app_handle,
+                    tracker,
+                    app_handle,
                     None,
                     Some(&msg.message),
                 );
@@ -278,7 +278,7 @@ fn convert_to_run_result(
 
 fn create_tracker(tracker: &mut Option<progress_tracker::Base>) {
     let options = ProgressOptions {
-        total: Some(1 as usize),
+        total: Some(1_usize),
         autostart: true,
         autofinish: true,
         starting_at: Some(0),
@@ -331,19 +331,64 @@ fn spawn<I: IntoIterator<Item = S> + std::fmt::Debug + std::marker::Copy, S: AsR
                 .expect("Failed to acquire lock on disk from disk_arc in spawn command")
                 .set_pid(Some(child.pid()));
         }
-        None => println!("failed to assign the sidecar to disk {}", disk_id),
+        None => println!("failed to assign the sidecar to disk {disk_id}"),
     }
-    println!("Executing command: makemkvcon {:?}", args);
+    println!("Executing command: makemkvcon {args:?}");
     receiver
+}
+
+fn disk_index_args(disk_id: &DiskId, app_handle: &AppHandle) -> String {
+    let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
+
+    match state.find_optical_disk_by_id(disk_id) {
+        Some(disk) => {
+            let locked_disk = disk.read().expect("Failed to grab disk");
+            format!("disc:{}", locked_disk.index)
+        }
+        None => "".to_string(),
+    }
+}
+
+pub async fn back_disk(
+    app_handle: &AppHandle,
+    disk_id: &DiskId,
+    tmp_dir: &Path,
+) -> Result<RunResults, String> {
+    let args = disk_index_args(disk_id, app_handle);
+    let tmp_dir_str = tmp_dir.to_string_lossy();
+    let args = [
+        "backup",
+        "--progress=-same",
+        "--robot",
+        "--cache=16",
+        "--noscan",
+        &args,
+        &tmp_dir_str,
+    ];
+
+    let receiver = spawn(app_handle, disk_id, args);
+    templates::disks::emit_disk_change(app_handle);
+    let app_handle_clone = app_handle.clone();
+    let response = run(*disk_id, &None, receiver, app_handle_clone).await;
+    match response {
+        Ok(run_results) => {
+            if let Some(err_summary) = run_results.err_summary() {
+                Err(err_summary.message.clone())
+            } else {
+                Ok(run_results)
+            }
+        }
+        Err(e) => Err(e),
+    }
 }
 
 pub async fn rip_title(
     app_handle: &AppHandle,
     disk_id: &DiskId,
     title_id: &u32,
-    tmp_dir: &PathBuf,
+    tmp_dir: &Path,
 ) -> Result<RunResults, String> {
-    let args = disk_args(&disk_id, app_handle);
+    let args = disk_args(disk_id, app_handle);
     let tmp_dir_str = tmp_dir.to_string_lossy();
     let args = [
         "mkv",
@@ -359,7 +404,7 @@ pub async fn rip_title(
     templates::disks::emit_disk_change(app_handle);
     let app_handle_clone = app_handle.clone();
     let response = run(
-        disk_id.clone(),
+        *disk_id,
         &Some(title_id.to_owned()),
         receiver,
         app_handle_clone,
@@ -394,7 +439,7 @@ fn disk_args(disk_id: &DiskId, app_handle: &AppHandle) -> String {
 fn disk_args(disk_id: &DiskId, app_handle: &AppHandle) -> String {
     let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
 
-    match state.find_optical_disk_by_id(&disk_id) {
+    match state.find_optical_disk_by_id(disk_id) {
         Some(disk) => {
             let locked_disk = disk.read().expect("Failed to grab disk");
             format!("file:{}", locked_disk.mount_point.to_string_lossy())
@@ -404,7 +449,7 @@ fn disk_args(disk_id: &DiskId, app_handle: &AppHandle) -> String {
 }
 
 pub async fn title_info(disk_id: DiskId, app_handle: &AppHandle) -> Result<RunResults, String> {
-    let args = disk_args(&disk_id, app_handle);
+    let args = disk_index_args(&disk_id, app_handle);
     let receiver = spawn(app_handle, &disk_id, ["-r", "info", &args]);
     templates::disks::emit_disk_change(app_handle);
     let app_handle_clone = app_handle.clone();
@@ -432,7 +477,7 @@ fn update_disk_progress_state(
     let disk_arc = match state.find_optical_disk_by_id(disk_id) {
         Some(disk) => disk,
         None => {
-            println!("Failed to find disk using {}", disk_id);
+            println!("Failed to find disk using {disk_id}");
             return;
         }
     };
@@ -464,7 +509,7 @@ fn update_disk_progress_state(
         percentage: tracker.percentage_component.percentage(),
         label: label.unwrap_or(&default_label).to_string(),
         message: message.unwrap_or(&default_message).to_string(),
-        title_id: title_id.clone(),
+        title_id: *title_id,
         failed: false,
     };
 
@@ -477,7 +522,7 @@ fn remove_disk_progress(disk_id: &DiskId, app_handle: &AppHandle) {
     let disk_arc = match state.find_optical_disk_by_id(disk_id) {
         Some(disk) => disk,
         None => {
-            println!("Failed to find disk using {}", disk_id);
+            println!("Failed to find disk using {disk_id}");
             return;
         }
     };
@@ -493,7 +538,7 @@ fn emit_progress(disk_id: &DiskId, app_handle: &AppHandle) {
         match state.find_optical_disk_by_id(disk_id) {
             Some(disk) => disk.read().expect("failed to lock disk").clone(),
             None => {
-                println!("failed to find disk using {}", disk_id);
+                println!("failed to find disk using {disk_id}");
                 return;
             }
         }

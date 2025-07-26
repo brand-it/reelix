@@ -12,17 +12,9 @@
       {% endfor %}
     {% endif %}
   {% endif %}
-
-  {% if any_ripped %}
-    <button class="btn btn-primary" type="button" href="/rip_season">
-      <i class="fad fa-compact-disc fa-lg"></i>
-    </button>
-  {% else %}
-    <button class="btn btn-primary" type="button" disabled="disabled">
-      <i class="fad fa-compact-disc fa-lg"></i>
-    </button>
-  {% endif %}
-
+  <a class="btn btn-primary" type="button" href="eject_disk">
+    <i class="fal fa-eject fa-lg"></i>
+  </a>
 
   <div class="dropdown pe-1">
     <div class="btn dropdown-toggle dropdown-item w-100 text-start rounded-end" type="button" data-bs-toggle="dropdown"
