@@ -12,7 +12,7 @@ pub fn render_index(app_state: &State<'_, AppState>) -> Result<String, ApiError>
     let query = app_state.query.lock().unwrap().to_string();
     let search = match search_multi(app_state, &query) {
         Ok(resp) => resp,
-        Err(e) => return the_movie_db::render_show(&app_state, &e.message),
+        Err(e) => return the_movie_db::render_show(app_state, &e.message),
     };
 
     context.insert("query", &query);

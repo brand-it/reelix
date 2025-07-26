@@ -47,7 +47,7 @@ impl AppState {
                 Some(trimmed.to_string())
             }
         });
-        println!("Updating State {} {:?}", key, cleaned);
+        println!("Updating State {key} {cleaned:?}");
         match key {
             "ftp_host" => {
                 let mut ftp_host = self.lock_ftp_host();
@@ -71,7 +71,7 @@ impl AppState {
                     *the_movie_db_key = val;
                 };
             }
-            _ => return Err(format!("can't update {}", key)),
+            _ => return Err(format!("can't update {key}")),
         }
         Ok(())
     }
@@ -82,7 +82,7 @@ impl AppState {
             .read()
             .expect("failed to lock selected_optical_disk_id in find_selected_disk");
         match disk_id.as_ref() {
-            Some(disk_id) => self.find_optical_disk_by_id(&disk_id),
+            Some(disk_id) => self.find_optical_disk_by_id(disk_id),
             None => None,
         }
     }

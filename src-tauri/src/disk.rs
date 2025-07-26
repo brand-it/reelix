@@ -35,8 +35,8 @@ use tokio::time::{sleep, Duration};
 // }
 
 fn changes(
-    current_opticals: &Vec<OpticalDiskInfo>,
-    previous_opticals: &Vec<OpticalDiskInfo>,
+    current_opticals: &[OpticalDiskInfo],
+    previous_opticals: &[OpticalDiskInfo],
 ) -> Vec<diff::Result<OpticalDiskInfo>> {
     let mut optics = Vec::new();
     diff::slice(previous_opticals, current_opticals)
@@ -61,7 +61,7 @@ pub async fn watch_for_changes(sender: broadcast::Sender<Vec<diff::Result<Optica
             let diff_result = changes(&current_opticals, &previous_opticals);
 
             match sender.send(diff_result) {
-                Ok(num_receivers) => println!("Broadcast sent to {} receivers", num_receivers),
+                Ok(num_receivers) => println!("Broadcast sent to {num_receivers} receivers"),
                 Err(_err) => eprintln!("Broadcast send failed"),
             }
             previous_opticals = current_opticals;
@@ -86,7 +86,7 @@ fn unwrap_disk(disk: &Arc<RwLock<OpticalDiskInfo>>) -> OpticalDiskInfo {
 }
 
 fn contains(
-    optical_disks: &Vec<Arc<RwLock<OpticalDiskInfo>>>,
+    optical_disks: &[Arc<RwLock<OpticalDiskInfo>>],
     disk: &Arc<RwLock<OpticalDiskInfo>>,
 ) -> bool {
     optical_disks
@@ -99,7 +99,7 @@ async fn load_titles(app_handle: &AppHandle, disk_id: DiskId) {
     let results = match makemkvcon::title_info(disk_id, app_handle).await {
         Ok(run_result) => run_result,
         Err(message) => {
-            println!("failed to load titles: {}", message);
+            println!("failed to load titles: {message}");
             return;
         }
     };
@@ -159,8 +159,8 @@ pub fn set_default_selected_disk(app_handle: &AppHandle, disk_id: DiskId) {
         .write()
         .expect("failed to lock selected disk ID");
     if selected_optical_disk_id.is_none() {
-        println!("changed default selected optical disk to {}", disk_id);
-        *selected_optical_disk_id = Some(disk_id.clone());
+        println!("changed default selected optical disk to {disk_id}");
+        *selected_optical_disk_id = Some(disk_id);
     }
 }
 
@@ -214,7 +214,7 @@ pub async fn handle_changes(
                 }
             }
             Err(broadcast::error::RecvError::Lagged(count)) => {
-                println!("Dropped {} messages due to lag.", count);
+                println!("Dropped {count} messages due to lag.");
             }
             Err(broadcast::error::RecvError::Closed) => {
                 println!("Channel has closed.");
