@@ -61,7 +61,7 @@ impl TheMovieDb {
     }
 
     pub fn movie(&self, id: u32) -> Result<MovieResponse, Error> {
-        let url = format!("{}/movie/{}", URL_ENDPOINT, id);
+        let url = format!("{URL_ENDPOINT}/movie/{id}");
 
         let mut params: HashMap<&str, &str> = HashMap::new();
         params.insert("api_key", self.api_key.as_str());
@@ -71,7 +71,7 @@ impl TheMovieDb {
     }
 
     pub fn tv(&self, id: u32) -> Result<TvResponse, Error> {
-        let url = format!("{}/tv/{}", URL_ENDPOINT, id);
+        let url = format!("{URL_ENDPOINT}/tv/{id}");
 
         let mut params: HashMap<&str, &str> = HashMap::new();
         params.insert("api_key", self.api_key.as_str());
@@ -81,7 +81,7 @@ impl TheMovieDb {
     }
 
     pub fn season(&self, tv_id: u32, season_number: u32) -> Result<SeasonResponse, Error> {
-        let url = format!("{}/tv/{}/season/{}", URL_ENDPOINT, tv_id, season_number);
+        let url = format!("{URL_ENDPOINT}/tv/{tv_id}/season/{season_number}");
 
         let mut params: HashMap<&str, &str> = HashMap::new();
         params.insert("api_key", self.api_key.as_str());
@@ -91,7 +91,7 @@ impl TheMovieDb {
     }
 
     pub fn movie_release_dates(&self, id: &u32) -> Result<MovieReleaseDatesResponse, Error> {
-        let url = format!("https://api.themoviedb.org/3/movie/{}/release_dates", id);
+        let url = format!("https://api.themoviedb.org/3/movie/{id}/release_dates");
 
         // Build the query parameters
         let mut params: HashMap<&str, &str> = HashMap::new();
@@ -104,12 +104,12 @@ impl TheMovieDb {
     fn send_request<T: DeserializeOwned>(&self, request: RequestBuilder) -> Result<T, Error> {
         let response = request.send().map_err(|e| Error {
             code: 500,
-            message: format!("Request error: {:?}", e),
+            message: format!("Request error: {e:?}"),
         })?;
         let status = response.status();
         let text_body = response.text().map_err(|e| Error {
             code: 500,
-            message: format!("Request error reading text: {:?}", e),
+            message: format!("Request error reading text: {e:?}"),
         })?;
         if !status.is_success() {
             match self.parse_error(&text_body) {
@@ -125,14 +125,14 @@ impl TheMovieDb {
 
         serde_json::from_str::<T>(&text_body).map_err(|e| Error {
             code: 500,
-            message: format!("Failed to parse response JSON: {:?}, {:?}", e, text_body),
+            message: format!("Failed to parse response JSON: {e:?}, {text_body:?}"),
         })
     }
 
     fn parse_error(&self, text_body: &str) -> Result<SearchError, Error> {
-        serde_json::from_str(&text_body).map_err(|e| Error {
+        serde_json::from_str(text_body).map_err(|e| Error {
             code: 500,
-            message: format!("Failed to parse response JSON: {:?}, {:?}", e, text_body),
+            message: format!("Failed to parse response JSON: {e:?}, {text_body:?}"),
         })
     }
 }

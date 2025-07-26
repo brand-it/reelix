@@ -48,7 +48,7 @@ pub fn the_movie_db(
     state
         .update("the_movie_db_key", Some(key.to_string()))
         .unwrap();
-    let response = search_multi(&state, &"Avengers");
+    let response = search_multi(&state, "Avengers");
     match response {
         Ok(resp) => resp,
         Err(e) => return render_error(&state, &e.message),

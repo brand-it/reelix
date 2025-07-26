@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 #[allow(dead_code)]
-
+#[allow(clippy::upper_case_acronyms)]
 pub struct CINFO {
     pub id: u32,
     pub type_: String,
@@ -9,7 +9,7 @@ pub struct CINFO {
     pub value: String,
 }
 #[allow(dead_code)]
-
+#[allow(clippy::upper_case_acronyms)]
 pub struct TINFO {
     pub id: u32,
     pub type_code: String,
@@ -17,7 +17,7 @@ pub struct TINFO {
     pub value: String,
 }
 #[allow(dead_code)]
-
+#[allow(clippy::upper_case_acronyms)]
 pub struct SINFO {
     pub id: u32,
     pub type_: String,
@@ -25,12 +25,12 @@ pub struct SINFO {
     pub value: String,
 }
 #[allow(dead_code)]
-
+#[allow(clippy::upper_case_acronyms)]
 pub struct TCOUNT {
     pub title_count: String,
 }
 #[allow(dead_code)]
-
+#[allow(clippy::upper_case_acronyms)]
 pub struct DRV {
     pub index: i32,
     pub visible: i32,
@@ -41,6 +41,7 @@ pub struct DRV {
     pub disc_name: String,
 }
 #[allow(dead_code)]
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Serialize, Clone)]
 pub struct PRGV {
     pub current: u32,
@@ -48,6 +49,7 @@ pub struct PRGV {
     pub pmax: u32,
 }
 #[allow(dead_code)]
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Clone)]
 pub struct PRGT {
     pub code: String,
@@ -55,14 +57,14 @@ pub struct PRGT {
     pub name: String,
 }
 #[allow(dead_code)]
-
+#[allow(clippy::upper_case_acronyms)]
 pub struct PRGC {
     pub code: String,
     pub id: u32,
     pub name: String,
 }
 
-// Just trying to discribe the message codes to help me use that to print
+// Just trying to describe the message codes to help me use that to print
 // error messages
 // fn describe_msg_code(code: u32) -> &'static str {
 //     match code {
@@ -80,6 +82,7 @@ pub struct PRGC {
 // }
 
 #[allow(dead_code)]
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Clone)]
 pub struct MSG {
     pub code: i32,
@@ -90,7 +93,7 @@ pub struct MSG {
     pub params: String,
 }
 #[allow(dead_code)]
-
+#[allow(clippy::upper_case_acronyms)]
 pub struct ParseError {
     pub type_: String,
     pub line: Vec<String>,
@@ -98,7 +101,7 @@ pub struct ParseError {
 
 /// An enum to unify the parsed results.
 #[allow(dead_code)]
-
+#[allow(clippy::upper_case_acronyms)]
 pub enum MkvData {
     CINFO(CINFO),
     TINFO(TINFO),
