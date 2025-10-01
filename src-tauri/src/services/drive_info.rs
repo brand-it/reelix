@@ -24,7 +24,7 @@ struct Win32_CDROMDrive {
     VolumeName: String,
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 pub fn opticals() -> Vec<OpticalDiskInfo> {
     use std::path::PathBuf;
 

@@ -172,7 +172,7 @@ pub fn rip_movie(
     templates::disks::render_toast_progress(&app_state, &None, &None)
 }
 
-fn emit_render_cards(
+fn emit_movie_render_cards(
     state: &State<'_, AppState>,
     app_handle: &tauri::AppHandle,
     movie: &MovieResponse,
@@ -399,7 +399,7 @@ async fn process_titles(
                     }
                     DiskContent::Movie(ref movie) => {
                         notify_movie_success(app_handle, movie);
-                        emit_render_cards(state, app_handle, movie);
+                        emit_movie_render_cards(state, app_handle, movie);
                         spawn_upload(app_handle, &file_path, rip_info);
                     }
                 };
@@ -408,7 +408,7 @@ async fn process_titles(
                 match rip_info.content {
                     DiskContent::Tv(ref _season) => {}
                     DiskContent::Movie(ref movie) => {
-                        emit_render_cards(state, app_handle, movie);
+                        emit_movie_render_cards(state, app_handle, movie);
                         match back_disk(app_handle, disk_id, rip_info).await {
                             Ok(_) => {
                                 let dst_string =
@@ -422,7 +422,6 @@ async fn process_titles(
                                     Ok(()) => {
                                         notify_movie_backup_success(app_handle, movie);
                                         spawn_upload(app_handle, dst_file, rip_info);
-                                        delete_dir(&rip_info.directory);
                                     }
                                     Err(error) => {
                                         println!("{error}");

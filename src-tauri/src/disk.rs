@@ -1,12 +1,10 @@
 use crate::models::optical_disk_info::{DiskId, OpticalDiskInfo};
-use crate::services::drive_info::opticals;
 use crate::services::makemkvcon;
 use crate::state::AppState;
 use crate::templates;
 use std::sync::{Arc, RwLock};
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::broadcast;
-use tokio::time::{sleep, Duration};
 
 // pub fn list() {
 //     let disks: Disks = Disks::new_with_refreshed_list();
@@ -51,11 +49,12 @@ fn changes(
     optics
 }
 
+#[cfg(not(target_os = "macos"))]
 pub async fn watch_for_changes(sender: broadcast::Sender<Vec<diff::Result<OpticalDiskInfo>>>) {
     let mut previous_opticals = Vec::new();
     println!("Stared watching for changes to optical Disks....");
     loop {
-        let current_opticals = opticals();
+        let current_opticals = crate::services::drive_info::opticals();
 
         if current_opticals != previous_opticals {
             let diff_result = changes(&current_opticals, &previous_opticals);
@@ -68,7 +67,7 @@ pub async fn watch_for_changes(sender: broadcast::Sender<Vec<diff::Result<Optica
         }
         // Failure to sleep ever second means we use 100% of our CPU DUH
         // Hey future "human" improve this scanner system...or don't if it works why change it
-        sleep(Duration::from_secs(1)).await;
+        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
     }
 }
 
@@ -176,7 +175,51 @@ pub fn clear_selected_disk(app_handle: &AppHandle, disk_id: DiskId) {
     }
 }
 
-/// A separate async task that listens for changes and reacts to them.
+#[cfg(target_os = "macos")]
+unsafe extern "C-unwind" fn on_disk_appeared(
+    disk_ptr: std::ptr::NonNull<objc2_disk_arbitration::DADisk>,
+    context: *mut std::os::raw::c_void,
+) {
+    let _sender: &mut broadcast::Receiver<Vec<diff::Result<OpticalDiskInfo>>> =
+        &mut *(context as *mut broadcast::Receiver<Vec<diff::Result<OpticalDiskInfo>>>);
+
+    let disk: &objc2_disk_arbitration::DADisk = disk_ptr.as_ref();
+
+    let bsd_name = objc2_disk_arbitration::DADisk::bsd_name(disk);
+    let volume_name = objc2_disk_arbitration::DADisk::whole_disk(disk);
+
+    // Print out the info
+    if let Some(volume_name) = volume_name {
+        let something: [u8; 0] = volume_name.inner;
+        println!("→ {bsd_name:?} - {volume_name:?} {something}");
+    }
+}
+
+#[cfg(target_os = "macos")]
+pub async fn watch_for_changes(sender: broadcast::Sender<Vec<diff::Result<OpticalDiskInfo>>>) {
+    // LIVING IN HEAP TIME. no idea if this is a good idea but it works
+    let boxed_sender = Box::new(sender);
+    // Time to make a c_void pointer :D no way this will backfire
+    let context_pointer = Box::into_raw(boxed_sender) as *mut std::os::raw::c_void;
+    unsafe {
+        let session = objc2_disk_arbitration::DASession::new(None).unwrap();
+
+        let queue = dispatch2::DispatchQueue::new(
+            "com.reelix.diskqueue",
+            dispatch2::DispatchQueueAttr::SERIAL,
+        );
+        session.set_dispatch_queue(Some(&queue));
+        let callback = objc2_disk_arbitration::DADiskAppearedCallback::Some(on_disk_appeared);
+
+        objc2_disk_arbitration::DARegisterDiskAppearedCallback(
+            &session,
+            None,
+            callback,
+            context_pointer,
+        );
+    }
+}
+
 pub async fn handle_changes(
     mut receiver: broadcast::Receiver<Vec<diff::Result<OpticalDiskInfo>>>,
     app_handle: AppHandle,
@@ -189,7 +232,7 @@ pub async fn handle_changes(
                 for result in event {
                     match result {
                         diff::Result::Left(disk) => {
-                            println!("- {:?}", disk.name);
+                            println!("- {:?} {:?}", disk.name, disk.mount_point);
                             clear_selected_disk(&app_handle, disk.id);
                             remove_optical_disks(&app_handle, &disk);
                             templates::disks::emit_disk_change(&app_handle);
@@ -199,7 +242,7 @@ pub async fn handle_changes(
                             println!("? {:?}", disk.name);
                         }
                         diff::Result::Right(disk) => {
-                            println!("+ {:?}", disk.name);
+                            println!("+ {:?} {:?}", disk.name, disk.mount_point);
                             add_optical_disk(&app_handle, &disk);
                             set_default_selected_disk(&app_handle, disk.id);
                             templates::disks::emit_disk_change(&app_handle);
