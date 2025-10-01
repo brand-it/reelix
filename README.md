@@ -35,6 +35,10 @@ Really There is nothing better out there I could find then MakeMKV. The process 
 Commands to upgrade packages and dependencies
 
 ```
+npm outdated
+```
+
+```
 npm upgrade
 ```
 
