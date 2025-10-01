@@ -13,7 +13,26 @@ module.exports = {
     rules: [
       {
         test: /\.s[ac]ss$/i,
-        use: ["style-loader", "css-loader", "sass-loader"],
+        use: [
+          "style-loader",
+          "css-loader",
+          {
+            loader: "sass-loader",
+            options: {
+              sassOptions: {
+                quietDeps: true, // silences deprecation warnings from node_modules
+                // Suppress specific deprecation warnings
+                // hide @import warnings
+                // will be removed in Dart Sass 3.0.0.
+                silenceDeprecations: [
+                  "import",
+                  "slash-div", // (4em / 3)
+                  "global-builtin", // lighten(), unquote(), etc.
+                ],
+              },
+            },
+          },
+        ],
       },
       {
         test: /\.(png|svg|jpg|jpeg|gif|ico|webp)$/i,
