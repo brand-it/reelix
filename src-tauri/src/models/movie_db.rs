@@ -1,6 +1,7 @@
 use chrono::NaiveDate;
+use humantime::format_duration;
 use serde::{Deserialize, Serialize};
-
+use std::time::Duration;
 #[derive(Serialize, Deserialize, Clone)]
 pub struct MovieResponse {
     pub adult: bool,
@@ -17,7 +18,7 @@ pub struct MovieResponse {
     pub poster_path: Option<String>,
     pub release_date: Option<String>,
     pub revenue: u64,
-    pub runtime: u32,
+    pub runtime: u64,
     pub title: String,
 }
 
@@ -37,7 +38,8 @@ pub struct MovieView {
     pub poster_path: Option<String>,
     pub release_date: Option<String>,
     pub revenue: u64,
-    pub runtime: u32,
+    pub runtime: u64,
+    pub human_runtime: String,
     pub title_year: String,
     pub title: String,
     pub year: Option<u32>,
@@ -45,9 +47,9 @@ pub struct MovieView {
 
 impl From<MovieResponse> for MovieView {
     fn from(movie: MovieResponse) -> Self {
-        let year = movie.year(); // your existing logic
-        let title_year = movie.title_year(); // also your logic
-
+        let year = movie.year();
+        let title_year = movie.title_year();
+        let human_runtime = movie.human_runtime();
         MovieView {
             adult: movie.adult,
             backdrop_path: movie.backdrop_path,
@@ -64,6 +66,7 @@ impl From<MovieResponse> for MovieView {
             release_date: movie.release_date,
             revenue: movie.revenue,
             runtime: movie.runtime,
+            human_runtime,
             title_year,
             title: movie.title,
             year,
@@ -85,6 +88,15 @@ impl MovieResponse {
             Some(v) => format!("{} ({})", self.title, v),
             None => self.title.to_string(),
         }
+    }
+
+    pub fn human_runtime(&self) -> String {
+        let duration = Duration::from_secs(self.runtime * 60);
+        format!("{}", format_duration(duration))
+    }
+    // returns a basic file path for example Alien (1979)/Alien (1979).mkv
+    pub fn to_file_path(&self) -> String {
+        format!("{}/{}.mkv", self.title_year(), self.title_year())
     }
 }
 

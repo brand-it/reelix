@@ -5,6 +5,7 @@ use crate::progress_tracker::{self, ProgressOptions};
 use crate::services::makemkvcon_parser;
 use crate::state::AppState;
 use crate::templates;
+use log::debug;
 use std::ffi::OsStr;
 use std::path::Path;
 use tauri::async_runtime::Receiver;
@@ -194,16 +195,16 @@ async fn run(
             }
             CommandEvent::Stderr(line_bytes) => {
                 let line = String::from_utf8_lossy(&line_bytes);
-                eprintln!("Stderr: {line}");
+                debug!("Stderr: {line}");
             }
             CommandEvent::Error(error) => {
-                eprintln!("Error: {error}");
+                debug!("Error: {error}");
             }
             CommandEvent::Terminated(payload) => {
-                eprintln!("Terminated: {payload:?}");
+                debug!("Terminated: {payload:?}");
             }
             other => {
-                eprintln!("Other command event: {other:?}");
+                debug!("Other command event: {other:?}");
             }
         }
     }
@@ -331,9 +332,9 @@ fn spawn<I: IntoIterator<Item = S> + std::fmt::Debug + std::marker::Copy, S: AsR
                 .expect("Failed to acquire lock on disk from disk_arc in spawn command")
                 .set_pid(Some(child.pid()));
         }
-        None => println!("failed to assign the sidecar to disk {disk_id}"),
+        None => debug!("failed to assign the sidecar to disk {disk_id}"),
     }
-    println!("Executing command: makemkvcon {args:?}");
+    debug!("Executing command: makemkvcon {args:?}");
     receiver
 }
 
@@ -483,7 +484,7 @@ fn update_disk_progress_state(
     let disk_arc = match state.find_optical_disk_by_id(disk_id) {
         Some(disk) => disk,
         None => {
-            println!("Failed to find disk using {disk_id}");
+            debug!("Failed to find disk using {disk_id}");
             return;
         }
     };
@@ -528,7 +529,7 @@ fn remove_disk_progress(disk_id: &DiskId, app_handle: &AppHandle) {
     let disk_arc = match state.find_optical_disk_by_id(disk_id) {
         Some(disk) => disk,
         None => {
-            println!("Failed to find disk using {disk_id}");
+            debug!("Failed to find disk using {disk_id}");
             return;
         }
     };
@@ -544,7 +545,7 @@ fn emit_progress(disk_id: &DiskId, title_id: &Option<u32>, app_handle: &AppHandl
         match state.find_optical_disk_by_id(disk_id) {
             Some(disk) => disk.read().expect("failed to lock disk").clone(),
             None => {
-                println!("failed to find disk using {disk_id}");
+                debug!("failed to find disk using {disk_id}");
                 return;
             }
         }

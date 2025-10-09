@@ -1,6 +1,8 @@
 use crate::models::optical_disk_info::{DiskId, OpticalDiskInfo};
+use log::debug;
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 use tera::Tera;
+
 // Structure to hold shared state, thread safe version
 pub struct AppState {
     pub ftp_host: Arc<Mutex<Option<String>>>,
@@ -47,7 +49,7 @@ impl AppState {
                 Some(trimmed.to_string())
             }
         });
-        println!("Updating State {key} {cleaned:?}");
+        debug!("Updating State {key} {cleaned:?}");
         match key {
             "ftp_host" => {
                 let mut ftp_host = self.lock_ftp_host();

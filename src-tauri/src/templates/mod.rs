@@ -1,5 +1,6 @@
 use crate::state::AppState;
 use include_dir::{include_dir, Dir};
+use log::{debug};
 use serde::Serialize;
 use std::error::Error;
 use std::fmt;
@@ -41,7 +42,7 @@ pub fn render(
     match tera.render(template_path, context) {
         Ok(result) => Ok(result),
         Err(e) => {
-            eprintln!("Template rendering error: {e:#?}");
+            debug!("Template rendering error: {e:#?}");
             // Custom error handler if provided
             if let Some(handler) = on_error {
                 Err(handler(&e))
@@ -66,7 +67,7 @@ pub fn add_templates_from_dir(tera: &mut Tera, dir: &Dir) {
                 .contents_utf8()
                 .expect("Failed to read file content as UTF-8");
             let name = path.replace("templates/", ""); // Strip the base path for Tera
-            println!("Adding template: {name}");
+            debug!("Adding template: {name}");
             tera.add_raw_template(&name, content)
                 .expect("Failed to add template");
         }

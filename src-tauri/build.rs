@@ -1,3 +1,4 @@
+
 use std::fs;
 use std::path::PathBuf;
 use tera::{Context, Tera};
@@ -26,8 +27,8 @@ fn build_index_html() {
         .render("index.html", &Context::new())
         .expect("Failed to render index.html template");
 
-    fs::write(&output_path, rendered).unwrap_or_else(|_| panic!("Failed to write index.html to {}",
-        output_path.display()));
+    fs::write(&output_path, rendered)
+        .unwrap_or_else(|_| panic!("Failed to write index.html to {}", output_path.display()));
     println!("cargo:rerun-if-changed=templates/");
 }
 

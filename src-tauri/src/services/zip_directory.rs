@@ -1,3 +1,4 @@
+use log::debug;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
@@ -30,7 +31,7 @@ pub fn zip_dir(src_dir: &Path, dst_file: &Path, method: CompressionMethod) -> Re
         // Write file or directory explicitly
         // Some unzip tools unzip files with directory paths correctly, some do not!
         if path.is_file() {
-            println!("adding file {path:?} as {name:?} ...");
+            debug!("adding file {path:?} as {name:?} ...");
             zip.start_file(path_as_string, options)?;
             let mut f = File::open(path)?;
 
@@ -40,7 +41,7 @@ pub fn zip_dir(src_dir: &Path, dst_file: &Path, method: CompressionMethod) -> Re
         } else if !name.as_os_str().is_empty() {
             // Only if not root! Avoids path spec / warning
             // and map name conversion failed error on unzip
-            println!("adding dir {path_as_string:?} as {name:?} ...");
+            debug!("adding dir {path_as_string:?} as {name:?} ...");
             zip.add_directory(path_as_string, options)?;
         }
     }

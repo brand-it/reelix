@@ -1,11 +1,3 @@
-mod commands;
-mod disk;
-mod models;
-mod progress_tracker;
-mod services;
-mod state;
-mod templates;
-
 use crate::models::optical_disk_info::OpticalDiskInfo;
 use crate::templates::TEMPLATES_DIR;
 use state::AppState;
@@ -13,10 +5,20 @@ use std::sync::{Arc, Mutex, RwLock};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{App, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_log::log::debug;
+use tauri_plugin_log::{Target, TargetKind};
 use tauri_plugin_store::StoreExt;
 use templates::add_templates_from_dir;
 use tera::Tera;
 use tokio::sync::broadcast;
+
+mod commands;
+mod disk;
+mod models;
+mod progress_tracker;
+mod services;
+mod state;
+mod templates;
 
 // only on macOS:
 #[cfg(target_os = "macos")]
@@ -44,8 +46,8 @@ fn setup_store(app: &mut App) {
         if let Some(value) = store.get(key) {
             if let Some(value_str) = value.as_str() {
                 match state.update(key, Some(value_str.to_string())) {
-                    Ok(_n) => println!("set {key} to {value_str}"),
-                    Err(e) => println!("setup store failure: {e}"),
+                    Ok(_n) => debug!("set {key} to {value_str}"),
+                    Err(e) => debug!("setup store failure: {e}"),
                 };
             }
         }
@@ -93,12 +95,12 @@ fn setup_tray_icon(app: &mut App) {
                         let _ = webview_window.set_focus();
                     }
                     Err(_e) => {
-                        println!("Failed to show window");
+                        debug!("Failed to show window");
                     }
                 };
             }
             _ => {
-                println!("menu item {:?} not handled", event.id);
+                debug!("menu item {:?} not handled", event.id);
             }
         })
         .build(app)
@@ -136,15 +138,14 @@ fn setup_view_window(app: &mut App) {
             let obj_ptr = raw as *mut AnyObject;
             Retained::from_raw(obj_ptr.cast()).unwrap()
         };
-        unsafe {
-            let bg_color: Retained<NSColor> = NSColor::colorWithSRGBRed_green_blue_alpha(
-                33.0 / 255.0,
-                36.0 / 255.0,
-                41.0 / 255.0,
-                1.0,
-            );
-            ns_window.setBackgroundColor(Some(&bg_color));
-        }
+
+        let bg_color: Retained<NSColor> = NSColor::colorWithSRGBRed_green_blue_alpha(
+            33.0 / 255.0,
+            36.0 / 255.0,
+            41.0 / 255.0,
+            1.0,
+        );
+        ns_window.setBackgroundColor(Some(&bg_color));
     }
 }
 
@@ -171,6 +172,15 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_http::init())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .targets([
+                    Target::new(TargetKind::Stdout),
+                    Target::new(TargetKind::LogDir { file_name: None }),
+                    Target::new(TargetKind::Webview),
+                ])
+                .build(),
+        )
         .manage(app_state)
         .setup(|app| {
             setup_store(app);

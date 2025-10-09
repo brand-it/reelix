@@ -1,6 +1,3 @@
-use std::fs;
-use std::path::{Path, PathBuf};
-
 use super::helpers::{
     add_episode_to_title, mark_title_rippable, remove_episode_from_title, rename_movie_file,
     rename_tv_file, set_optical_disk_as_movie, set_optical_disk_as_season,
@@ -17,7 +14,10 @@ use crate::services::{
 };
 use crate::state::AppState;
 use crate::templates::{self};
+use log::{debug, error};
 use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::{Path, PathBuf};
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_notification::NotificationExt;
 use templates::render_error;
@@ -82,7 +82,7 @@ pub fn assign_episode_to_title(
     };
     set_optical_disk_as_season(&optical_disk, &tv, &season);
     match add_episode_to_title(&app_state, &optical_disk, episode, &part, &title_id) {
-        Ok(_) => println!("Added {title_id} to {mvdb_id} {season_number} {episode_number}"),
+        Ok(_) => debug!("Added {title_id} to {mvdb_id} {season_number} {episode_number}"),
         Err(e) => return Err(e),
     }
 
@@ -117,7 +117,7 @@ pub fn withdraw_episode_from_title(
         }
     };
     match remove_episode_from_title(&app_state, &optical_disk, episode, &title_id) {
-        Ok(_) => println!("Removed {title_id} to {mvdb_id} {season_number} {episode_number}"),
+        Ok(_) => debug!("Removed {title_id} to {mvdb_id} {season_number} {episode_number}"),
         Err(e) => return Err(e),
     }
 
@@ -137,7 +137,7 @@ pub fn rip_season(
     let disk_id = match disk_id {
         Some(id) => id,
         None => {
-            println!("No optical disk is currently selected.");
+            debug!("No optical disk is currently selected.");
             return templates::render_error(&app_state, "No selected disk");
         }
     };
@@ -228,7 +228,7 @@ fn notify_movie_upload_success(app_handle: &tauri::AppHandle, file_path: &Path) 
 }
 
 fn notify_movie_upload_failure(app_handle: &tauri::AppHandle, file_path: &Path, error: &str) {
-    println!(
+    debug!(
         "failed to upload: {} {}",
         file_path.to_string_lossy(),
         error
@@ -244,7 +244,7 @@ fn notify_movie_upload_failure(app_handle: &tauri::AppHandle, file_path: &Path, 
 
 fn delete_dir(dir: &Path) {
     if let Err(error) = fs::remove_dir_all(dir) {
-        eprintln!("Failed to delete directory {}: {}", dir.display(), error);
+        error!("Failed to delete directory {}: {}", dir.display(), error);
     };
 }
 
@@ -271,7 +271,7 @@ fn rename_ripped_title(
     disk_id: &DiskId,
     rip_titles: &[TitleInfo],
 ) -> Result<PathBuf, RipError> {
-    println!("Ripped title {}", title.id);
+    debug!("Ripped title {}", title.id);
     let state = app_handle.state::<AppState>();
     match state.find_optical_disk_by_id(disk_id) {
         Some(optical_disk) => {
@@ -327,7 +327,7 @@ fn notify_tv_success(app_handle: &tauri::AppHandle, season: &TvSeasonContent, ti
             "{} {} {}",
             season.tv.title_year(),
             season.season.name,
-            title.name.clone().unwrap_or_default()
+            title.describe_content()
         ))
         .show()
         .unwrap();
@@ -379,10 +379,10 @@ fn eject_disk(state: &State<'_, AppState>, disk_id: &DiskId) {
     match state.find_optical_disk_by_id(disk_id) {
         Some(disk) => match disk.read() {
             Ok(locked_disk) => disk_manager::eject(&locked_disk.mount_point),
-            Err(_) => println!("Failed to eject disk"),
+            Err(_) => debug!("Failed to eject disk"),
         },
         None => {
-            println!("failed to find disk to eject")
+            debug!("failed to find disk to eject")
         }
     }
 }
@@ -430,7 +430,7 @@ async fn process_titles(
                                         delete_dir(&rip_info.directory);
                                     }
                                     Err(error) => {
-                                        println!("{error}");
+                                        debug!("{error}");
                                         notify_failure(
                                             app_handle,
                                             &RipError {
