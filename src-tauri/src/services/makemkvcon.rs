@@ -208,7 +208,7 @@ async fn run(
         }
     }
     remove_disk_progress(&disk_id, &app_handle);
-    emit_progress(&disk_id, &app_handle);
+    emit_progress(&disk_id, title_id, &app_handle);
     Ok(run_results)
 }
 
@@ -244,7 +244,7 @@ fn convert_to_run_result(
             mkv::MkvData::PRGV(prgv) => {
                 update_tracker(tracker, prgv);
                 update_disk_progress_state(disk_id, title_id, tracker, app_handle, None, None);
-                emit_progress(disk_id, app_handle);
+                emit_progress(disk_id, title_id, app_handle);
             }
             mkv::MkvData::PRGT(prgt) => {
                 create_tracker(tracker);
@@ -360,7 +360,6 @@ pub async fn back_disk(
         "backup",
         "--progress=-same",
         "--robot",
-        "--cache=16",
         "--noscan",
         &args,
         &tmp_dir_str,
@@ -397,6 +396,9 @@ pub async fn rip_title(
         &tmp_dir_str,
         "--progress=-same",
         "--robot",
+        "--minlength=45",
+        "--cache=1024",
+        "--noscan",
         "--profile=\"FLAC\"",
     ];
 
@@ -450,7 +452,11 @@ fn disk_args(disk_id: &DiskId, app_handle: &AppHandle) -> String {
 
 pub async fn title_info(disk_id: DiskId, app_handle: &AppHandle) -> Result<RunResults, String> {
     let args = disk_index_args(&disk_id, app_handle);
-    let receiver = spawn(app_handle, &disk_id, ["-r", "info", &args]);
+    let receiver = spawn(
+        app_handle,
+        &disk_id,
+        ["-r", "--minlength=45", "--cache=128", "info", &args],
+    );
     templates::disks::emit_disk_change(app_handle);
     let app_handle_clone = app_handle.clone();
 
@@ -532,7 +538,7 @@ fn remove_disk_progress(disk_id: &DiskId, app_handle: &AppHandle) {
     *disk.progress.lock().unwrap() = None;
 }
 
-fn emit_progress(disk_id: &DiskId, app_handle: &AppHandle) {
+fn emit_progress(disk_id: &DiskId, title_id: &Option<u32>, app_handle: &AppHandle) {
     let state = app_handle.state::<AppState>();
     let optical_disk_info = {
         match state.find_optical_disk_by_id(disk_id) {
@@ -543,24 +549,30 @@ fn emit_progress(disk_id: &DiskId, app_handle: &AppHandle) {
             }
         }
     };
-    let mut movie_title_year: Option<String> = None;
-    if let Some(content) = optical_disk_info.content {
-        movie_title_year = match content {
+    let mut title: Option<String> = None;
+    if let Some(ref content) = optical_disk_info.content {
+        title = match content {
             DiskContent::Movie(movie) => {
-                let result = templates::movies::render_cards(&state, &movie)
+                let result = templates::movies::render_cards(&state, movie)
                     .expect("Failed to render movies/cards.html");
                 app_handle
                     .emit("disks-changed", result)
                     .expect("Failed to emit disks-changed");
                 Some(movie.title_year())
             }
-            DiskContent::Tv(content) => Some(content.tv.title_year()),
+            DiskContent::Tv(content) => {
+                let title_year = content.tv.title_year();
+                match optical_disk_info.find_title(title_id) {
+                    Some(title) => Some(format!("{} {}", title_year, title.describe_content())),
+                    None => Some(title_year),
+                }
+            }
         };
     };
     let progress_binding = optical_disk_info.progress.lock().unwrap();
     let progress = progress_binding.as_ref();
 
-    let result = templates::disks::render_toast_progress(&state, &movie_title_year, &progress)
+    let result = templates::disks::render_toast_progress(&state, &title, &progress)
         .expect("Failed to render disks/toast_progress");
     app_handle
         .emit("disks-changed", result)

@@ -318,12 +318,17 @@ async fn back_disk(
     }
 }
 
-fn notify_tv_success(app_handle: &tauri::AppHandle, season: &TvSeasonContent) {
+fn notify_tv_success(app_handle: &tauri::AppHandle, season: &TvSeasonContent, title: &TitleInfo) {
     app_handle
         .notification()
         .builder()
         .title("TV Show Completed".to_string())
-        .body(format!("{} {}", season.tv.title_year(), season.season.name))
+        .body(format!(
+            "{} {} {}",
+            season.tv.title_year(),
+            season.season.name,
+            title.name.clone().unwrap_or_default()
+        ))
         .show()
         .unwrap();
 }
@@ -395,7 +400,7 @@ async fn process_titles(
                 success = true;
                 match rip_info.content {
                     DiskContent::Tv(ref season) => {
-                        notify_tv_success(app_handle, season);
+                        notify_tv_success(app_handle, season, title);
                     }
                     DiskContent::Movie(ref movie) => {
                         notify_movie_success(app_handle, movie);

@@ -77,6 +77,16 @@ impl OpticalDiskInfo {
             None => println!("No PID defined for Disk {}", self.id),
         }
     }
+
+    pub fn find_title(&self, title_id: &Option<u32>) -> Option<TitleInfo> {
+        match title_id {
+            Some(title_id) => {
+                let titles = self.titles.lock().ok()?;
+                titles.iter().find(|t| t.id == *title_id).cloned()
+            }
+            None => None,
+        }
+    }
 }
 // Can't clone a Mutex so I'm going to do it my self because I need to be
 // able to clone this object to use in the state management.
