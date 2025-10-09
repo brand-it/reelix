@@ -1,4 +1,4 @@
-<div class="row">
+<div class="row" data-controller="boostrap-tooltip">
   <div class="col" style="width: 225px; max-width: 225px;">
     {% if movie.poster_path %}
     <img class="img-poster" width="200" loading="lazy" src="https://image.tmdb.org/t/p/w200{{ movie.poster_path }}"
@@ -10,6 +10,16 @@
   </div>
   <div class="col" style="width: 75%;">
     <h3 class="movie-title">
+      {% if ripped %}
+        <i
+        data-bs-toggle="tooltip" data-bs-placement="top"
+        data-bs-title="Found MKV Files for this movie on FTP Server" class="fad fa-check-square" style="--fa-secondary-color: #00f900;"></i>
+      {% else %}
+        <i
+        data-bs-toggle="tooltip" data-bs-placement="top"
+        data-bs-title="No Movie Found on FTP server"
+        class="fal fa-info-square" style="color: #63E6BE;"></i>
+      {% endif %}
       <i class="fa fa-film" data-prefix="fas" data-icon="film"></i>
       <a class="link-light link-opacity-50-hover link-underline-opacity-25 pb-1"
         href="https://www.themoviedb.org/movie/{{ movie.id }}" command="open_url">
@@ -17,8 +27,13 @@
       </a>
     </h3>
     <div class='movie-facts'>
-      <span class="certification-rating">{{ certification }}</span>
+
+      {% if certification %}
+        <span class="certification-rating">{{ certification }}</span>
+      {% endif %}
+      <span>{{ movie.human_runtime }}</span>
       <span>{{ movie.release_date }}</span>
+
       {% for genre in movie.genres %}
       <span class="badge rounded-pill text-bg-secondary">
         {{ genre.name }}

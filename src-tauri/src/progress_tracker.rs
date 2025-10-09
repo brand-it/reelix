@@ -1,3 +1,4 @@
+use log::debug;
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
@@ -42,7 +43,7 @@ impl Progress {
     // Unused: warning: method `increment` is never used
     // pub fn increment(&mut self) {
     //     if self.progress == self.total {
-    //         eprintln!(
+    //         debug!(
     //             "WARNING: Your progress bar is currently at {} out of {}",
     //             self.progress, self.total
     //         );
@@ -54,7 +55,7 @@ impl Progress {
     // Unused: warning: method `decrement` is never used
     // pub fn decrement(&mut self) {
     //     if self.progress == 0 {
-    //         eprintln!(
+    //         debug!(
     //             "WARNING: Your progress bar is currently at {} out of {}",
     //             self.progress, self.total
     //         );
@@ -77,7 +78,7 @@ impl Progress {
 
     pub fn set_total(&mut self, new_total: usize) {
         if self.progress > new_total {
-            println!("You can't set the item's total value to less than the current progress. Adjust progress to be eq to new total");
+            debug!("You can't set the item's total value to less than the current progress. Adjust progress to be eq to new total");
             self.set_progress(new_total);
         }
         self.total = new_total;
@@ -729,11 +730,11 @@ pub struct ProgressOptions {
 //     pb.increment();
 //     pb.increment();
 //
-//     println!(
+//     debug!(
 //         "Progress: {}/{}",
 //         pb.progress.lock().unwrap().progress,
 //         pb.progress.lock().unwrap().total
 //     );
-//     println!("Percentage: {}", pb.percentage_component.percentage());
-//     println!("Elapsed: {}", pb.time_component.elapsed_with_label());
+//     debug!("Percentage: {}", pb.percentage_component.percentage());
+//     debug!("Elapsed: {}", pb.time_component.elapsed_with_label());
 // }

@@ -1,6 +1,7 @@
 use chrono::NaiveDate;
+use humantime::format_duration;
 use serde::{Deserialize, Serialize};
-
+use std::time::Duration;
 #[derive(Serialize, Deserialize, Clone)]
 pub struct MovieResponse {
     pub adult: bool,
@@ -17,7 +18,7 @@ pub struct MovieResponse {
     pub poster_path: Option<String>,
     pub release_date: Option<String>,
     pub revenue: u64,
-    pub runtime: u32,
+    pub runtime: u64,
     pub title: String,
 }
 
@@ -37,7 +38,8 @@ pub struct MovieView {
     pub poster_path: Option<String>,
     pub release_date: Option<String>,
     pub revenue: u64,
-    pub runtime: u32,
+    pub runtime: u64,
+    pub human_runtime: String,
     pub title_year: String,
     pub title: String,
     pub year: Option<u32>,
@@ -45,9 +47,9 @@ pub struct MovieView {
 
 impl From<MovieResponse> for MovieView {
     fn from(movie: MovieResponse) -> Self {
-        let year = movie.year(); // your existing logic
-        let title_year = movie.title_year(); // also your logic
-
+        let year = movie.year();
+        let title_year = movie.title_year();
+        let human_runtime = movie.human_runtime();
         MovieView {
             adult: movie.adult,
             backdrop_path: movie.backdrop_path,
@@ -64,6 +66,7 @@ impl From<MovieResponse> for MovieView {
             release_date: movie.release_date,
             revenue: movie.revenue,
             runtime: movie.runtime,
+            human_runtime,
             title_year,
             title: movie.title,
             year,
@@ -85,6 +88,15 @@ impl MovieResponse {
             Some(v) => format!("{} ({})", self.title, v),
             None => self.title.to_string(),
         }
+    }
+
+    pub fn human_runtime(&self) -> String {
+        let duration = Duration::from_secs(self.runtime * 60);
+        format!("{}", format_duration(duration))
+    }
+    // returns a basic file path for example Alien (1979)/Alien (1979).mkv
+    pub fn to_file_path(&self) -> String {
+        format!("{}/{}.mkv", self.title_year(), self.title_year())
     }
 }
 
@@ -379,12 +391,12 @@ impl From<TvResponse> for TvView {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SeasonResponse {
     pub _id: String,
-    pub air_date: String,
+    pub air_date: Option<String>,
     pub episodes: Vec<SeasonEpisode>,
     pub name: String,
     pub overview: String,
     pub id: u32,
-    pub poster_path: String,
+    pub poster_path: Option<String>,
     pub season_number: u32,
     pub vote_average: f32,
 }
@@ -413,17 +425,17 @@ pub struct SeasonResponse {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SeasonEpisode {
-    pub air_date: String,
+    pub air_date: Option<String>,
     pub episode_number: u32,
     pub episode_type: String,
     pub id: u32,
     pub name: String,
     pub overview: String,
-    pub production_code: String,
-    pub runtime: u32,
+    pub production_code: Option<String>,
+    pub runtime: Option<u32>,
     pub season_number: u32,
     pub show_id: u32,
-    pub still_path: String,
+    pub still_path: Option<String>,
     pub vote_average: f32,
     pub vote_count: u32,
     pub crew: Vec<SeasonCrewMember>,
@@ -432,30 +444,31 @@ pub struct SeasonEpisode {
 
 impl SeasonEpisode {
     pub fn year(&self) -> Option<u32> {
-        NaiveDate::parse_from_str(&self.air_date, "%Y-%m-%d")
-            .ok()
-            .and_then(|dt| dt.format("%Y").to_string().parse::<u32>().ok())
+        self.air_date.as_ref().and_then(|date_str| {
+            chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
+                .ok()
+                .and_then(|dt| dt.format("%Y").to_string().parse::<u32>().ok())
+        })
     }
 
     pub fn formatted_air_date(&self) -> String {
-        NaiveDate::parse_from_str(&self.air_date, "%Y-%m-%d")
-            .ok()
+        self.air_date
+            .as_ref()
+            .and_then(|d| chrono::NaiveDate::parse_from_str(d, "%Y-%m-%d").ok())
             .map(|date| date.format("%B %-d, %Y").to_string())
             .unwrap_or_default()
     }
 
     pub fn formatted_runtime(&self) -> String {
-        let hours = self.runtime / 60;
-        let minutes = self.runtime % 60;
-
+        let minutes = self.runtime.unwrap_or(0);
+        let hours = minutes / 60;
         if hours > 0 {
-            format!("{hours}h&nbsp;{minutes}m")
+            format!("{hours}h {}m", minutes % 60)
         } else {
             format!("{minutes}m")
         }
     }
 }
-
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SeasonCrewMember {
     pub job: String,
@@ -489,12 +502,12 @@ pub struct SeasonGuestStar {
 #[derive(Serialize, Deserialize)]
 pub struct SeasonView {
     pub _id: String,
-    pub air_date: String,
+    pub air_date: Option<String>,
     pub episodes: Vec<SeasonEpisodeView>,
     pub name: String,
     pub overview: String,
     pub id: u32,
-    pub poster_path: String,
+    pub poster_path: Option<String>,
     pub season_number: u32,
     pub vote_average: f32,
 }
@@ -502,7 +515,7 @@ pub struct SeasonView {
 // The view type you will expose, now with an extra computed field.
 #[derive(Serialize, Deserialize)]
 pub struct SeasonEpisodeView {
-    pub air_date: String,
+    pub air_date: Option<String>,
     pub year: Option<u32>,
     pub formatted_air_date: String,
     pub formatted_runtime: String,
@@ -511,11 +524,11 @@ pub struct SeasonEpisodeView {
     pub id: u32,
     pub name: String,
     pub overview: String,
-    pub production_code: String,
-    pub runtime: u32,
+    pub production_code: Option<String>,
+    pub runtime: Option<u32>,
     pub season_number: u32,
     pub show_id: u32,
-    pub still_path: String,
+    pub still_path: Option<String>,
     pub vote_average: f32,
     pub vote_count: u32,
     // Computed field: converts the vote average to a percentage string.

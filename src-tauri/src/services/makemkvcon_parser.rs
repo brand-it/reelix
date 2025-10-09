@@ -2,6 +2,7 @@ use crate::models::mkv::{
     MkvData, ParseError, CINFO, DRV, MSG, PRGC, PRGT, PRGV, SINFO, TCOUNT, TINFO,
 };
 use crate::services::converter::{cast_to_i32, cast_to_u32};
+use log::debug;
 
 fn tinfo_code_legend(code: String) -> String {
     match cast_to_i32(code) {
@@ -121,7 +122,7 @@ pub fn parse_mkv_string(stdout_str: &str) -> Vec<MkvData> {
             continue;
         }
         // standard output info
-        println!("{trimmed}");
+        debug!("{trimmed}");
         // split by commas, remove surrounding quotes/backslashes from each piece
         let mut parts: Vec<String> = trimmed
             .split(',')

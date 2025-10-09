@@ -4,6 +4,7 @@ use crate::models::title_info::TitleInfo;
 use crate::services::plex::{create_movie_dir, create_season_episode_dir};
 use crate::state::AppState;
 use crate::templates;
+use log::debug;
 use serde::{Deserialize, Serialize};
 use std::fs::{self};
 use std::path::PathBuf;
@@ -81,7 +82,7 @@ pub fn add_episode_to_title(
                 None => return templates::render_error(app_state, "Failed to find Title"),
             };
             if title.content.iter().any(|e| e.id == episode.id) {
-                println!("episode already associated with title");
+                debug!("episode already associated with title");
             } else {
                 title.part = Some(*part);
                 title.content.push(episode.clone());
@@ -129,7 +130,7 @@ pub fn remove_episode_from_title(
                     title.rip = false
                 }
             } else {
-                println!("episode not associated with title");
+                debug!("episode not associated with title");
             };
         }
         Err(_e) => return templates::render_error(app_state, "Failed to read disk"),

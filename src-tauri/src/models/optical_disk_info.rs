@@ -1,11 +1,13 @@
 use super::movie_db::{MovieResponse, SeasonResponse, TvResponse};
 use super::title_info::TitleInfo;
+use log::debug;
 use serde::Serialize;
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use sysinfo::{Pid, System};
+
 #[derive(Serialize, Clone)]
 pub struct TvSeasonContent {
     pub season: SeasonResponse,
@@ -60,21 +62,31 @@ impl OpticalDiskInfo {
     pub fn kill_process(&self) {
         match *self.pid.lock().unwrap() {
             Some(pid) => {
-                println!("Killing process {pid:?}");
+                debug!("Killing process {pid:?}");
                 let mut system = System::new_all();
                 system.refresh_all();
                 let sys_pid = Pid::from_u32(pid);
                 if let Some(process) = system.process(sys_pid) {
                     if process.kill() {
-                        println!("Killed {pid:?}");
+                        debug!("Killed {pid:?}");
                     } else {
-                        println!("Failed to kill process with PID {pid}");
+                        debug!("Failed to kill process with PID {pid}");
                     }
                 } else {
-                    println!("Process with PID {pid} not found");
+                    debug!("Process with PID {pid} not found");
                 }
             }
-            None => println!("No PID defined for Disk {}", self.id),
+            None => debug!("No PID defined for Disk {}", self.id),
+        }
+    }
+
+    pub fn find_title(&self, title_id: &Option<u32>) -> Option<TitleInfo> {
+        match title_id {
+            Some(title_id) => {
+                let titles = self.titles.lock().ok()?;
+                titles.iter().find(|t| t.id == *title_id).cloned()
+            }
+            None => None,
         }
     }
 }

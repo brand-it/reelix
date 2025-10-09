@@ -14,3 +14,6 @@ application.register("disk-select", DiskSelectController);
 
 import EpisodeController from "./episode_controller.js";
 application.register("episode", EpisodeController);
+
+import BoostrapTooltipController from "./boostrap_tooltip_controller.js";
+application.register("boostrap-tooltip", BoostrapTooltipController);

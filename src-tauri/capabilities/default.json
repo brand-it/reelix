@@ -33,7 +33,8 @@
     "http:default",
     "notification:default",
     "opener:allow-default-urls",
-    "dialog:default"
+    "dialog:default",
+    "log:default"
   ],
   "platforms": [
     "macOS",

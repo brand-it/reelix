@@ -29,6 +29,14 @@ impl TitleInfo {
             ..Default::default()
         }
     }
+    pub fn describe_content(&self) -> String {
+        self.content
+            .iter()
+            .map(|episode| episode.name.clone())
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
     // pub fn segment_map(&self) -> Option<Vec<i32>> {
     //     self.segment_map
     //         .as_ref()
