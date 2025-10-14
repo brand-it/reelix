@@ -26,6 +26,8 @@ By registering it using their official process, the binaries used by this tool w
 
 Really There is nothing better out there I could find then MakeMKV. The process to get lossless conversion of your movie data this is the best. It is a lot of money to buy but I will leave that up to you to decided if you think it is worth it. In the end this tool will have more feature out side of simply ripping movies for Plex. So you might end up not using it for the Ripping your collection. Might end up using it to manage your Plex Library. I don't know we will see.
 
+
+
 ## Development
 
 1. `asdf install`
@@ -123,3 +125,7 @@ Solution
 ```
 cargo install tauri-cli --locked --version "^2"
 ```
+
+### AutoComplete
+
+There is a titles.txt file that has all the possible auto complete for movies. I used SQLlite to pre process the data and then just copy the text into the file. Removed the follow characters ":\, and double spaces. Just clean it up, updating this file ever so often is a good idea but even if we don't it has so much info it can general provide good suggestions for most movies except for new movies. It some times suggest things that don't exist but that is fine. recommend download new movies from the internet as I find them. 
