@@ -1,0 +1,33 @@
+.entry-box {
+  min-height: 2.8em;
+  position: relative;
+  .input-placeholder,
+  .field {
+    height: 100%;
+    padding: 0.8rem 1rem;
+    width: 100%;
+    border: none;
+  }
+
+  .input-placeholder {
+    user-select: none;
+    pointer-events: none;
+    opacity: 0.4;
+    z-index: 2;
+  }
+
+  .field {
+    z-index: 1;
+  }
+
+  .input-placeholder,
+  .field {
+    left: 0;
+    outline: none;
+    overflow: hidden;
+    position: absolute;
+    resize: none;
+    top: 0;
+    background-color: transparent;
+  }
+}

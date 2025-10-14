@@ -1,0 +1,26 @@
+<div id="search-form">
+  <form class="simple_form"
+        action="/search"
+        method="post"
+        data-controller="inline-autocomplete submit-on-keyup"
+        data-submit-on-keyup-target="form">
+    <div class="input-group input-group-lg">
+      <div class="entry-box form-control">
+        {% include "search/placeholder.html" %}
+        <input class="field"
+              type="text"
+              aria-label="TV or Movie Title"
+              name="search"
+              placeholder="TV or Movie Title"
+              data-submit-on-keyup-target="input"
+              data-inline-autocomplete-target="input"
+              required
+              autocomplete="off"
+              value="{% if query | default(value="") != "" %}{{query}}{% endif %}"/>
+      </div>
+      <button class="btn btn-outline-primary" type="submit">Search</button>
+    </div>
+
+  </form>
+  <small class="text-muted ms-2">Press <kbd>Tab</kbd> to autocomplete</small>
+</div>

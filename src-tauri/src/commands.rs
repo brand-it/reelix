@@ -12,6 +12,7 @@ macro_rules! all_commands {
             $crate::commands::general::movie,
             $crate::commands::general::open_url,
             $crate::commands::general::search,
+            $crate::commands::general::suggestion,
             $crate::commands::general::season,
             $crate::commands::disk::selected_disk,
             $crate::commands::disk::eject_disk,

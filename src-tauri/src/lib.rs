@@ -1,4 +1,5 @@
 use crate::models::optical_disk_info::OpticalDiskInfo;
+use crate::services::auto_complete::TITLE_INVERTED_INDEX;
 use crate::templates::TEMPLATES_DIR;
 use state::AppState;
 use std::sync::{Arc, Mutex, RwLock};
@@ -198,6 +199,8 @@ pub fn run() {
         .invoke_handler(all_commands!())
         .build(tauri::generate_context!())
         .expect("error while building Tauri application");
+
+    let _ = &*TITLE_INVERTED_INDEX;
 
     // Run the application with a run event callback to shutdown sidecar process
     app.run(|app_handle, event| {

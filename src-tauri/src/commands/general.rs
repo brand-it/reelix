@@ -1,5 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use super::helpers::save_query;
+use crate::services::auto_complete;
 use crate::services::plex::{
     find_movie, find_season, find_tv, get_movie_certification, search_multi,
 };
@@ -98,4 +99,10 @@ pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, templa
     };
 
     templates::search::render_results(&state, search, &response)
+}
+
+#[tauri::command]
+pub fn suggestion(search: &str, state: State<'_, AppState>) -> Result<String, templates::ApiError> {
+    let suggestion = auto_complete::suggestion(search);
+    templates::search::render_suggestion(&state, search, &suggestion)
 }

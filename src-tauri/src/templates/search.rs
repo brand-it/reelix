@@ -31,3 +31,20 @@ pub fn render_results(
 
     render(&app_state.tera, "search/results.html.turbo", &context, None)
 }
+
+pub fn render_suggestion(
+    app_state: &State<'_, AppState>,
+    query: &str,
+    suggestion: &Option<String>,
+) -> Result<String, ApiError> {
+    let mut context: Context = Context::new();
+    context.insert("query", query);
+    context.insert("suggestion", suggestion);
+
+    render(
+        &app_state.tera,
+        "search/suggestion.html.turbo",
+        &context,
+        None,
+    )
+}

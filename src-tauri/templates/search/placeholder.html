@@ -1,0 +1,5 @@
+<div id="search-placeholder" class="input-placeholder" data-inline-autocomplete-target="placeholder">
+  {% if suggestion | default(value="") != "" %}
+    {% if query | default(value="") != "" %}{{query}}{% endif %}{{suggestion}}
+  {% endif %}
+</div>

@@ -69,7 +69,7 @@ pub async fn watch_for_changes(sender: broadcast::Sender<Vec<diff::Result<Optica
         }
         // Failure to sleep ever second means we use 100% of our CPU DUH
         // Hey future "human" improve this scanner system...or don't if it works why change it
-        sleep(Duration::from_secs(1)).await;
+        sleep(Duration::from_secs(5)).await;
     }
 }
 

@@ -17,3 +17,7 @@ application.register("episode", EpisodeController);
 
 import BoostrapTooltipController from "./boostrap_tooltip_controller.js";
 application.register("boostrap-tooltip", BoostrapTooltipController);
+
+
+import InlineAutocompleteController from "./inline_autocomplete_controller.js";
+application.register("inline-autocomplete", InlineAutocompleteController);
