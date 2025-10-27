@@ -2,7 +2,7 @@
 
 <div class="row">
   <div class="col show-img-posters">
-    {{ macros::poster(poster_path=tv.poster_path, name=tv.name, original_name=tv.original_name) }}
+    {{ call macros::poster(poster_path=tv.poster_path, name=tv.name, original_name=tv.original_name) }}
   </div>
   <div class="col" style="width: 75%;">
     <h3 class="tv-name">

@@ -57,19 +57,19 @@ pub fn assign_episode_to_title(
     part: u16,
     app_state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
-) -> Result<String, templates::ApiError> {
+) -> Result<String, templates::Error> {
     let optical_disk = match app_state.selected_disk() {
         Some(disk) => disk,
-        None => return render_error(&app_state, "No current selected disk"),
+        None => return render_error("No current selected disk"),
     };
     let tv = match find_tv(&app_handle, mvdb_id) {
         Ok(tv) => tv,
-        Err(e) => return render_error(&app_state, &e.message),
+        Err(e) => return render_error(&e.message),
     };
 
     let season = match find_season(&app_handle, mvdb_id, season_number) {
         Ok(season) => season,
-        Err(e) => return render_error(&app_state, &e.message),
+        Err(e) => return render_error(&e.message),
     };
 
     let episode = match season
@@ -78,7 +78,7 @@ pub fn assign_episode_to_title(
         .find(|e| e.episode_number == episode_number)
     {
         Some(episode) => episode,
-        None => return templates::render_error(&app_state, "Could not find episode to assign"),
+        None => return templates::render_error("Could not find episode to assign"),
     };
     set_optical_disk_as_season(&optical_disk, &tv, &season);
     match add_episode_to_title(&app_state, &optical_disk, episode, &part, &title_id) {
@@ -97,14 +97,14 @@ pub fn withdraw_episode_from_title(
     title_id: u32,
     app_state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
-) -> Result<String, templates::ApiError> {
+) -> Result<String, templates::Error> {
     let optical_disk = match app_state.selected_disk() {
         Some(d) => d,
-        None => return render_error(&app_state, "No current selected disk"),
+        None => return render_error("No current selected disk"),
     };
     let season = match find_season(&app_handle, mvdb_id, season_number) {
         Ok(season) => season,
-        Err(e) => return render_error(&app_state, &e.message),
+        Err(e) => return render_error(&e.message),
     };
     let episode = match season
         .episodes
@@ -113,7 +113,7 @@ pub fn withdraw_episode_from_title(
     {
         Some(episode) => episode,
         None => {
-            return templates::render_error(&app_state, "Failed to find episode to add to title")
+            return templates::render_error("Failed to find episode to add to title")
         }
     };
     match remove_episode_from_title(&app_state, &optical_disk, episode, &title_id) {
@@ -128,7 +128,7 @@ pub fn withdraw_episode_from_title(
 pub fn rip_season(
     app_handle: tauri::AppHandle,
     app_state: State<'_, AppState>,
-) -> Result<String, templates::ApiError> {
+) -> Result<String, templates::Error> {
     let disk_id = app_state
         .selected_optical_disk_id
         .read()
@@ -138,7 +138,7 @@ pub fn rip_season(
         Some(id) => id,
         None => {
             debug!("No optical disk is currently selected.");
-            return templates::render_error(&app_state, "No selected disk");
+            return templates::render_error("No selected disk");
         }
     };
     spawn_rip(app_handle, disk_id);
@@ -152,18 +152,18 @@ pub fn rip_movie(
     mvdb_id: u32,
     app_state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
-) -> Result<String, templates::ApiError> {
+) -> Result<String, templates::Error> {
     // Make sure it is a DiskID object
     let disk_id = DiskId::from(disk_id);
     // Assign Optical Disk Title as movie type and mvdb ID
     let optical_disk = match app_state.find_optical_disk_by_id(&disk_id) {
         Some(optical_disk) => optical_disk,
-        None => return render_error(&app_state, "Failed to find Optical Disk"),
+        None => return render_error("Failed to find Optical Disk"),
     };
     // Create Dir from Movie and Make Sure Movie Exists in MVDB
     match find_movie(&app_handle, mvdb_id) {
         Ok(movie) => set_optical_disk_as_movie(&optical_disk, movie),
-        Err(e) => return render_error(&app_state, &e.message),
+        Err(e) => return render_error(&e.message),
     };
 
     mark_title_rippable(optical_disk, title_id);
@@ -254,8 +254,7 @@ fn spawn_upload(app_handle: &tauri::AppHandle, file_path: &Path, rip_info: &RipI
     let directory = rip_info.directory.to_owned();
 
     tauri::async_runtime::spawn(async move {
-        let state = app_handle.state::<AppState>();
-        match services::ftp_uploader::upload(&state, &path).await {
+        match services::ftp_uploader::upload(&app_handle, &path).await {
             Ok(_m) => {
                 notify_movie_upload_success(&app_handle, &path);
                 delete_dir(&directory);

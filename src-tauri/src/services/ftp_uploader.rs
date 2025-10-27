@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 use suppaftp::types::FileType;
 use suppaftp::{FtpError, FtpStream};
-use tauri::State;
+use tauri::{AppHandle, Manager, State};
 
 const CHUNK_SIZE: usize = 8192;
 
@@ -29,8 +29,7 @@ pub fn file_exists(relative_mkv_file_path: &String, state: &State<'_, AppState>)
         Ok(ftp) => ftp,
         Err(_) => return false,
     };
-    ftp
-        .transfer_type(FileType::Binary)
+    ftp.transfer_type(FileType::Binary)
         .expect("failed to set binary mode");
 
     let exists = ftp.size(&movie_upload_path).is_ok();
@@ -170,7 +169,11 @@ fn filename(filepath: &Path) -> String {
     filename.to_string_lossy().to_string()
 }
 
-fn start_upload(ftp_stream: &mut FtpStream, file_path: &Path) -> Result<(), String> {
+fn start_upload(
+    _app_handle: &AppHandle,
+    ftp_stream: &mut FtpStream,
+    file_path: &Path,
+) -> Result<(), String> {
     debug!(
         "Start uploading {} to {:?}",
         file_path.display(),
@@ -230,13 +233,14 @@ fn start_upload(ftp_stream: &mut FtpStream, file_path: &Path) -> Result<(), Stri
 
 // Give a file path you want to upload and it will upload that file to a location given it the same
 // directory structure as it is need for plex to parse the data.
-pub async fn upload(state: &State<'_, AppState>, file_path: &Path) -> Result<(), String> {
+pub async fn upload(app_handle: &AppHandle, file_path: &Path) -> Result<(), String> {
+    let state = app_handle.state::<AppState>();
     let mut ftp_stream =
-        connect_to_ftp(state).map_err(|e| format!("Failed to login and change directory {e}"))?;
+        connect_to_ftp(&state).map_err(|e| format!("Failed to login and change directory {e}"))?;
 
-    let output_dir = create_movie_dir(state, &mut ftp_stream, file_path)?;
+    let output_dir = create_movie_dir(&state, &mut ftp_stream, file_path)?;
     cwd(&mut ftp_stream, &output_dir)?;
-    start_upload(&mut ftp_stream, file_path)?;
+    start_upload(app_handle, &mut ftp_stream, file_path)?;
 
     ftp_stream
         .quit()

@@ -1,5 +1,5 @@
 <turbo-stream action="update" method="morph" target="disk-progress-toast">
   <template>
-    {% include "disks/toast_progress.html" %}
+    {{ toast_progress.render_html() | safe }}
   </template>
 </turbo-stream>

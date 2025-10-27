@@ -1,6 +1,5 @@
 use crate::models::optical_disk_info::OpticalDiskInfo;
 use crate::services::auto_complete::TITLE_INVERTED_INDEX;
-use crate::templates::TEMPLATES_DIR;
 use state::AppState;
 use std::sync::{Arc, Mutex, RwLock};
 use tauri::menu::{Menu, MenuItem};
@@ -9,8 +8,6 @@ use tauri::{App, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_log::log::debug;
 use tauri_plugin_log::{Target, TargetKind};
 use tauri_plugin_store::StoreExt;
-use templates::add_templates_from_dir;
-use tera::Tera;
 use tokio::sync::broadcast;
 
 mod commands;
@@ -152,8 +149,6 @@ fn setup_view_window(app: &mut App) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let mut tera = Tera::default();
-    add_templates_from_dir(&mut tera, &TEMPLATES_DIR);
     let app_state: AppState = AppState {
         ftp_host: Arc::new(Mutex::new(None)),
         ftp_movie_upload_path: Arc::new(Mutex::new(None)),
@@ -162,7 +157,6 @@ pub fn run() {
         optical_disks: Arc::new(RwLock::new(Vec::<Arc<RwLock<OpticalDiskInfo>>>::new())),
         query: Arc::new(Mutex::new(String::new())),
         selected_optical_disk_id: Arc::new(RwLock::new(None)),
-        tera: Arc::new(tera),
         the_movie_db_key: Arc::new(Mutex::new(String::new())),
     };
 

@@ -1,21 +1,19 @@
 
 <turbo-stream action="replace" target="disk-selector">
   <template>
-    {% include "disks/options.html" %}
+    {{ disks_options.render_html() | safe }}
   </template>
 </turbo-stream>
 
 
 <turbo-stream action="replace" method="morph" targets=".parts-selector">
   <template>
-    {% include "seasons/parts.html" %}
+    {{ seasons_parts.render_html() | safe }}
   </template>
 </turbo-stream>
 
 <turbo-stream action="replace" target="movie-cards-selector">
   <template>
-    {% include "movies/cards.html" %}
+    {{ movies_cards.render_html() | safe }}
   </template>
 </turbo-stream>
-
-{% include "error.html.turbo" %}

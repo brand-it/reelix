@@ -15,8 +15,11 @@
 
 
   <div id="disk-progress-toast" class="toast-container position-fixed bottom-0 end-0 p-3">
-  <div class="toast " role="alert" aria-live="assertive" aria-atomic="true"
-    data-bs-autohide="false">
+  <div class="toast show"
+       role="alert"
+       aria-live="assertive"
+       aria-atomic="true"
+       data-bs-autohide="false">
     <div class="toast-header">
       <strong class="me-auto"></strong>
       <small></small>
@@ -32,7 +35,9 @@
   </div>
 </div>
 
-  <main id="main-content"></main>
+  <div class="row">
+    <div class="col-11" id="content-browser"></div>
+  </div>
 </body>
 
 </html>

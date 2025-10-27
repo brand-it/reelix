@@ -1,6 +1,6 @@
 use super::movie_db::{MovieResponse, SeasonResponse, TvResponse};
 use super::title_info::TitleInfo;
-use log::debug;
+use log::{debug, error};
 use serde::Serialize;
 use std::fmt;
 use std::path::PathBuf;
@@ -40,6 +40,15 @@ pub struct OpticalDiskInfo {
 }
 
 impl OpticalDiskInfo {
+    pub fn ripping_title(&self) -> Option<TitleInfo> {
+        let titles = self.titles.lock().unwrap();
+        for title in titles.iter() {
+            if title.rip {
+                return Some(title.clone());
+            }
+        }
+        None
+    }
     pub fn set_pid(&self, pid: Option<u32>) {
         *self.pid.lock().expect("failed to unlock pid") = pid;
     }
@@ -57,6 +66,17 @@ impl OpticalDiskInfo {
         } else {
             false
         }
+    }
+
+    pub fn is_selected(&self, disk: &Option<OpticalDiskInfo>) -> bool {
+        match disk {
+            Some(selected_disk) => &self.id == &selected_disk.id,
+            None => false,
+        }
+    }
+
+    pub fn any_titles(&self) -> bool {
+        self.titles.lock().iter().len() > 0
     }
 
     pub fn kill_process(&self) {
@@ -77,6 +97,26 @@ impl OpticalDiskInfo {
                 }
             }
             None => debug!("No PID defined for Disk {}", self.id),
+        }
+    }
+
+    pub fn clone_progress(&self) -> Option<Progress> {
+        match self.progress.lock() {
+            Ok(progress) => progress.clone(),
+            Err(e) => {
+                error!("Failed to lock titles {e:?}");
+                None
+            }
+        }
+    }
+
+    pub fn clone_titles(&self) -> Vec<TitleInfo> {
+        match self.titles.lock() {
+            Ok(titles) => titles.clone(),
+            Err(e) => {
+                error!("Failed to lock titles {e:?}");
+                Vec::new()
+            }
         }
     }
 
@@ -152,6 +192,10 @@ pub struct DiskId(u64);
 impl DiskId {
     pub fn new() -> Self {
         DiskId(NEXT_DISK_ID.fetch_add(1, Ordering::Relaxed))
+    }
+    // added this to make template logic easier
+    pub fn is_empty(&self) -> bool {
+        false
     }
 }
 
@@ -299,4 +343,15 @@ pub struct Progress {
     pub message: String,
     pub failed: bool,
     pub title_id: Option<u32>,
+}
+
+
+impl Progress {
+    pub fn matching_title(&self, title: &TitleInfo) -> bool {
+        match self.title_id {
+            Some(id) => id == title.id,
+            None => false,
+        }
+    }
+
 }

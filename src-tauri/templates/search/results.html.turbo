@@ -1,9 +1,0 @@
-<turbo-stream action="replace" target="main-view">
-  <template>
-    <div id="main-view">
-      {% include "search/results.html" %}
-    </div>
-  </template>
-</turbo-stream>
-
-{% include "error.html.turbo" %}

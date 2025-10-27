@@ -1,0 +1,12 @@
+{%- for season_episode in season_episodes.episodes -%}
+  <turbo-stream action="replace" target="episode-{{season_episode.episode.id}}">
+    <template>
+      {{ season_episode.render_html() | safe }}
+    </template>
+  </turbo-stream>
+{%- endfor -%}
+<turbo-stream action="replace" target="disk-selector">
+  <template>
+    {{ disks_options.render_html() | safe }}
+  </template>
+</turbo-stream>

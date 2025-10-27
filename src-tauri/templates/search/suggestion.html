@@ -1,0 +1,11 @@
+<div id="search-placeholder"
+     class="input-placeholder"
+     data-inline-autocomplete-target="placeholder">
+  {% match suggestion %}
+    {% when Some with (s) %}
+      {% if !s.is_empty() %}
+        {{ query }}{{ s }}
+      {% endif %}
+    {% when None %}
+  {% endmatch %}
+</div>

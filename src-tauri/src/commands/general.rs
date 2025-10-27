@@ -12,7 +12,7 @@ use tauri_plugin_opener::OpenerExt;
 
 // This is the entry point, basically it decides what to first show the user
 #[tauri::command]
-pub fn index(state: State<'_, AppState>) -> Result<String, templates::ApiError> {
+pub fn index(state: State<'_, AppState>) -> Result<String, templates::Error> {
     match search_multi(&state, "Martian") {
         Ok(resp) => resp,
         Err(e) => return templates::the_movie_db::render_show(&state, &e.message),
@@ -21,16 +21,12 @@ pub fn index(state: State<'_, AppState>) -> Result<String, templates::ApiError> 
 }
 
 #[tauri::command]
-pub fn open_url(
-    url: &str,
-    app_handle: tauri::AppHandle,
-    state: State<AppState>,
-) -> Result<String, templates::ApiError> {
+pub fn open_url(url: &str, app_handle: tauri::AppHandle) -> Result<String, templates::Error> {
     let response = app_handle.opener().open_url(url, None::<&str>);
 
     match response {
         Ok(_r) => Ok("".to_string()),
-        Err(e) => render_error(&state, &format!("failed to open url: {e:?}")),
+        Err(e) => render_error(&format!("failed to open url: {e:?}")),
     }
 }
 
@@ -39,7 +35,7 @@ pub fn movie(
     id: u32,
     app_state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
-) -> Result<String, templates::ApiError> {
+) -> Result<String, templates::Error> {
     let movie = match find_movie(&app_handle, id) {
         Ok(resp) => resp,
         Err(e) => return templates::the_movie_db::render_show(&app_state, &e.message),
@@ -57,7 +53,7 @@ pub fn tv(
     id: u32,
     app_handle: tauri::AppHandle,
     state: State<'_, AppState>,
-) -> Result<String, templates::ApiError> {
+) -> Result<String, templates::Error> {
     let tv = match find_tv(&app_handle, id) {
         Ok(resp) => resp,
         Err(e) => return templates::the_movie_db::render_show(&state, &e.message),
@@ -72,7 +68,7 @@ pub fn season(
     season_number: u32,
     app_handle: tauri::AppHandle,
     state: State<'_, AppState>,
-) -> Result<String, templates::ApiError> {
+) -> Result<String, templates::Error> {
     let tv = match find_tv(&app_handle, tv_id) {
         Ok(resp) => resp,
         Err(e) => return templates::the_movie_db::render_show(&state, &e.message),
@@ -87,7 +83,7 @@ pub fn season(
 }
 
 #[tauri::command]
-pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, templates::ApiError> {
+pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, templates::Error> {
     save_query(&state, search);
 
     let api_key = &state.lock_the_movie_db_key();
@@ -98,11 +94,11 @@ pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, templa
         Err(e) => return templates::the_movie_db::render_show(&state, &e.message),
     };
 
-    templates::search::render_results(&state, search, &response)
+    templates::search::render_results(search, &response)
 }
 
 #[tauri::command]
-pub fn suggestion(search: &str, state: State<'_, AppState>) -> Result<String, templates::ApiError> {
+pub fn suggestion(search: &str, state: State<'_, AppState>) -> Result<String, templates::Error> {
     let suggestion = auto_complete::suggestion(search);
-    templates::search::render_suggestion(&state, search, &suggestion)
+    templates::search::render_suggestion(search, &suggestion)
 }

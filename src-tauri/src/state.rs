@@ -1,7 +1,6 @@
 use crate::models::optical_disk_info::{DiskId, OpticalDiskInfo};
 use log::debug;
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
-use tera::Tera;
 
 // Structure to hold shared state, thread safe version
 pub struct AppState {
@@ -12,7 +11,6 @@ pub struct AppState {
     pub optical_disks: Arc<RwLock<Vec<Arc<RwLock<OpticalDiskInfo>>>>>,
     pub query: Arc<Mutex<String>>,
     pub selected_optical_disk_id: Arc<RwLock<Option<DiskId>>>,
-    pub tera: Arc<Tera>,
     pub the_movie_db_key: Arc<Mutex<String>>,
 }
 
@@ -76,6 +74,14 @@ impl AppState {
             _ => return Err(format!("can't update {key}")),
         }
         Ok(())
+    }
+
+    pub fn clone_optical_disks(&self) -> Vec<OpticalDiskInfo> {
+        let guard = self.optical_disks.read().unwrap();
+        guard
+            .iter()
+            .map(|disk_arc| disk_arc.read().unwrap().to_owned())
+            .collect()
     }
 
     pub fn selected_disk(&self) -> Option<Arc<RwLock<OpticalDiskInfo>>> {

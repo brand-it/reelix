@@ -5,5 +5,3 @@
     </div>
   </template>
 </turbo-stream>
-
-{% include "error.html.turbo" %}

@@ -6,10 +6,7 @@ use crate::templates::{self, render_error};
 use tauri::State;
 
 #[tauri::command]
-pub fn selected_disk(
-    disk_id: u32,
-    state: State<'_, AppState>,
-) -> Result<String, templates::ApiError> {
+pub fn selected_disk(disk_id: u32, state: State<'_, AppState>) -> Result<String, templates::Error> {
     let id = DiskId::from(disk_id);
 
     let mut selected_optical_disk_id = state
@@ -22,17 +19,15 @@ pub fn selected_disk(
 }
 
 #[tauri::command]
-pub fn eject_disk(state: State<'_, AppState>) -> Result<String, templates::ApiError> {
+pub fn eject_disk(state: State<'_, AppState>) -> Result<String, templates::Error> {
     match state.selected_disk() {
         Some(optical_disk) => {
             match optical_disk.read() {
                 Ok(disk) => disk_manager::eject(&disk.mount_point),
-                Err(_) => {
-                    return render_error(&state, "Failed to get lock on memory for optical disk")
-                }
+                Err(_) => return render_error("Failed to get lock on memory for optical disk"),
             };
         }
-        None => return render_error(&state, "No Disk is Selected can't eject"),
+        None => return render_error("No Disk is Selected can't eject"),
     };
 
     templates::disk_titles::render_options(&state)

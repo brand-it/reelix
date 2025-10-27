@@ -128,4 +128,16 @@ cargo install tauri-cli --locked --version "^2"
 
 ### AutoComplete
 
-There is a titles.txt file that has all the possible auto complete for movies. I used SQLlite to pre process the data and then just copy the text into the file. Removed the follow characters ":\, and double spaces. Just clean it up, updating this file ever so often is a good idea but even if we don't it has so much info it can general provide good suggestions for most movies except for new movies. It some times suggest things that don't exist but that is fine. recommend download new movies from the internet as I find them. 
+There is a titles.txt file that has all the possible auto complete for movies. I used SQLlite to pre process the data and then just copy the text into the file. Removed the follow characters ":\, and double spaces. Just clean it up, updating this file ever so often is a good idea but even if we don't it has so much info it can general provide good suggestions for most movies except for new movies. It some times suggest things that don't exist but that is fine. recommend download new movies from the internet as I find them.
+
+
+# Macro Debugging
+
+Good luck, askama makes micro debugging a pain so best solution I found is delete a single line rerun the thing and just keep checking. This is the worst way to do it but it will get you a answer eventually.
+```
+error[E0599]: the method `askama_auto_escape` exists for reference `&&AutoEscaper<'_, Option<u32>, Html>`, but its trait bounds were not satisfied
+   --> src/templates/seasons.rs:16:10
+    |
+16  | #[derive(Template)]
+    |          ^^^^^^^^ method cannot be called on `&&AutoEscaper<'_, Option<u32>,
+```

@@ -1,15 +1,22 @@
-use super::{render, ApiError};
-use crate::models::movie_db::{self, TvResponse};
+use crate::models::movie_db::TvResponse;
 use crate::state::AppState;
 use tauri::State;
-use tera::Context;
 
-pub fn render_show(app_state: &State<'_, AppState>, tv: &TvResponse) -> Result<String, ApiError> {
-    let query: String = app_state.query.lock().unwrap().to_string();
+// #[derive(Template)]
+// #[template(path = "tvs/show.turbo.html")]
+// pub struct TvsShow<'a> {
+//     pub tv: &'a TvResponse,
+//     pub query: &'a String,
+// }
 
-    let mut context = Context::new();
-    context.insert("tv", &movie_db::TvView::from(tv.to_owned()));
-    context.insert("query", &query);
+pub fn render_show(
+    _app_state: &State<'_, AppState>,
+    _tv: &TvResponse,
+) -> Result<String, super::Error> {
+    // let query = &app_state.query.lock().unwrap().to_string();
 
-    render(&app_state.tera, "tvs/show.html.turbo", &context, None)
+    // let template = TvsShow { tv, query };
+
+    // render(template)
+    Ok("".to_string())
 }
