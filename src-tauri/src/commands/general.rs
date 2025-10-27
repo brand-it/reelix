@@ -98,7 +98,7 @@ pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, templa
 }
 
 #[tauri::command]
-pub fn suggestion(search: &str, state: State<'_, AppState>) -> Result<String, templates::Error> {
+pub async fn suggestion(search: &str) -> Result<String, templates::Error> {
     let suggestion = auto_complete::suggestion(search);
-    templates::search::render_suggestion(search, &suggestion)
+    templates::search::render_suggestion(search, &suggestion).await
 }

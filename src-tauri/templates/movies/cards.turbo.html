@@ -1,0 +1,6 @@
+<turbo-stream action="replace" method="morph" target="movie-cards-selector">
+  <template>
+    {# {% include "movies/cards.html" %} #}
+    {{ movies_cards.render_html() | safe }}
+  </template>
+</turbo-stream>

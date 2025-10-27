@@ -1,15 +1,28 @@
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
+use std::io::Read;
 
 use log::debug;
-static TITLES: &str = include_str!("../../data/titles.txt");
+static TITLES_ZIP: &[u8] = include_bytes!("../../data/titles.txt.zip");
+
+fn load_titles() -> Vec<String> {
+    let cursor = std::io::Cursor::new(TITLES_ZIP);
+    let mut archive = zip::ZipArchive::new(cursor).expect("Failed to read zip archive");
+
+    let mut file = archive
+        .by_name("titles.txt")
+        .expect("titles.txt not found in zip");
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)
+        .expect("Failed to read titles.txt from zip");
+
+    let mut titles: Vec<String> = contents.lines().map(|s| s.to_string()).collect();
+    titles.sort_by_key(|t| t.len());
+    titles
+}
 
 lazy_static::lazy_static! {
-    pub static ref TITLE_LIST: Vec<&'static str> = {
-      let mut v: Vec<&'static str> = TITLES.lines().collect();
-      v.sort_by_key(|t| t.len());
-      v
-    };
+    pub static ref TITLE_LIST: Vec<String> = load_titles();
     pub static ref TITLE_INVERTED_INDEX: HashMap<String, Vec<usize>> = {
         let mut index: HashMap<String, Vec<usize>> = HashMap::new();
         for (id, title) in TITLE_LIST.iter().enumerate() {

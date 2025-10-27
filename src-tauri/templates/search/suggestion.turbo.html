@@ -1,0 +1,6 @@
+<turbo-stream action="replace" method="morph" target="search-placeholder">
+  <template>
+    {# {% include "search/placeholder.html" %} #}
+    {{ search_suggestion.render_html() | safe }}
+  </template>
+</turbo-stream>

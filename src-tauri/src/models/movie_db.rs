@@ -22,58 +22,6 @@ pub struct MovieResponse {
     pub title: String,
 }
 
-#[derive(Serialize)]
-pub struct MovieView {
-    pub adult: bool,
-    pub backdrop_path: Option<String>,
-    pub genres: Vec<MovieGenre>,
-    pub homepage: String,
-    pub id: u32,
-    pub imdb_id: String,
-    pub origin_country: Vec<String>,
-    pub original_language: String,
-    pub original_title: String,
-    pub overview: String,
-    pub popularity: f32,
-    pub poster_path: Option<String>,
-    pub release_date: Option<String>,
-    pub revenue: u64,
-    pub runtime: u64,
-    pub human_runtime: String,
-    pub title_year: String,
-    pub title: String,
-    pub year: Option<u32>,
-}
-
-impl From<MovieResponse> for MovieView {
-    fn from(movie: MovieResponse) -> Self {
-        let year = movie.year();
-        let title_year = movie.title_year();
-        let human_runtime = movie.human_runtime();
-        MovieView {
-            adult: movie.adult,
-            backdrop_path: movie.backdrop_path,
-            genres: movie.genres,
-            homepage: movie.homepage,
-            id: movie.id,
-            imdb_id: movie.imdb_id,
-            origin_country: movie.origin_country,
-            original_language: movie.original_language,
-            original_title: movie.original_title,
-            overview: movie.overview,
-            popularity: movie.popularity,
-            poster_path: movie.poster_path,
-            release_date: movie.release_date,
-            revenue: movie.revenue,
-            runtime: movie.runtime,
-            human_runtime,
-            title_year,
-            title: movie.title,
-            year,
-        }
-    }
-}
-
 impl MovieResponse {
     pub fn year(&self) -> Option<u32> {
         self.release_date.as_ref().and_then(|date_str| {

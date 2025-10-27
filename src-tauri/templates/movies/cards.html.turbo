@@ -1,5 +1,0 @@
-<turbo-stream action="replace" method="morph" target="movie-cards-selector">
-  <template>
-    {% include "movies/cards.html" %}
-  </template>
-</turbo-stream>

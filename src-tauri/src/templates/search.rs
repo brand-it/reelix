@@ -19,7 +19,6 @@ pub struct SearchIndexTurbo<'a> {
 pub struct SearchIndex<'a> {
     pub disks_options: &'a DisksOptions<'a>,
     pub query: &'a str,
-    pub search: &'a SearchResponse,
     pub suggestion: &'a SearchSuggestion<'a>,
     pub search_results: &'a SearchResults<'a>,
 }
@@ -29,6 +28,12 @@ pub struct SearchIndex<'a> {
 pub struct SearchSuggestion<'a> {
     pub query: &'a str,
     pub suggestion: &'a Option<String>,
+}
+
+#[derive(Template)]
+#[template(path = "search/suggestion.turbo.html")]
+pub struct SearchSuggestionTurbo<'a> {
+    pub search_suggestion: &'a SearchSuggestion<'a>,
 }
 
 #[derive(Template)]
@@ -68,7 +73,6 @@ pub fn render_index(app_state: &State<'_, AppState>) -> Result<String, super::Er
     let search_index = SearchIndex {
         disks_options: &disks_options,
         query: &query,
-        search: &search,
         suggestion: &SearchSuggestion {
             query: &query,
             suggestion: &suggestion,
@@ -91,7 +95,12 @@ pub fn render_results(query: &str, search: &SearchResponse) -> Result<String, su
     super::render(template)
 }
 
-pub fn render_suggestion(query: &str, suggestion: &Option<String>) -> Result<String, super::Error> {
-    let template = SearchSuggestion { query, suggestion };
+pub async fn render_suggestion(
+    query: &str,
+    suggestion: &Option<String>,
+) -> Result<String, super::Error> {
+    let template = SearchSuggestionTurbo {
+        search_suggestion: &SearchSuggestion { query, suggestion },
+    };
     super::render(template)
 }

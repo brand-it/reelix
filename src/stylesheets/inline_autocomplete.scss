@@ -3,10 +3,21 @@
   position: relative;
   .input-placeholder,
   .field {
-    height: 100%;
-    padding: 0.8rem 1rem;
-    width: 100%;
+    -webkit-appearance: none;
+    align-items: center;
+    appearance: none;
+    background: transparent;
     border: none;
+    display: flex;
+    font: inherit;
+    height: 100%;
+    left: 0;
+    line-height: normal;
+    padding: 0.8rem 1rem;
+    position: absolute;
+    top: 0;
+    transform: translateZ(0);
+    width: 100%;
   }
 
   .input-placeholder {
@@ -18,6 +29,8 @@
 
   .field {
     z-index: 1;
+    appearance: none;
+    -webkit-appearance: none;
   }
 
   .input-placeholder,
