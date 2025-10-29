@@ -1,7 +1,8 @@
 <turbo-stream action="replace" method="morph" target="main-view">
   <template>
     <div id="main-view">
-      {% include "tvs/show.html" %}
+      {# {% include "tvs/show.html" %} #}
+      {{ tv_show.render_html() | safe }}
     </div>
   </template>
 </turbo-stream>

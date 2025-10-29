@@ -213,6 +213,16 @@ impl TvResponse {
         }
     }
 
+    pub fn average_episode_run_time(&self) -> String {
+        if self.episode_run_time.is_empty() {
+            return "N/A".to_string();
+        }
+        let total: u32 = self.episode_run_time.iter().sum();
+        let average = total as f64 / self.episode_run_time.len() as f64;
+        let duration = Duration::from_secs((average * 60.0) as u64);
+        format!("{}", format_duration(duration))
+    }
+
     // pub fn find_season(&self, id: u32) -> Option<TvSeason> {
     //     self.seasons.iter().find(|s| s.id == id).cloned()
     // }
