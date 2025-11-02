@@ -1,4 +1,4 @@
-<turbo-stream action="replace" method="morph" target="movie-cards-selector">
+<turbo-stream action="replace" method="morph" target="{{ movies_cards.dom_id() }}">
   <template>
     {# {% include "movies/cards.html" %} #}
     {{ movies_cards.render_html() | safe }}

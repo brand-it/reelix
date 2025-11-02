@@ -1,7 +1,5 @@
-<turbo-stream action="replace" target="content-browser">
+<turbo-stream action="update" method="morph" target="{{ search_index.dom_id() }}">
   <template>
-    <div id="content-browser">
-      {{ search_index.render_html() | safe }}
-    </div>
+    {{ search_index.render_html() | safe }}
   </template>
 </turbo-stream>

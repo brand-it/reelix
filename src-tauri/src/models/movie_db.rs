@@ -96,22 +96,6 @@ pub struct SearchResult {
 }
 
 impl SearchResult {
-    pub fn get_name(&self) -> String {
-        if self.media_type == "movie" {
-            self.title.clone().unwrap_or_default()
-        } else {
-            self.name.clone()
-        }
-    }
-
-    pub fn get_original_name(&self) -> String {
-        if self.media_type == "movie" {
-            self.original_title.clone().unwrap_or_default()
-        } else {
-            self.original_name.clone()
-        }
-    }
-
     pub fn get_title(&self) -> String {
         self.title
             .clone()

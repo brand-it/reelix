@@ -1,5 +1,5 @@
 {%- for season_episode in season_episodes.episodes -%}
-  <turbo-stream action="replace" target="episode-{{season_episode.episode.id}}">
+  <turbo-stream action="replace" target="{{ season_episode.dom_id() }}">
     <template>
       {{ season_episode.render_html() | safe }}
     </template>

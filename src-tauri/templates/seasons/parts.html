@@ -44,7 +44,7 @@
   </div>
 {% endmacro %}
 
-<div class="parts-selector pb-3">
+<div class="{{ self.selector_class() }} pb-3">
   {% if let Some(disk) = selected_disk %}
     {% if disk.any_titles() %}
       {% let titles = disk.clone_titles() %}

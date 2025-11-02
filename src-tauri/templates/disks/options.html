@@ -1,8 +1,7 @@
 {% macro disk_item(selected, disk) %}
   {% if selected && disk.is_some() %}
     {% let disc = disk.as_ref().unwrap() %}
-    <div class="dropdown-item dropdown-selected" data-disk-select-target="item" data-value="{{ disc.id }}" type="button"
-      data-action="click->disk-select#selected">
+    <div class="dropdown-item dropdown-selected" data-disk-select-target="item" data-value="{{ disc.id }}" type="button">
       <span class="icon-column">
         {% if disc.has_process() %}
           <i class="fad fa-spinner fa-pulse"></i>
@@ -44,8 +43,7 @@
       </span>
     </div>
   {% elif selected %}
-    <div class="dropdown-item dropdown-selected" data-disk-select-target="item" type="button"
-      data-action="click->disk-select#selected">
+    <div class="dropdown-item dropdown-selected" data-disk-select-target="item" type="button">
       <span class="icon-column"></span>
       <span class="text-column">
         No Optical Drive Detected

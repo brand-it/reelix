@@ -1,6 +1,6 @@
-<turbo-stream action="replace" method="morph" target="search-placeholder">
+<turbo-stream action="replace" method="morph" target="{{ search_suggestion.dom_id() }}">
   <template>
-    {# {% include "search/placeholder.html" %} #}
+    {# {% include "search/suggestion.html" %} #}
     {{ search_suggestion.render_html() | safe }}
   </template>
 </turbo-stream>

@@ -1,11 +1,8 @@
-<turbo-stream action="replace" target="error">
-  <template>
-    {% if message.len() > 0 %}
-    <div id="error" class="alert alert-danger m-3 mb-0">
-      {{message}}
-    </div>
-    {% else %}
-    <div id="error" class="hidden"></div>
-    {% endif %}
-  </template>
-</turbo-stream>
+
+{% if message.len() > 0 %}
+<div id="{{ self.dom_id() }}" class="alert alert-danger m-3 mb-0">
+  {{ message }}
+</div>
+{% else %}
+<div id="{{ self.dom_id() }}" class="hidden"></div>
+{% endif %}

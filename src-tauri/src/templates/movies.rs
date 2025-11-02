@@ -12,6 +12,12 @@ pub struct MoviesCards<'a> {
     pub selected_disk: &'a Option<OpticalDiskInfo>,
 }
 
+impl MoviesCards<'_> {
+    pub fn dom_id(&self) -> &'static str {
+        super::MOVIE_CARDS_SELECTOR_DOM_ID
+    }
+}
+
 #[derive(Template)]
 #[template(path = "movies/cards.turbo.html")]
 pub struct MoviesCardsTurbo<'a> {
@@ -30,6 +36,12 @@ pub struct MoviesShow<'a> {
     pub certification: &'a Option<String>,
     pub ripped: &'a bool,
     pub movies_cards: &'a MoviesCards<'a>,
+}
+
+impl MoviesShow<'_> {
+    pub fn dom_id(&self) -> &'static str {
+        super::SEARCH_RESULTS_ID
+    }
 }
 
 pub fn render_show(

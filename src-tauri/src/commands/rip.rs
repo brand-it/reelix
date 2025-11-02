@@ -112,9 +112,7 @@ pub fn withdraw_episode_from_title(
         .find(|e| e.episode_number == episode_number)
     {
         Some(episode) => episode,
-        None => {
-            return templates::render_error("Failed to find episode to add to title")
-        }
+        None => return templates::render_error("Failed to find episode to add to title"),
     };
     match remove_episode_from_title(&app_state, &optical_disk, episode, &title_id) {
         Ok(_) => debug!("Removed {title_id} to {mvdb_id} {season_number} {episode_number}"),

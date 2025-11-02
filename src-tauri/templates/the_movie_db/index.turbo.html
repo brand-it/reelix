@@ -1,0 +1,8 @@
+<turbo-stream action="update" method="morph" target="{{ the_movie_db_index.dom_id() }}">
+  <template>
+      {# {% include "the_movie_db/index.html" %} #}
+      {{ the_movie_db_index.render_html() | safe }}
+  </template>
+</turbo-stream>
+
+{{ generic_error_turbo.render_html() | safe }}

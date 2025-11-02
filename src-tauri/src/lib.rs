@@ -1,4 +1,5 @@
 use crate::models::optical_disk_info::OpticalDiskInfo;
+use crate::services::auto_complete;
 use state::AppState;
 use std::sync::{Arc, Mutex, RwLock};
 use tauri::menu::{Menu, MenuItem};
@@ -114,7 +115,7 @@ fn setup_tray_icon(app: &mut App) {
 fn setup_view_window(app: &mut App) {
     let win_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
         .title("Reelix")
-        .inner_size(1075.0, 800.0)
+        .inner_size(1100.0, 900.0)
         .min_inner_size(500.0, 500.0);
 
     // set transparent title bar only when building for macOS
@@ -160,6 +161,7 @@ pub fn run() {
     };
 
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
@@ -192,7 +194,8 @@ pub fn run() {
         .invoke_handler(all_commands!())
         .build(tauri::generate_context!())
         .expect("error while building Tauri application");
-
+    // Kick off background loading for autocomplete data; non-blocking
+    auto_complete::init_background();
     // Run the application with a run event callback to shutdown sidecar process
     app.run(|app_handle, event| {
         if let tauri::RunEvent::Exit = event {

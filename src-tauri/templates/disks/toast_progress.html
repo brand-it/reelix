@@ -1,20 +1,106 @@
-<div id="disk-progress-toast" class="toast-container position-fixed bottom-0 end-0 p-3">
-  <div class="toast show"
-       role="alert"
-       aria-live="assertive"
-       aria-atomic="true"
-       data-bs-autohide="false">
-    <div class="toast-header">
-      <strong class="me-auto">{% if let Some(title) = title %}{{ title }}{% endif %}</strong>
-      <small>{% if let Some(progress) = progress %}{{ progress.eta }}{% endif %}</small>
-    </div>
-    <div class="toast-body">
-      <div class="mb-2">{% if let Some(progress) = progress %}{{ progress.label }}{% endif %}</div>
-      <div class="progress mb-2" role="progressbar" {% if let Some(progress) = progress %}aria-label="{{ progress.label }}"{% endif %}
-        {% if let Some(progress) = progress %}aria-valuenow="{{ progress.percentage }}"{% endif %} aria-valuemin="0" aria-valuemax="100">
-        <div class="progress-bar" {% if let Some(progress) = progress %}style="width: {{ progress.percentage }}%"{% endif %}>{% if let Some(progress) = progress %}{{ progress.percentage }}%{% endif %}</div>
+<div id="{{ self.dom_id() }}" class="fixed-bottom bg-dark border-top border-secondary">
+  {% if let Some(progress) = progress %}
+  {% if let Some(title) = title %}
+  <div class="container-fluid">
+    <div class="d-flex align-items-center py-2 px-3"
+         data-bs-toggle="collapse"
+         data-bs-target="#progressDetails"
+         aria-expanded="false"
+         aria-controls="progressDetails"
+         role="button">
+      <div class="me-2">
+        <i class="fas fa-circle-notch fa-spin text-primary"></i>
       </div>
-      <div class="overflow-hidden">{% if let Some(progress) = progress %}{{ progress.message }}{% endif %}</div>
+      <div class="flex-grow-1">
+        <div class="progress" style="height: 8px;">
+          <div class="progress-bar progress-bar-striped progress-bar-animated"
+               role="progressbar"
+               style="width: {{ progress.percentage }}%"
+               aria-valuenow="{{ progress.percentage }}"
+               aria-valuemin="0"
+               aria-valuemax="100">
+          </div>
+        </div>
+      </div>
+      <div class="ms-3 text-light small">
+        <strong>{{ progress.percentage }}%</strong>
+      </div>
+      <div class="ms-3 text-muted small">
+        {{ progress.eta }}
+      </div>
+      <div class="ms-3">
+        <i class="fas fa-chevron-up text-muted"></i>
+      </div>
+    </div>
+
+    <div class="collapse progress-details" id="progressDetails">
+      <div class="border-top border-secondary">
+        <div class="p-3">
+          <div class="d-flex align-items-start mb-2">
+            <div class="me-2">
+              <i class="fas fa-film text-primary"></i>
+            </div>
+            <div class="flex-grow-1">
+              <div class="text-light fw-bold mb-1">{{ title }}</div>
+              <div class="text-muted small mb-2">{{ progress.label }}</div>
+
+              <div class="progress mb-2" style="height: 20px;">
+                <div class="progress-bar {% if progress.failed %}bg-danger{% else %}progress-bar-striped progress-bar-animated{% endif %}"
+                     role="progressbar"
+                     style="width: {{ progress.percentage }}%"
+                     aria-valuenow="{{ progress.percentage }}"
+                     aria-valuemin="0"
+                     aria-valuemax="100">
+                  {{ progress.percentage }}%
+                </div>
+              </div>
+
+              <div class="d-flex justify-content-between text-muted small">
+                <span>{{ progress.message }}</span>
+                <span>ETA: {{ progress.eta }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top border-secondary">
+            <div class="text-muted small">
+              <i class="fas fa-check-circle text-success me-1"></i>
+              <span>0 Completed</span>
+            </div>
+            <div class="text-muted small">
+              <i class="fas fa-pause-circle me-1"></i>
+              <span>0 Queued</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
+  {% else %}
+  <div class="container-fluid py-2 px-3">
+    <div class="d-flex align-items-center">
+      <div class="me-2">
+        <i class="fas fa-circle-notch fa-spin text-primary"></i>
+      </div>
+      <div class="flex-grow-1">
+        <div class="progress" style="height: 8px;">
+          <div class="progress-bar progress-bar-striped progress-bar-animated"
+               role="progressbar"
+               style="width: {{ progress.percentage }}%">
+          </div>
+        </div>
+      </div>
+      <div class="ms-3 text-light small">
+        <strong>{{ progress.percentage }}%</strong>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% else %}
+  <!-- No Active Progress - Minimal Footer -->
+  <div class="container-fluid py-1 px-3 text-center text-muted small">
+    <i class="fas fa-check-circle text-success me-2"></i>
+    <span>No active jobs</span>
+  </div>
+  {% endif %}
 </div>

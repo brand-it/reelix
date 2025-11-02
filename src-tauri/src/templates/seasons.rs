@@ -13,6 +13,12 @@ pub struct SeasonsParts<'a> {
     pub episode: &'a Option<TvEpisode>,
 }
 
+impl SeasonsParts<'_> {
+    pub fn selector_class(&self) -> &'static str {
+        super::SEASONS_PARTS_SELECTOR_CLASS
+    }
+}
+
 #[derive(Template)]
 #[template(path = "seasons/show.turbo.html")]
 pub struct SeasonsShowTurbo<'a> {
@@ -25,6 +31,12 @@ pub struct SeasonsShow<'a> {
     pub tv: &'a TvResponse,
     pub season: &'a SeasonResponse,
     pub seasons_episodes: &'a SeasonsEpisodes<'a>,
+}
+
+impl SeasonsShow<'_> {
+    pub fn dom_id(&self) -> &'static str {
+        super::SEARCH_RESULTS_ID
+    }
 }
 
 #[derive(Template)]
@@ -44,6 +56,12 @@ pub struct SeasonsEpisodes<'a> {
 pub struct SeasonsEpisode<'a> {
     pub episode: &'a SeasonEpisode,
     pub seasons_parts: &'a SeasonsParts<'a>,
+}
+
+impl SeasonsEpisode<'_> {
+    pub fn dom_id(&self) -> String {
+        format!("episode-{}", self.episode.id)
+    }
 }
 
 pub fn render_show(

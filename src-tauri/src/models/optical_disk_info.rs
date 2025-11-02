@@ -61,7 +61,9 @@ impl OpticalDiskInfo {
         if let Some(pid) = *self.pid.lock().unwrap() {
             let mut system = System::new_all();
             system.refresh_all();
+            debug!("Checking for process with PID {pid}");
             let sys_pid = Pid::from_u32(pid);
+            debug!("System has {} processes", system.processes().len());
             system.process(sys_pid).is_some()
         } else {
             false
@@ -147,6 +149,10 @@ impl Clone for OpticalDiskInfo {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clone();
+        let pid = *self
+            .pid
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         OpticalDiskInfo {
             id: self.id,
             name: self.name.clone(),
@@ -160,7 +166,7 @@ impl Clone for OpticalDiskInfo {
             mount_point: self.mount_point.clone(),
             titles: Mutex::new(cloned_titles),
             progress: Mutex::new(cloned_progress),
-            pid: Mutex::new(None),
+            pid: Mutex::new(pid),
             content: self.content.clone(),
             index: self.index,
         }
@@ -201,7 +207,7 @@ impl DiskId {
 
 impl fmt::Display for DiskId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "DiskId({})", self.0)
+        write!(f, "{}", self.0)
     }
 }
 
@@ -288,52 +294,6 @@ impl TryFrom<&str> for DiskId {
     }
 }
 
-// Optical Disk View Struct, This takes things like functions and converts them into pub method defined values
-#[derive(Serialize)]
-pub struct OpticalDiskInfoView {
-    pub available_space: u64,
-    pub content: Option<DiskContent>,
-    pub dev: String, // AKA: Disk Name or Device Name
-    pub file_system: String,
-    pub has_process: bool,
-    pub id: DiskId,
-    pub is_read_only: bool,
-    pub is_removable: bool,
-    pub kind: String,
-    pub mount_point: PathBuf,
-    pub name: String,
-    pub pid: Option<u32>,
-    pub progress: Option<Progress>,
-    pub titles: Vec<TitleInfo>,
-    pub total_space: u64,
-}
-
-impl From<&OpticalDiskInfo> for OpticalDiskInfoView {
-    fn from(optical_disk: &OpticalDiskInfo) -> Self {
-        let has_process = optical_disk.has_process();
-        let pid = *optical_disk.pid.lock().unwrap();
-        let progress = optical_disk.progress.lock().unwrap().clone();
-        let titles = optical_disk.titles.lock().unwrap().clone();
-        OpticalDiskInfoView {
-            available_space: optical_disk.available_space,
-            content: optical_disk.content.clone(),
-            dev: optical_disk.dev.clone(),
-            file_system: optical_disk.file_system.clone(),
-            has_process,
-            id: optical_disk.id,
-            is_read_only: optical_disk.is_read_only,
-            is_removable: optical_disk.is_removable,
-            kind: optical_disk.kind.clone(),
-            mount_point: optical_disk.mount_point.clone(),
-            name: optical_disk.name.clone(),
-            pid,
-            progress: progress.clone(),
-            titles: titles.clone(),
-            total_space: optical_disk.total_space,
-        }
-    }
-}
-
 // --- Optical Progress ---
 #[derive(Serialize, Clone)]
 pub struct Progress {
@@ -345,7 +305,6 @@ pub struct Progress {
     pub title_id: Option<u32>,
 }
 
-
 impl Progress {
     pub fn matching_title(&self, title: &TitleInfo) -> bool {
         match self.title_id {
@@ -353,5 +312,4 @@ impl Progress {
             None => false,
         }
     }
-
 }

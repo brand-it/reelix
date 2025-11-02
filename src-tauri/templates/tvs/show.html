@@ -1,6 +1,6 @@
 {% import "_poster.html" as macros %}
 
-<div class="row">
+<div class="row" id="{{ self.dom_id() }}">
   <div class="col show-img-posters">
     {% call macros::poster(poster_path=tv.poster_path) %}
   </div>

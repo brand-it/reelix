@@ -12,6 +12,13 @@ pub struct DisksOptions<'a> {
     pub optical_disks: &'a Vec<optical_disk_info::OpticalDiskInfo>,
     pub selected_disk: &'a Option<optical_disk_info::OpticalDiskInfo>,
 }
+
+impl DisksOptions<'_> {
+    pub fn dom_id(&self) -> &'static str {
+        super::DISK_SELECTOR_DOM_ID
+    }
+}
+
 #[derive(Template)]
 #[template(path = "disks/options.turbo.html")]
 pub struct DisksOptionsTurbo<'a> {
@@ -22,34 +29,16 @@ pub struct DisksOptionsTurbo<'a> {
 
 #[derive(Template)]
 #[template(path = "disks/toast_progress.html")]
-pub struct DiskToastProgress<'a> {
+pub struct DisksToastProgress<'a> {
     pub title: &'a Option<String>,
     pub progress: &'a Option<&'a optical_disk_info::Progress>,
 }
 
-// impl DiskOptions {
-//     pub fn any_ripped(&self) -> bool {
-//         self.selected_disk
-//             .as_ref()
-//             .map(|disk| disk.titles.iter().any(|t| t.rip))
-//             .unwrap_or(false)
-//     }
-
-//     pub fn has_disks(&self) -> bool {
-//         !self.optical_disks.is_empty()
-//     }
-
-//     pub fn selected_disk_id(&self) -> Option<DiskId> {
-//         self.selected_disk.as_ref().map(|d| d.id)
-//     }
-
-//     pub fn selected_disk_name(&self) -> &str {
-//         self.selected_disk
-//             .as_ref()
-//             .map(|d| d.name.as_str())
-//             .unwrap_or("No Optical Drive Detected")
-//     }
-// }
+impl DisksToastProgress<'_> {
+    pub fn dom_id(&self) -> &'static str {
+        super::DISK_TOAST_PROGRESS_DOM_ID
+    }
+}
 
 pub fn emit_disk_change(app_handle: &AppHandle) {
     let state = app_handle.state::<AppState>();
@@ -91,41 +80,11 @@ pub fn render_options(app_state: &State<'_, AppState>) -> Result<String, super::
     super::render(disks_options_turbo)
 }
 
-// pub fn build_disk_option(app_state: &State<'_, AppState>) -> DiskOption {
-//     let optical_disks: Vec<OpticalDiskInfoView> = {
-//         let guard = app_state.optical_disks.read().unwrap();
-//         guard
-//             .iter()
-//             .map(|disk_arc| OpticalDiskInfoView::from(&*disk_arc.read().unwrap()))
-//             .collect()
-//     };
-
-//     let selected_optical_disk_id = app_state
-//         .selected_optical_disk_id
-//         .read()
-//         .unwrap()
-//         .to_owned();
-
-//     let selected_disk = match app_state.selected_disk() {
-//         Some(disk_arc) => {
-//             let guard = disk_arc.read().unwrap();
-//             Some(OpticalDiskInfoView::from(&*guard))
-//         }
-//         None => None,
-//     };
-
-//     DiskOption {
-//         optical_disks,
-//         selected_optical_disk_id,
-//         selected_disk,
-//     }
-// }
-
 pub fn render_toast_progress(
     _app_state: &State<'_, AppState>,
     title: &Option<String>,
     progress: &Option<&optical_disk_info::Progress>,
 ) -> Result<String, super::Error> {
-    let template = DiskToastProgress { title, progress };
+    let template = DisksToastProgress { title, progress };
     super::render(template)
 }

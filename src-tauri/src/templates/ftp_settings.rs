@@ -5,19 +5,25 @@ use askama::Template;
 use tauri::State;
 
 #[derive(Template)]
-#[template(path = "ftp_settings/show.turbo.html")]
-pub struct FtpSettingsShowTurbo<'a> {
-    pub ftp_settings_show: &'a FtpSettingsShow<'a>,
+#[template(path = "ftp_settings/index.turbo.html")]
+pub struct FtpSettingsIndexTurbo<'a> {
+    pub ftp_settings_index: &'a FtpSettingsIndex<'a>,
 }
 
 #[derive(Template)]
-#[template(path = "ftp_settings/show.html")]
-pub struct FtpSettingsShow<'a> {
+#[template(path = "ftp_settings/index.html")]
+pub struct FtpSettingsIndex<'a> {
     pub ftp_host: &'a Option<String>,
     pub ftp_user: &'a Option<String>,
     pub ftp_pass: &'a Option<String>,
     pub ftp_movie_upload_path: &'a Option<String>,
     pub message: &'a str,
+}
+
+impl FtpSettingsIndex<'_> {
+    pub fn dom_id(&self) -> &'static str {
+        super::INDEX_ID
+    }
 }
 
 pub fn render_show(app_state: &State<'_, AppState>) -> Result<String, super::Error> {
@@ -44,15 +50,15 @@ pub fn render_show(app_state: &State<'_, AppState>) -> Result<String, super::Err
     if let Err(msg) = validate_ftp_settings(app_state) {
         message = msg;
     };
-    let ftp_settings_show = FtpSettingsShow {
+    let ftp_settings_index = FtpSettingsIndex {
         ftp_host: &ftp_host,
         ftp_user: &ftp_user,
         ftp_pass: &ftp_pass,
         ftp_movie_upload_path: &ftp_movie_upload_path,
         message: &message,
     };
-    let template = FtpSettingsShowTurbo {
-        ftp_settings_show: &ftp_settings_show,
+    let template = FtpSettingsIndexTurbo {
+        ftp_settings_index: &ftp_settings_index,
     };
     super::render(template)
 }

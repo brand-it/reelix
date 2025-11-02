@@ -15,9 +15,8 @@ application.register("disk-select", DiskSelectController);
 import EpisodeController from "./episode_controller.js";
 application.register("episode", EpisodeController);
 
-import BoostrapTooltipController from "./boostrap_tooltip_controller.js";
-application.register("boostrap-tooltip", BoostrapTooltipController);
-
+import BootstrapTooltipController from "./bootstrap_tooltip_controller.js";
+application.register("bootstrap-tooltip", BootstrapTooltipController);
 
 import InlineAutocompleteController from "./inline_autocomplete_controller.js";
 application.register("inline-autocomplete", InlineAutocompleteController);

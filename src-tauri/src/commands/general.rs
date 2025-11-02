@@ -15,7 +15,7 @@ use tauri_plugin_opener::OpenerExt;
 pub fn index(state: State<'_, AppState>) -> Result<String, templates::Error> {
     match search_multi(&state, "Martian") {
         Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_show(&state, &e.message),
+        Err(e) => return templates::the_movie_db::render_index(&state, &e.message),
     };
     templates::search::render_index(&state)
 }
@@ -38,12 +38,12 @@ pub fn movie(
 ) -> Result<String, templates::Error> {
     let movie = match find_movie(&app_handle, id) {
         Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_show(&app_state, &e.message),
+        Err(e) => return templates::the_movie_db::render_index(&app_state, &e.message),
     };
 
     let certification = match get_movie_certification(&app_handle, &id) {
         Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_show(&app_state, &e.message),
+        Err(e) => return templates::the_movie_db::render_index(&app_state, &e.message),
     };
     templates::movies::render_show(&app_state, &movie, &certification)
 }
@@ -56,10 +56,10 @@ pub fn tv(
 ) -> Result<String, templates::Error> {
     let tv = match find_tv(&app_handle, id) {
         Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_show(&state, &e.message),
+        Err(e) => return templates::the_movie_db::render_index(&state, &e.message),
     };
 
-    templates::tvs::render_show(&state, &tv)
+    templates::tvs::render_show(&tv)
 }
 
 #[tauri::command]
@@ -71,12 +71,12 @@ pub fn season(
 ) -> Result<String, templates::Error> {
     let tv = match find_tv(&app_handle, tv_id) {
         Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_show(&state, &e.message),
+        Err(e) => return templates::the_movie_db::render_index(&state, &e.message),
     };
 
     let season = match find_season(&app_handle, tv_id, season_number) {
         Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_show(&state, &e.message),
+        Err(e) => return templates::the_movie_db::render_index(&state, &e.message),
     };
 
     templates::seasons::render_show(&state, &tv, &season)
@@ -91,7 +91,7 @@ pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, templa
     let movie_db = the_movie_db::TheMovieDb::new(api_key, language);
     let response = match movie_db.search_multi(search, 1) {
         Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_show(&state, &e.message),
+        Err(e) => return templates::the_movie_db::render_index(&state, &e.message),
     };
 
     templates::search::render_results(search, &response)
@@ -99,6 +99,22 @@ pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, templa
 
 #[tauri::command]
 pub async fn suggestion(search: &str) -> Result<String, templates::Error> {
-    let suggestion = auto_complete::suggestion(search);
-    templates::search::render_suggestion(search, &suggestion).await
+    use tokio::time::{timeout, Duration};
+
+    // If autocomplete data isn't ready yet, return nothing immediately.
+    if !auto_complete::is_ready() {
+        return Ok(String::new());
+    }
+
+    // Compute suggestion in a blocking thread with a 100ms timeout.
+    let search_owned = search.to_string();
+    let handle = tokio::task::spawn_blocking(move || auto_complete::suggestion(&search_owned));
+
+    let suggestion_opt = match timeout(Duration::from_millis(100), handle).await {
+        Ok(Ok(opt)) => opt,
+        // Join error or timeout -> no update
+        _ => None,
+    };
+
+    templates::search::render_suggestion(search, &suggestion_opt).await
 }

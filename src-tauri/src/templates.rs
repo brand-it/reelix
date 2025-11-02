@@ -22,12 +22,48 @@ pub mod seasons;
 pub mod the_movie_db;
 pub mod tvs;
 
+// Common DOM IDs
+// To help organize the targets for turbo stream updates I have defined
+// some common DOM IDs here that can be used across multiple templates.
+// Some rules that each of these IDs should follow:
+// - INDEX_ID must contain content-browser and error IDs
+// - CONTENT_ID must contain all dynamic content that can be updated without
+//   reloading the entire page
+// - ERROR_ID must be a container for error messages that can be updated
+//   without reloading the entire page
+//
+// if you see a render_index function in any template file it should be using INDEX_ID as the target
+// if you see a render_{something} function then it should be using CONTENT_ID or a target under CONTENT_ID
+// you can update the ERROR_ID independently when needed within any template file.
+// Use this as a guide when creating new templates and structuring existing ones.
+pub const INDEX_ID: &str = "body"; // use action="update" target="body" to update entire page
+pub const CONTENT_ID: &str = "content-browser";
+pub const ERROR_ID: &str = "error";
+// Sub-IDs for specific sections within the content
+pub const SEARCH_SUGGESTION_ID: &str = "search-suggestion";
+pub const SEARCH_RESULTS_ID: &str = "search-results";
+pub const DISK_TOAST_PROGRESS_DOM_ID: &str = "disk-progress-footer";
+pub const MOVIE_CARDS_SELECTOR_DOM_ID: &str = "movie-cards-selector";
+pub const SEASONS_PARTS_SELECTOR_CLASS: &str = "seasons-parts-selector"; // targets="{{ .seasons-parts-selector }}" for multiple elements
+pub const DISK_SELECTOR_DOM_ID: &str = "disk-selector";
 // Docs on how to build templates
 // https://askama.readthedocs.io/en/stable/creating_templates.html
 #[derive(Template)]
 #[template(path = "error.html")]
 pub struct GenericError<'a> {
     pub message: &'a str,
+}
+
+impl GenericError<'_> {
+    pub fn dom_id(&self) -> &'static str {
+        ERROR_ID
+    }
+}
+
+#[derive(Template)]
+#[template(path = "error.turbo.html")]
+pub struct GenericErrorTurbo<'a> {
+    pub generic_error: &'a GenericError<'a>,
 }
 
 #[derive(Serialize, Debug)]
@@ -71,30 +107,6 @@ pub fn render_error(message: &str) -> Result<String, Error> {
 
     render(&generic_error)
 }
-
-// #[derive(Template)]
-// #[template(path = "index.html")]
-// pub struct Index<'a> {
-//     pub name: &'a str,
-// }
-
-// #[derive(Template)]
-// #[template(path = "generic_error.html")]
-// pub struct GenericError<'a> {
-//     pub message: &'a str,
-// }
-
-// #[derive(Template)]
-// #[template(path = "github/authorize.html")]
-// pub struct GithubAuthorize<'a> {
-//     pub device_code: &'a DeviceCode,
-// }
-
-// #[derive(Template)]
-// #[template(path = "github/authorize_success.html")]
-// pub struct GithubAuthorizeSuccess<'a> {
-//     pub message: &'a String,
-// }
 
 // Helper functions
 

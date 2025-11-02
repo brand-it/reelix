@@ -1,5 +1,5 @@
 {%- import "_poster.html" as macros -%}
-<div class="row" data-controller="bootstrap-tooltip">
+<div id="{{ self.dom_id() }}" class="row" data-controller="bootstrap-tooltip">
   <div class="col" style="width: 225px; max-width: 225px;">
     {% call macros::poster(poster_path=movie.poster_path) %}
   </div>

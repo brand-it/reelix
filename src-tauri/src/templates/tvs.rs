@@ -14,6 +14,12 @@ pub struct TvsShow<'a> {
     pub tv: &'a TvResponse,
 }
 
+impl TvsShow<'_> {
+    pub fn dom_id(&self) -> &'static str {
+        super::SEARCH_RESULTS_ID
+    }
+}
+
 pub fn render_show(tv: &TvResponse) -> Result<String, super::Error> {
     let template = TvsShowTurbo {
         tv_show: &TvsShow { tv },
