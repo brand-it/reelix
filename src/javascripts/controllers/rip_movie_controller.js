@@ -14,12 +14,6 @@ export default class extends Controller {
       mvdbId: parseInt(this.movieIdTarget.value),
     };
 
-    turboInvoke("rip_movie", commandArgs)
-      .then((response) => {
-        // console.log("Rip command sent successfully:", response);
-      })
-      .catch((error) => {
-        console.error("Rip command failed:", error);
-      });
+    turboInvoke("rip_movie", commandArgs);
   }
 }

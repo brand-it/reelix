@@ -6,6 +6,7 @@ use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
+// This is the local stored location of movies not the FTP location
 pub fn movies_dir() -> PathBuf {
     let home_dir = dirs::home_dir().expect("failed to find home dir");
     home_dir.join("Movies")

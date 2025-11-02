@@ -1,0 +1,46 @@
+<div id="{{ self.dom_id() }}">
+  {% if let Some(progress) = progress %}
+  {% if let Some(title) = title %}
+    <div class="border-top border-secondary">
+      <div class="p-3">
+        <div class="d-flex align-items-start mb-2">
+          <div class="me-2">
+            <i class="fas fa-film text-primary"></i>
+          </div>
+          <div class="flex-grow-1">
+            <div class="text-light fw-bold mb-1">{{ title }}</div>
+            <div class="text-muted small mb-2">{{ progress.label }}</div>
+
+            <div class="progress mb-2" style="height: 20px;">
+              <div class="progress-bar {% if progress.failed %}bg-danger{% else %}progress-bar-striped progress-bar-animated{% endif %}"
+                    role="progressbar"
+                    style="width: {{ progress.percentage }}%"
+                    aria-valuenow="{{ progress.percentage }}"
+                    aria-valuemin="0"
+                    aria-valuemax="100">
+                {{ progress.percentage }}%
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-between text-muted small">
+              <span>{{ progress.message }}</span>
+              <span>ETA: {{ progress.eta }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top border-secondary">
+          <div class="text-muted small">
+            <i class="fas fa-check-circle text-success me-1"></i>
+            <span>0 Completed</span>
+          </div>
+          <div class="text-muted small">
+            <i class="fas fa-pause-circle me-1"></i>
+            <span>0 Queued</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+  {% endif %}
+</div>

@@ -1,0 +1,28 @@
+<div class="alert alert-warning" role="alert" {% if message.len() == 0 %}style="display: none;"{% endif %}>
+  {{ message }}
+</div>
+<form action="/update_ftp_settings" method="post" data-controller="submit-on-keyup" class="mb-3"
+  data-submit-on-keyup-target="form">
+  <div class="mb-3">
+    <label for="ftpHost" class="form-label">FTP Host</label>
+    <input type="text" name="ftpHost" class="form-control" id="ftp_host"
+      value="{% match ftp_host %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}"
+      data-submit-on-keyup-target="input">
+  </div>
+  <div class="mb-3">
+    <label for="ftpPass" class="form-label">FTP Password</label>
+    <input type="password" name="ftpPass" class="form-control" data-submit-on-keyup-target="input" id="ftp_pass"
+      value="{% match ftp_pass %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}">
+  </div>
+  <div class="mb-3">
+    <label for="ftpUser" class="form-label">FTP Username</label>
+    <input type="text" name="ftpUser" class="form-control" data-submit-on-keyup-target="input" id="ftp_user"
+      value="{% match ftp_user %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}">
+  </div>
+  <div class="mb-3">
+    <label for="ftpMovieUploadPath" class="form-label">FTP Movie Path</label>
+    <input type="text" name="ftpMovieUploadPath" class="form-control" data-submit-on-keyup-target="input"
+      id="ftp_movie_upload_path" value="{% match ftp_movie_upload_path %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}">
+  </div>
+  <a type="submit" class="btn btn-primary" href="/index">Done</a>
+</form>

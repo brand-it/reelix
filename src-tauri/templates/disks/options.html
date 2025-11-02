@@ -1,68 +1,85 @@
-{% import "disks/_item.html" as macros %}
+{% macro disk_item(selected, disk) %}
+  {% if selected && disk.is_some() %}
+    {% let disc = disk.as_ref().unwrap() %}
+    <div class="dropdown-item dropdown-selected" data-disk-select-target="item" data-value="{{ disc.id }}" type="button">
+      <span class="icon-column">
+        {% if disc.has_process() %}
+          <i class="fad fa-spinner fa-pulse"></i>
+        {% elif disc.any_titles() %}
+          <i class="fad fa-check-square text-success"></i>
+        {% else %}
+          <i class="fad fa-exclamation-square text-danger"></i>
+        {% endif %}
+      </span>
+      <span class="text-column">
+        {{ disc.name }}
+        {% if let Some(title) = disc.ripping_title() %}
+          {% if let Some(title_name) = title.name %}
+            <span class="ripping-title">{{ title_name }}</span>
+          {% endif %}
+        {% endif %}
+      </span>
+    </div>
+  {% elif disk.is_some() %}
+    {% let disc = disk.as_ref().unwrap() %}
+    <div class="dropdown-item" data-value="{{ disc.id }}" data-disk-select-target="item" type="button"
+      data-action="click->disk-select#selected">
+      <span class="icon-column">
+        {% if disc.has_process() %}
+          <i class="fad fa-spinner fa-pulse"></i>
+        {% elif disc.any_titles() %}
+          <i class="fad fa-check-square text-success"></i>
+        {% else %}
+          <i class="fad fa-exclamation-square text-danger"></i>
+        {% endif %}
+      </span>
+      <span class="text-column">
+        {{ disc.name }}
+        {% if let Some(title) = disc.ripping_title() %}
+          {% if let Some(title_name) = title.name %}
+            <span class="ripping-title">{{ title_name }}</span>
+          {% endif %}
+        {% endif %}
+      </span>
+    </div>
+  {% elif selected %}
+    <div class="dropdown-item dropdown-selected" data-disk-select-target="item" type="button">
+      <span class="icon-column"></span>
+      <span class="text-column">
+        No Optical Drive Detected
+      </span>
+    </div>
+  {% else %}
+    <div class="dropdown-item" data-disk-select-target="item" type="button" data-action="disk-select#selected">
+      <span class="icon-column"></span>
+      <span class="text-column">No Optical Drive Detected</span>
+    </div>
+  {% endif %}
+{% endmacro disk_item %}
 
 <div class="input-group input-group-lg" id="disk-selector" data-controller="disk-select">
-  {% set any_ripped = false %}
-  {% if selected_disk %}
-    {% set_global selected_disk_id = selected_disk.id %}
-    {% if selected_disk.titles | length > 0 %}
-      {% for title in selected_disk.titles %}
-        {% if title.rip %}
-          {% set_global any_ripped = true %}
-        {% endif %}
-      {% endfor %}
-    {% endif %}
-  {% endif %}
+
   <a class="btn btn-primary" type="button" href="eject_disk">
     <i class="fal fa-eject fa-lg"></i>
   </a>
 
-  <div class="dropdown pe-1">
+  <div class="dropdown p-0 form-control me-2">
     <div class="btn dropdown-toggle dropdown-item w-100 text-start rounded-end" type="button" data-bs-toggle="dropdown"
       data-disk-select-target="selectedDropdown">
-      {% if selected_disk %}
-        {{ macros::disk_item(
-        selected=(title.rip and title.part == part_num),
-        name=selected_disk.name,
-        value=selected_disk.id,
-        loading=selected_disk.has_process,
-        any_titles=(selected_disk.titles | length > 0)
-        ) }}
-      {% else %}
-        {{
-        macros::disk_item(
-        selected=true,
-        name='No Optical Drive Detected',
-        value='',
-        loading=false,
-        any_titles=false
-        ) }}
-      {% endif %}
+        {% call disk_item(
+          selected=true,
+          disk=selected_disk
+        ) %}
     </div>
 
-    {% if optical_disks %}
+    {% if optical_disks.len() > 0 %}
       <ul class="dropdown-menu w-100 dropdown-menu-dark">
         {% for optical_disk in optical_disks %}
           <li>
-            {% if optical_disk.id == selected_disk_id %}
-              {{
-              macros::disk_item(
-              selected=true,
-              name=optical_disk.name,
-              value=optical_disk.id,
-              loading=optical_disk.has_process,
-              any_titles=(optical_disk.titles | length > 0)
-              )
-              }}
-            {% else %}
-              {{
-              macros::disk_item(
-              selected=false,
-              name=optical_disk.name,
-              value=optical_disk.id,
-              loading=optical_disk.has_process,
-              any_titles=(optical_disk.titles | length > 0)
-              ) }}
-            {% endif %}
+            {% call disk_item(
+              selected=optical_disk.is_selected(&selected_disk),
+              disk=Some(optical_disk),
+            ) %}
           </li>
         {% endfor %}
       </ul>

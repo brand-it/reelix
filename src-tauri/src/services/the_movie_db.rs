@@ -43,8 +43,8 @@ impl TheMovieDb {
 
     // Example query to search for "Inception"
     // match movie_db.search_multi("Inception") {
-    //     Ok(results) => println!("Results: {:#?}", results),
-    //     Err(err) => eprintln!("Error: {:?}", err),
+    //     Ok(results) => debug!("Results: {:#?}", results),
+    //     Err(err) => debug!("Error: {:?}", err),
     // }
     pub fn search_multi(&self, query: &str, page: u32) -> Result<SearchResponse, Error> {
         let url = format!("{}/{}", URL_ENDPOINT, "search/multi");

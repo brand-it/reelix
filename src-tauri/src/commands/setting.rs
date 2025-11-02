@@ -1,12 +1,12 @@
 use crate::services::plex::search_multi;
 use crate::state::AppState;
-use crate::templates::{ftp_settings, render_error, search, ApiError};
+use crate::templates::{ftp_settings, render_error, search, Error};
 use serde_json::json;
 use tauri::State;
 use tauri_plugin_store::StoreExt;
 
 #[tauri::command]
-pub fn ftp_settings(state: State<'_, AppState>) -> Result<String, ApiError> {
+pub fn ftp_settings(state: State<'_, AppState>) -> Result<String, Error> {
     ftp_settings::render_show(&state)
 }
 
@@ -18,7 +18,7 @@ pub fn update_ftp_settings(
     ftp_movie_upload_path: String,
     state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
-) -> Result<String, ApiError> {
+) -> Result<String, Error> {
     let store = app_handle
         .store("store.json")
         .expect("Failed to load store.json for persistence in the_movie_db command");
@@ -44,14 +44,14 @@ pub fn the_movie_db(
     key: &str,
     state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
-) -> Result<String, ApiError> {
+) -> Result<String, Error> {
     state
         .update("the_movie_db_key", Some(key.to_string()))
         .unwrap();
     let response = search_multi(&state, "Avengers");
     match response {
         Ok(resp) => resp,
-        Err(e) => return render_error(&state, &e.message),
+        Err(e) => return render_error(&e.message),
     };
     let store = app_handle
         .store("store.json")

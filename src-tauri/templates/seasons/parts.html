@@ -1,25 +1,72 @@
-{% import "seasons/_part.html" as macros %}
-<div class="parts-selector pb-3">
-  {% if selected_disk and selected_disk.titles | length > 0 %}
-  {% if episode %}
-  {{ macros::part_with_episode(episode=episode, part=1, selected_disk=selected_disk) }}
-  {{ macros::part_with_episode(episode=episode, part=2, selected_disk=selected_disk) }}
-  {{ macros::part_with_episode(episode=episode, part=3, selected_disk=selected_disk) }}
-  {{ macros::part_with_episode(episode=episode, part=4, selected_disk=selected_disk) }}
-  {% else %}
-  {{ macros::part_without_episode(part=1, selected_disk=selected_disk) }}
-  {{ macros::part_without_episode(part=2, selected_disk=selected_disk) }}
-  {{ macros::part_without_episode(part=3, selected_disk=selected_disk) }}
-  {{ macros::part_without_episode(part=4, selected_disk=selected_disk) }}
-  {% endif %}
-  <small class="text-muted d-block mt-1">
-    * Part 1 is required; additional parts are optional.
-  </small>
-
-  {% elif selected_disk %}
-  <div class="d-flex justify-content-center align-items-center py-3">
-    <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
-    <span class="ms-2">Loading title info…</span>
+{% macro part_selector(part, selected_disk, titles) %}
+  <div class="row g-2 align-items-center mb-2">
+    <label for="part{{ part }}" class="col-auto col-form-label fw-bold">Part {{ part }}*</label>
+    <div class="col">
+      <select id="part{{ part }}" data-episode-target="selector" data-episode-part="{{ part }}"
+              data-action="episode#titleSelected" class="form-select form-select-sm" data-episode-previous-value="">
+        <option value="">Select a Disk Title</option>
+        {% for title in titles %}
+          <option value="{{ title.id }}">
+            {% if let Some(description) = title.description %}
+              {{ description }}
+            {% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
   </div>
+{% endmacro %}
+
+{% macro episode_part_selector(episode, part, selected_disk, titles) %}
+  <div class="row g-2 align-items-center mb-2">
+    {% let previous_value = crate::templates::find_previous_value(episode, part, &titles) %}
+    <label for="part{{ episode.id }}-{{ part }}" class="col-auto col-form-label fw-bold">Part {{ part }}*</label>
+    <div class="col">
+      <select name="part{{ episode.id }}-{{ part }}" data-episode-target="selector" data-episode-part="{{ part }}"
+              data-action="episode#titleSelected" class="form-select form-select-sm"
+              data-episode-previous-value="{% match previous_value %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}">
+        <option value="">Select a Disk Title</option>
+        {% for title in titles %}
+          {% let is_selected = crate::templates::is_selected_title(episode, part, title) %}
+          {% let includes_episode = crate::templates::includes_episode(episode, title) %}
+          {% if is_selected %}
+            <option value="{{ title.id }}" selected>
+              {% match title.description %}{% when Some with (d) %}{{ d }}{% when None %}Untitled{% endmatch %}
+            </option>
+          {% elif title.part.is_none() || !includes_episode %}
+            <option value="{{ title.id }}">
+              {% match title.description %}{% when Some with (d) %}{{ d }}{% when None %}Untitled{% endmatch %}
+            </option>
+          {% endif %}
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+{% endmacro %}
+
+<div class="{{ self.selector_class() }} pb-3">
+  {% if let Some(disk) = selected_disk %}
+    {% if disk.any_titles() %}
+      {% let titles = disk.clone_titles() %}
+      {% if let Some(episode) = episode %}
+        {% call episode_part_selector(episode, 1, disk, &titles) %}
+        {% call episode_part_selector(episode, 2, disk, &titles) %}
+        {% call episode_part_selector(episode, 3, disk, &titles) %}
+        {% call episode_part_selector(episode, 4, disk, &titles) %}
+      {% else %}
+        {% call part_selector(1, disk, &titles) %}
+        {% call part_selector(2, disk, &titles) %}
+        {% call part_selector(3, disk, &titles) %}
+        {% call part_selector(4, disk, &titles) %}
+      {% endif %}
+      <small class="text-muted d-block mt-1">
+        * Part 1 is required; additional parts are optional.
+      </small>
+    {% else %}
+      <div class="d-flex justify-content-center align-items-center py-3">
+        <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+        <span class="ms-2">Loading title info…</span>
+      </div>
+    {% endif %}
   {% endif %}
 </div>

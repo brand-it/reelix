@@ -1,5 +1,6 @@
 use crate::services::plex::movies_dir;
 use crate::state::AppState;
+use log::{debug, error};
 use std::fs::File;
 use std::io::Write;
 use std::io::{BufReader, Read};
@@ -7,13 +8,37 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 use suppaftp::types::FileType;
 use suppaftp::{FtpError, FtpStream};
-use tauri::State;
+use tauri::{AppHandle, Manager, State};
 
 const CHUNK_SIZE: usize = 8192;
 
 struct FileInfo {
     file_size: u64,
     reader: BufReader<File>,
+}
+
+pub fn file_exists(relative_mkv_file_path: &String, state: &State<'_, AppState>) -> bool {
+    let movie_upload_path = match state.lock_ftp_movie_upload_path().clone() {
+        Some(value) => format!(
+            "{}/{relative_mkv_file_path}",
+            PathBuf::from(value).to_string_lossy()
+        ),
+        None => return false,
+    };
+    let mut ftp = match connect_to_ftp(state) {
+        Ok(ftp) => ftp,
+        Err(_) => return false,
+    };
+    ftp.transfer_type(FileType::Binary)
+        .expect("failed to set binary mode");
+
+    let exists = ftp.size(&movie_upload_path).is_ok();
+    debug!("FTP Exists: {movie_upload_path} {exists}");
+    match ftp.quit() {
+        Ok(_) => debug!("FTP Connection Closed"),
+        Err(error) => error!("Failed to close FTP connection {error:?}"),
+    }
+    exists
 }
 
 pub fn validate_ftp_settings(state: &State<'_, AppState>) -> Result<(), String> {
@@ -114,7 +139,7 @@ fn create_movie_dir(
         Some(value) => value,
         None => return Err("missing ftp movie upload path".to_string()),
     };
-    println!("creating movie dir {file_path:?} {movie_dir_string}");
+    debug!("creating movie dir {file_path:?} {movie_dir_string}");
     cwd(ftp_stream, &PathBuf::from(movie_upload_path.clone()))?;
 
     // Check if the directory already exists
@@ -132,7 +157,7 @@ fn create_movie_dir(
 }
 
 fn cwd(ftp_stream: &mut FtpStream, path: &PathBuf) -> Result<(), String> {
-    println!("CWD changing directory to {path:?}");
+    debug!("CWD changing directory to {path:?}");
     match ftp_stream.cwd(path.to_string_lossy()) {
         Ok(n) => Ok(n),
         Err(e) => Err(format!("failed to CWD to {} {}", path.display(), e)),
@@ -144,15 +169,19 @@ fn filename(filepath: &Path) -> String {
     filename.to_string_lossy().to_string()
 }
 
-fn start_upload(ftp_stream: &mut FtpStream, file_path: &Path) -> Result<(), String> {
-    println!(
+fn start_upload(
+    _app_handle: &AppHandle,
+    ftp_stream: &mut FtpStream,
+    file_path: &Path,
+) -> Result<(), String> {
+    debug!(
         "Start uploading {} to {:?}",
         file_path.display(),
         ftp_stream.pwd()
     );
     let mut file_info = file_info(file_path)?;
     let filename = filename(file_path);
-    println!("File name will be {filename}");
+    debug!("File name will be {filename}");
     ftp_stream
         .transfer_type(FileType::Binary)
         .expect("failed to set binary mode");
@@ -188,7 +217,7 @@ fn start_upload(ftp_stream: &mut FtpStream, file_path: &Path) -> Result<(), Stri
         let now = Instant::now();
         if now.duration_since(last_print) >= Duration::from_secs(1) {
             let percent = (total_bytes_sent as f64 / file_info.file_size as f64) * 100.0;
-            println!(
+            debug!(
                 "Uploaded: {} / {} bytes ({:.2}%)",
                 total_bytes_sent, file_info.file_size, percent
             );
@@ -204,18 +233,19 @@ fn start_upload(ftp_stream: &mut FtpStream, file_path: &Path) -> Result<(), Stri
 
 // Give a file path you want to upload and it will upload that file to a location given it the same
 // directory structure as it is need for plex to parse the data.
-pub async fn upload(state: &State<'_, AppState>, file_path: &Path) -> Result<(), String> {
+pub async fn upload(app_handle: &AppHandle, file_path: &Path) -> Result<(), String> {
+    let state = app_handle.state::<AppState>();
     let mut ftp_stream =
-        connect_to_ftp(state).map_err(|e| format!("Failed to login and change directory {e}"))?;
+        connect_to_ftp(&state).map_err(|e| format!("Failed to login and change directory {e}"))?;
 
-    let output_dir = create_movie_dir(state, &mut ftp_stream, file_path)?;
+    let output_dir = create_movie_dir(&state, &mut ftp_stream, file_path)?;
     cwd(&mut ftp_stream, &output_dir)?;
-    start_upload(&mut ftp_stream, file_path)?;
+    start_upload(app_handle, &mut ftp_stream, file_path)?;
 
     ftp_stream
         .quit()
         .map_err(|e| format!("Failed to close or quit connection: {e}"))?;
 
-    println!("Upload complete.");
+    debug!("Upload complete.");
     Ok(())
 }

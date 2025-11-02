@@ -1,0 +1,7 @@
+<turbo-stream action="replace" method="morph" target="{{ tv_show.dom_id() }}">
+<template>
+    {# {% include "tvs/show.html" %} #}
+    {{ tv_show.render_html() | safe }}
+
+  </template>
+</turbo-stream>

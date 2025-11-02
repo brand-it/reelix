@@ -3,6 +3,7 @@ use crate::services::drive_info::opticals;
 use crate::services::makemkvcon;
 use crate::state::AppState;
 use crate::templates;
+use log::debug;
 use std::sync::{Arc, RwLock};
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::broadcast;
@@ -14,23 +15,23 @@ use tokio::time::{sleep, Duration};
 //     for disk in &disks {
 //         let fs_bytes = disk.file_system();
 //         let fs_str = fs_bytes.to_str().expect("Failed to load fs_bytes");
-//         println!("#-------------------DISK---------------------#");
+//         debug!("#-------------------DISK---------------------#");
 //         // Check if removable + known optical file system
 //         if disk.is_removable() && (fs_str.contains("udf") || fs_str.contains("iso9660")) {
-//             println!("Likely optical media:");
-//             println!("  Name: {:?}", disk.name());
-//             println!("  Mount Point: {:?}", disk.mount_point());
-//             println!("  Available Space: {}", disk.available_space());
-//             println!("  Total Space: {}", disk.total_space());
-//             println!("  Kind: {}", disk.kind());
-//             println!("  File System: {:?}", disk.file_system());
-//             println!("  Is Removable: {}", disk.is_removable());
-//             println!("  Is Read Only: {}", disk.is_read_only());
-//             println!("  Usage: {:?}", disk.usage());
+//             debug!("Likely optical media:");
+//             debug!("  Name: {:?}", disk.name());
+//             debug!("  Mount Point: {:?}", disk.mount_point());
+//             debug!("  Available Space: {}", disk.available_space());
+//             debug!("  Total Space: {}", disk.total_space());
+//             debug!("  Kind: {}", disk.kind());
+//             debug!("  File System: {:?}", disk.file_system());
+//             debug!("  Is Removable: {}", disk.is_removable());
+//             debug!("  Is Read Only: {}", disk.is_read_only());
+//             debug!("  Usage: {:?}", disk.usage());
 //         } else {
-//             println!("Non-optical or unrecognized: {:?}", disk.name());
+//             debug!("Non-optical or unrecognized: {:?}", disk.name());
 //         }
-//         println!("#-------------------END DISK-----------------#");
+//         debug!("#-------------------END DISK-----------------#");
 //     }
 // }
 
@@ -53,7 +54,7 @@ fn changes(
 
 pub async fn watch_for_changes(sender: broadcast::Sender<Vec<diff::Result<OpticalDiskInfo>>>) {
     let mut previous_opticals = Vec::new();
-    println!("Stared watching for changes to optical Disks....");
+    debug!("Stared watching for changes to optical Disks....");
     loop {
         let current_opticals = opticals();
 
@@ -61,14 +62,14 @@ pub async fn watch_for_changes(sender: broadcast::Sender<Vec<diff::Result<Optica
             let diff_result = changes(&current_opticals, &previous_opticals);
 
             match sender.send(diff_result) {
-                Ok(num_receivers) => println!("Broadcast sent to {num_receivers} receivers"),
-                Err(_err) => eprintln!("Broadcast send failed"),
+                Ok(num_receivers) => debug!("Broadcast sent to {num_receivers} receivers"),
+                Err(_err) => debug!("Broadcast send failed"),
             }
             previous_opticals = current_opticals;
         }
         // Failure to sleep ever second means we use 100% of our CPU DUH
         // Hey future "human" improve this scanner system...or don't if it works why change it
-        sleep(Duration::from_secs(1)).await;
+        sleep(Duration::from_secs(5)).await;
     }
 }
 
@@ -99,7 +100,7 @@ async fn load_titles(app_handle: &AppHandle, disk_id: DiskId) {
     let results = match makemkvcon::title_info(disk_id, app_handle).await {
         Ok(run_result) => run_result,
         Err(message) => {
-            println!("failed to load titles: {message}");
+            debug!("failed to load titles: {message}");
             return;
         }
     };
@@ -116,7 +117,7 @@ async fn load_titles(app_handle: &AppHandle, disk_id: DiskId) {
                 .expect("failed to get titles")
                 .extend(results.title_infos);
         }
-        None => println!("Disk not found in state."),
+        None => debug!("Disk not found in state."),
     }
 }
 
@@ -159,7 +160,7 @@ pub fn set_default_selected_disk(app_handle: &AppHandle, disk_id: DiskId) {
         .write()
         .expect("failed to lock selected disk ID");
     if selected_optical_disk_id.is_none() {
-        println!("changed default selected optical disk to {disk_id}");
+        debug!("changed default selected optical disk to {disk_id}");
         *selected_optical_disk_id = Some(disk_id);
     }
 }
@@ -182,24 +183,24 @@ pub async fn handle_changes(
     app_handle: AppHandle,
 ) {
     loop {
-        println!("Waiting for changes on Disk");
+        debug!("Waiting for changes on Disk");
         match receiver.recv().await {
             Ok(event) => {
-                println!("Message received");
+                debug!("Message received");
                 for result in event {
                     match result {
                         diff::Result::Left(disk) => {
-                            println!("- {:?}", disk.name);
+                            debug!("- {:?}", disk.name);
                             clear_selected_disk(&app_handle, disk.id);
                             remove_optical_disks(&app_handle, &disk);
                             templates::disks::emit_disk_change(&app_handle);
                             emit_disk_titles_change(&app_handle);
                         }
                         diff::Result::Both(disk, _) => {
-                            println!("? {:?}", disk.name);
+                            debug!("? {:?}", disk.name);
                         }
                         diff::Result::Right(disk) => {
-                            println!("+ {:?}", disk.name);
+                            debug!("+ {:?}", disk.name);
                             add_optical_disk(&app_handle, &disk);
                             set_default_selected_disk(&app_handle, disk.id);
                             templates::disks::emit_disk_change(&app_handle);
@@ -214,10 +215,10 @@ pub async fn handle_changes(
                 }
             }
             Err(broadcast::error::RecvError::Lagged(count)) => {
-                println!("Dropped {count} messages due to lag.");
+                debug!("Dropped {count} messages due to lag.");
             }
             Err(broadcast::error::RecvError::Closed) => {
-                println!("Channel has closed.");
+                debug!("Channel has closed.");
             }
         }
     }

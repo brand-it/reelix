@@ -1,0 +1,11 @@
+<turbo-stream action="replace" target="{{ disks_toast_progress_details.dom_id() }}">
+  <template>
+    {{ disks_toast_progress_details.render_html() | safe }}
+  </template>
+</turbo-stream>
+
+<turbo-stream action="replace" target="{{ disks_toast_progress_summary.dom_id() }}">
+  <template>
+    {{ disks_toast_progress_summary.render_html() | safe }}
+  </template>
+</turbo-stream>

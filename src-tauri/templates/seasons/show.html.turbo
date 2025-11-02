@@ -1,9 +1,0 @@
-<turbo-stream action="replace" method="morph" target="main-view">
-  <template>
-    <div id="main-view">
-      {% include "seasons/show.html" %}
-    </div>
-  </template>
-</turbo-stream>
-
-{% include "error.html.turbo" %}

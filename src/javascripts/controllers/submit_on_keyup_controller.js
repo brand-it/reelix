@@ -28,7 +28,7 @@ export default class extends Controller {
     this.lastSubmittedValues = new Map();
     this.submitWithDebounce = debounce(
       this.submitWithDebounceActual.bind(this),
-      300
+      400
     );
     this.inputTargets.forEach((input) => {
       this.lastSubmittedValues.set(input.name || input.id, input.value);

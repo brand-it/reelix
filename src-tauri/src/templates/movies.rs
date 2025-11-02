@@ -1,32 +1,90 @@
-use super::{render, ApiError};
+use super::InlineTemplate;
 use crate::models::movie_db;
+use crate::models::optical_disk_info::OpticalDiskInfo;
+use crate::services::ftp_uploader;
 use crate::state::AppState;
+use askama::Template;
 use tauri::State;
-use tera::Context;
+
+#[derive(Template)]
+#[template(path = "movies/cards.html")]
+pub struct MoviesCards<'a> {
+    pub selected_disk: &'a Option<OpticalDiskInfo>,
+}
+
+impl MoviesCards<'_> {
+    pub fn dom_id(&self) -> &'static str {
+        super::MOVIE_CARDS_SELECTOR_DOM_ID
+    }
+}
+
+#[derive(Template)]
+#[template(path = "movies/cards.turbo.html")]
+pub struct MoviesCardsTurbo<'a> {
+    pub movies_cards: &'a MoviesCards<'a>,
+}
+#[derive(Template)]
+#[template(path = "movies/show.turbo.html")]
+pub struct MoviesShowTurbo<'a> {
+    pub movies_show: &'a MoviesShow<'a>,
+}
+
+#[derive(Template)]
+#[template(path = "movies/show.html")]
+pub struct MoviesShow<'a> {
+    pub movie: &'a movie_db::MovieResponse,
+    pub certification: &'a Option<String>,
+    pub ripped: &'a bool,
+    pub movies_cards: &'a MoviesCards<'a>,
+}
+
+impl MoviesShow<'_> {
+    pub fn dom_id(&self) -> &'static str {
+        super::SEARCH_RESULTS_ID
+    }
+}
 
 pub fn render_show(
     app_state: &State<'_, AppState>,
     movie: &movie_db::MovieResponse,
     certification: &Option<String>,
-) -> Result<String, ApiError> {
-    let query = app_state.query.lock().unwrap().to_string();
-
-    let mut context = Context::new();
-
-    context.insert("movie", &movie_db::MovieView::from(movie.to_owned()));
-    context.insert("query", &query);
-    context.insert("certification", &certification);
-    context.insert("selected_disk", &app_state.selected_disk());
-    render(&app_state.tera, "movies/show.html.turbo", &context, None)
+) -> Result<String, super::Error> {
+    let ripped = ftp_uploader::file_exists(&movie.to_file_path(), app_state);
+    let selected_disk = match app_state.selected_disk() {
+        Some(disk) => {
+            let disk_lock = disk.read().unwrap();
+            Some(disk_lock.clone())
+        }
+        None => None,
+    };
+    let template = MoviesShowTurbo {
+        movies_show: &MoviesShow {
+            movie,
+            certification,
+            ripped: &ripped,
+            movies_cards: &MoviesCards {
+                selected_disk: &selected_disk,
+            },
+        },
+    };
+    super::render(template)
 }
 
 pub fn render_cards(
     app_state: &State<'_, AppState>,
-    movie: &movie_db::MovieResponse,
-) -> Result<String, ApiError> {
-    let mut context = Context::new();
-
-    context.insert("movie", &movie_db::MovieView::from(movie.to_owned()));
-    context.insert("selected_disk", &app_state.selected_disk());
-    render(&app_state.tera, "movies/cards.html.turbo", &context, None)
+    _movie: &movie_db::MovieResponse,
+) -> Result<String, super::Error> {
+    let selected_disk = match app_state.selected_disk() {
+        Some(disk) => {
+            let disk_lock = disk.read().unwrap();
+            Some(disk_lock.clone())
+        }
+        None => None,
+    };
+    let template = MoviesCardsTurbo {
+        movies_cards: &MoviesCards {
+            selected_disk: &selected_disk,
+        },
+    };
+    super::render(template)
 }

@@ -1,3 +1,15 @@
+use crate::models::optical_disk_info::OpticalDiskInfo;
+use crate::services::auto_complete;
+use state::AppState;
+use std::sync::{Arc, Mutex, RwLock};
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::TrayIconBuilder;
+use tauri::{App, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri_plugin_log::log::debug;
+use tauri_plugin_log::{Target, TargetKind};
+use tauri_plugin_store::StoreExt;
+use tokio::sync::broadcast;
+
 mod commands;
 mod disk;
 mod models;
@@ -5,18 +17,6 @@ mod progress_tracker;
 mod services;
 mod state;
 mod templates;
-
-use crate::models::optical_disk_info::OpticalDiskInfo;
-use crate::templates::TEMPLATES_DIR;
-use state::AppState;
-use std::sync::{Arc, Mutex, RwLock};
-use tauri::menu::{Menu, MenuItem};
-use tauri::tray::TrayIconBuilder;
-use tauri::{App, Manager, WebviewUrl, WebviewWindowBuilder};
-use tauri_plugin_store::StoreExt;
-use templates::add_templates_from_dir;
-use tera::Tera;
-use tokio::sync::broadcast;
 
 // only on macOS:
 #[cfg(target_os = "macos")]
@@ -44,8 +44,8 @@ fn setup_store(app: &mut App) {
         if let Some(value) = store.get(key) {
             if let Some(value_str) = value.as_str() {
                 match state.update(key, Some(value_str.to_string())) {
-                    Ok(_n) => println!("set {key} to {value_str}"),
-                    Err(e) => println!("setup store failure: {e}"),
+                    Ok(_n) => debug!("set {key} to {value_str}"),
+                    Err(e) => debug!("setup store failure: {e}"),
                 };
             }
         }
@@ -93,12 +93,12 @@ fn setup_tray_icon(app: &mut App) {
                         let _ = webview_window.set_focus();
                     }
                     Err(_e) => {
-                        println!("Failed to show window");
+                        debug!("Failed to show window");
                     }
                 };
             }
             _ => {
-                println!("menu item {:?} not handled", event.id);
+                debug!("menu item {:?} not handled", event.id);
             }
         })
         .build(app)
@@ -115,7 +115,7 @@ fn setup_tray_icon(app: &mut App) {
 fn setup_view_window(app: &mut App) {
     let win_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
         .title("Reelix")
-        .inner_size(1075.0, 800.0)
+        .inner_size(1100.0, 900.0)
         .min_inner_size(500.0, 500.0);
 
     // set transparent title bar only when building for macOS
@@ -136,22 +136,19 @@ fn setup_view_window(app: &mut App) {
             let obj_ptr = raw as *mut AnyObject;
             Retained::from_raw(obj_ptr.cast()).unwrap()
         };
-        unsafe {
-            let bg_color: Retained<NSColor> = NSColor::colorWithSRGBRed_green_blue_alpha(
-                33.0 / 255.0,
-                36.0 / 255.0,
-                41.0 / 255.0,
-                1.0,
-            );
-            ns_window.setBackgroundColor(Some(&bg_color));
-        }
+
+        let bg_color: Retained<NSColor> = NSColor::colorWithSRGBRed_green_blue_alpha(
+            33.0 / 255.0,
+            36.0 / 255.0,
+            41.0 / 255.0,
+            1.0,
+        );
+        ns_window.setBackgroundColor(Some(&bg_color));
     }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let mut tera = Tera::default();
-    add_templates_from_dir(&mut tera, &TEMPLATES_DIR);
     let app_state: AppState = AppState {
         ftp_host: Arc::new(Mutex::new(None)),
         ftp_movie_upload_path: Arc::new(Mutex::new(None)),
@@ -160,17 +157,26 @@ pub fn run() {
         optical_disks: Arc::new(RwLock::new(Vec::<Arc<RwLock<OpticalDiskInfo>>>::new())),
         query: Arc::new(Mutex::new(String::new())),
         selected_optical_disk_id: Arc::new(RwLock::new(None)),
-        tera: Arc::new(tera),
         the_movie_db_key: Arc::new(Mutex::new(String::new())),
     };
 
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_http::init())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .targets([
+                    Target::new(TargetKind::Stdout),
+                    Target::new(TargetKind::LogDir { file_name: None }),
+                    Target::new(TargetKind::Webview),
+                ])
+                .build(),
+        )
         .manage(app_state)
         .setup(|app| {
             setup_store(app);
@@ -188,7 +194,8 @@ pub fn run() {
         .invoke_handler(all_commands!())
         .build(tauri::generate_context!())
         .expect("error while building Tauri application");
-
+    // Kick off background loading for autocomplete data; non-blocking
+    auto_complete::init_background();
     // Run the application with a run event callback to shutdown sidecar process
     app.run(|app_handle, event| {
         if let tauri::RunEvent::Exit = event {

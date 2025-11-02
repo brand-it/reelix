@@ -4,6 +4,7 @@ use crate::models::title_info::TitleInfo;
 use crate::services::plex::{create_movie_dir, create_season_episode_dir};
 use crate::state::AppState;
 use crate::templates;
+use log::debug;
 use serde::{Deserialize, Serialize};
 use std::fs::{self};
 use std::path::PathBuf;
@@ -64,31 +65,31 @@ pub fn set_optical_disk_as_season(
 }
 
 pub fn add_episode_to_title(
-    app_state: &State<'_, AppState>,
+    _app_state: &State<'_, AppState>,
     optical_disk: &Arc<RwLock<OpticalDiskInfo>>,
     episode: &SeasonEpisode,
     part: &u16,
     title_id: &u32,
-) -> Result<String, templates::ApiError> {
+) -> Result<String, templates::Error> {
     match optical_disk.write() {
         Ok(locked_disk) => {
             let mut locked_titles = match locked_disk.titles.lock() {
                 Ok(titles) => titles,
-                Err(_e) => return templates::render_error(app_state, "Failed to lock titles"),
+                Err(_e) => return templates::render_error("Failed to lock titles"),
             };
             let title = match locked_titles.iter_mut().find(|t| &t.id == title_id) {
                 Some(t) => t,
-                None => return templates::render_error(app_state, "Failed to find Title"),
+                None => return templates::render_error("Failed to find Title"),
             };
             if title.content.iter().any(|e| e.id == episode.id) {
-                println!("episode already associated with title");
+                debug!("episode already associated with title");
             } else {
                 title.part = Some(*part);
                 title.content.push(episode.clone());
                 title.rip = true
             };
         }
-        Err(_e) => return templates::render_error(app_state, "Failed to read disk"),
+        Err(_e) => return templates::render_error("Failed to read disk"),
     };
     Ok("Success".to_string())
 }
@@ -106,20 +107,20 @@ pub fn mark_title_rippable(optical_disk: Arc<RwLock<OpticalDiskInfo>>, title_id:
 }
 
 pub fn remove_episode_from_title(
-    app_state: &State<'_, AppState>,
+    _app_state: &State<'_, AppState>,
     optical_disk: &Arc<RwLock<OpticalDiskInfo>>,
     episode: &SeasonEpisode,
     title_id: &u32,
-) -> Result<String, templates::ApiError> {
+) -> Result<String, templates::Error> {
     match optical_disk.write() {
         Ok(locked_disk) => {
             let mut locked_titles = match locked_disk.titles.lock() {
                 Ok(titles) => titles,
-                Err(_e) => return templates::render_error(app_state, "Failed to lock titles"),
+                Err(_e) => return templates::render_error("Failed to lock titles"),
             };
             let title = match locked_titles.iter_mut().find(|t| &t.id == title_id) {
                 Some(t) => t,
-                None => return templates::render_error(app_state, "Failed to find Title"),
+                None => return templates::render_error("Failed to find Title"),
             };
 
             if let Some(index) = title.content.iter().position(|e| e.id == episode.id) {
@@ -129,10 +130,10 @@ pub fn remove_episode_from_title(
                     title.rip = false
                 }
             } else {
-                println!("episode not associated with title");
+                debug!("episode not associated with title");
             };
         }
-        Err(_e) => return templates::render_error(app_state, "Failed to read disk"),
+        Err(_e) => return templates::render_error("Failed to read disk"),
     };
     Ok("success".to_string())
 }

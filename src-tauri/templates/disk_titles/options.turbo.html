@@ -1,0 +1,13 @@
+<turbo-stream action="replace" targets=".{{ seasons_parts.selector_class() }}">
+  <template>
+    {# {% include "seasons/parts.html" %} #}
+    {{ seasons_parts.render_html() | safe }}
+  </template>
+</turbo-stream>
+
+<turbo-stream action="replace" target="{{ movies_cards.dom_id() }}">
+  <template>
+    {# {% include "movies/cards.html" %} #}
+    {{ movies_cards.render_html() | safe }}
+  </template>
+</turbo-stream>
