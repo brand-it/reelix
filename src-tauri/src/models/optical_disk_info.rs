@@ -78,7 +78,7 @@ impl OpticalDiskInfo {
     }
 
     pub fn any_titles(&self) -> bool {
-        self.titles.lock().iter().len() > 0
+        !self.titles.lock().unwrap().is_empty()
     }
 
     pub fn kill_process(&self) {

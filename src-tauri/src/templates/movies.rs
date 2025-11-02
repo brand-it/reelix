@@ -72,7 +72,7 @@ pub fn render_show(
 
 pub fn render_cards(
     app_state: &State<'_, AppState>,
-    movie: &movie_db::MovieResponse,
+    _movie: &movie_db::MovieResponse,
 ) -> Result<String, super::Error> {
     let selected_disk = match app_state.selected_disk() {
         Some(disk) => {

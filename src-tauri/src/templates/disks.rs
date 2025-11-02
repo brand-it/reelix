@@ -4,6 +4,7 @@ use crate::templates::movies::MoviesCards;
 use crate::templates::seasons::SeasonsParts;
 use crate::templates::InlineTemplate;
 use askama::Template;
+use serde::de;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 #[derive(Template)]
@@ -30,13 +31,51 @@ pub struct DisksOptionsTurbo<'a> {
 #[derive(Template)]
 #[template(path = "disks/toast_progress.html")]
 pub struct DisksToastProgress<'a> {
-    pub title: &'a Option<String>,
-    pub progress: &'a Option<&'a optical_disk_info::Progress>,
+    pub disks_toast_progress_summary: &'a DisksToastProgressSummary<'a>,
+    pub disks_toast_progress_details: &'a DisksToastProgressDetails<'a>,
 }
 
 impl DisksToastProgress<'_> {
     pub fn dom_id(&self) -> &'static str {
         super::DISK_TOAST_PROGRESS_DOM_ID
+    }
+}
+#[derive(Template)]
+#[template(path = "disks/toast_progress.turbo.html")]
+pub struct DisksToastProgressTurbo<'a> {
+    pub disks_toast_progress_summary: &'a DisksToastProgressSummary<'a>,
+    pub disks_toast_progress_details: &'a DisksToastProgressDetails<'a>,
+}
+
+#[derive(Template)]
+#[template(path = "disks/toast_progress_summary.html")]
+pub struct DisksToastProgressSummary<'a> {
+    pub title: &'a Option<String>,
+    pub progress: &'a Option<&'a optical_disk_info::Progress>,
+}
+
+impl DisksToastProgressSummary<'_> {
+    pub fn dom_id(&self) -> &'static str {
+        super::DISK_TOAST_PROGRESS_SUMMARY_DOM_ID
+    }
+}
+
+#[derive(Template)]
+#[template(path = "disks/toast_progress_details.turbo.html")]
+pub struct DisksToastProgressDetailsTurbo<'a> {
+    pub disks_toast_progress_details: &'a DisksToastProgressDetails<'a>,
+}
+
+#[derive(Template)]
+#[template(path = "disks/toast_progress_details.html")]
+pub struct DisksToastProgressDetails<'a> {
+    pub title: &'a Option<String>,
+    pub progress: &'a Option<&'a optical_disk_info::Progress>,
+}
+
+impl DisksToastProgressDetails<'_> {
+    pub fn dom_id(&self) -> &'static str {
+        super::DISK_TOAST_PROGRESS_DETAILS_DOM_ID
     }
 }
 
@@ -81,10 +120,12 @@ pub fn render_options(app_state: &State<'_, AppState>) -> Result<String, super::
 }
 
 pub fn render_toast_progress(
-    _app_state: &State<'_, AppState>,
     title: &Option<String>,
     progress: &Option<&optical_disk_info::Progress>,
 ) -> Result<String, super::Error> {
-    let template = DisksToastProgress { title, progress };
+    let template = DisksToastProgressTurbo {
+        disks_toast_progress_summary: &DisksToastProgressSummary { title, progress },
+        disks_toast_progress_details: &DisksToastProgressDetails { title, progress },
+    };
     super::render(template)
 }

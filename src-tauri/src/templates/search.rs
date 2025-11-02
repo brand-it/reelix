@@ -3,7 +3,9 @@ use crate::models::optical_disk_info;
 use crate::services::auto_complete::suggestion;
 use crate::services::plex::search_multi;
 use crate::state::AppState;
-use crate::templates::disks::{DisksOptions, DisksToastProgress};
+use crate::templates::disks::{
+    DisksOptions, DisksToastProgress, DisksToastProgressDetails, DisksToastProgressSummary,
+};
 use crate::templates::{the_movie_db, GenericError, InlineTemplate};
 use askama::Template;
 use tauri::State;
@@ -91,6 +93,7 @@ pub fn render_index(app_state: &State<'_, AppState>) -> Result<String, super::Er
         Some(disk_arc) => disk_arc.read().unwrap().clone_progress(),
         None => None,
     };
+    let title = &selected_disk.as_ref().map(|d| d.name.clone());
     let template = SearchIndexTurbo {
         search_index: &SearchIndex {
             disks_options: &disks_options,
@@ -105,8 +108,14 @@ pub fn render_index(app_state: &State<'_, AppState>) -> Result<String, super::Er
             },
             generic_error: &GenericError { message: "" },
             disks_toast_progress: &DisksToastProgress {
-                progress: &progress.as_ref(),
-                title: &Some("Something is .... in progress".to_string()),
+                disks_toast_progress_details: &DisksToastProgressDetails {
+                    title,
+                    progress: &progress.as_ref(),
+                },
+                disks_toast_progress_summary: &DisksToastProgressSummary {
+                    title,
+                    progress: &progress.as_ref(),
+                },
             },
         },
     };

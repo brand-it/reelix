@@ -140,7 +140,7 @@ pub fn rip_season(
         }
     };
     spawn_rip(app_handle, disk_id);
-    templates::disks::render_toast_progress(&app_state, &None, &None)
+    templates::disks::render_toast_progress(&None, &None)
 }
 
 #[tauri::command]
@@ -167,7 +167,7 @@ pub fn rip_movie(
     mark_title_rippable(optical_disk, title_id);
     spawn_rip(app_handle, disk_id);
 
-    templates::disks::render_toast_progress(&app_state, &None, &None)
+    templates::disks::render_toast_progress(&None, &None)
 }
 
 fn emit_render_cards(

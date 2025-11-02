@@ -46,6 +46,8 @@ pub const DISK_TOAST_PROGRESS_DOM_ID: &str = "disk-progress-footer";
 pub const MOVIE_CARDS_SELECTOR_DOM_ID: &str = "movie-cards-selector";
 pub const SEASONS_PARTS_SELECTOR_CLASS: &str = "seasons-parts-selector"; // targets="{{ .seasons-parts-selector }}" for multiple elements
 pub const DISK_SELECTOR_DOM_ID: &str = "disk-selector";
+pub const DISK_TOAST_PROGRESS_SUMMARY_DOM_ID: &str = "disk-progress-summary-footer";
+pub const DISK_TOAST_PROGRESS_DETAILS_DOM_ID: &str = "disk-progress-details-footer";
 // Docs on how to build templates
 // https://askama.readthedocs.io/en/stable/creating_templates.html
 #[derive(Template)]

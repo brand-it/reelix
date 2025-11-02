@@ -573,7 +573,7 @@ fn emit_progress(disk_id: &DiskId, title_id: &Option<u32>, app_handle: &AppHandl
     let progress_binding = optical_disk_info.progress.lock().unwrap();
     let progress = progress_binding.as_ref();
 
-    let result = templates::disks::render_toast_progress(&state, &title, &progress)
+    let result = templates::disks::render_toast_progress(&title, &progress)
         .expect("Failed to render disks/toast_progress");
     app_handle
         .emit("disks-changed", result)
