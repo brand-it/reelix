@@ -1,56 +1,64 @@
 <div id="{{ self.dom_id() }}">
-  {% if let Some(progress) = progress %}
-    {% if let Some(title) = title %}
-      <div class="d-flex align-items-center py-2 px-3"
-            data-bs-toggle="collapse"
-            data-bs-target="#progressDetails"
-            aria-expanded="false"
-            aria-controls="progressDetails"
-            role="button">
-        <div class="me-2">
+  {% if let Some(job) = job %}
+    <div class="d-flex align-items-center py-2 px-3"
+          data-bs-toggle="collapse"
+          data-bs-target="#progressDetails"
+          aria-expanded="false"
+          aria-controls="progressDetails"
+          role="button">
+      <div class="me-2">
+        {% if let Some(title) = job.title %}
+          <span>{{ title }}</span>
+        {% endif %}
+        {% if job.is_processing() %}
           <i class="fas fa-circle-notch fa-spin text-primary"></i>
-        </div>
-        <div class="flex-grow-1">
-          <div class="progress" style="height: 8px;">
+        {% elif job.is_finished() %}
+          <i class="fas fa-check-circle text-success"></i>
+        {% elif job.is_pending() %}
+          <i class="fas fa-hourglass-start text-muted"></i>
+        {% elif job.is_error() %}
+          <i class="fas fa-exclamation-circle text-danger"></i>
+        {% endif %}
+      </div>
+      <div class="flex-grow-1">
+        <div class="progress" style="height: 8px;">
+          {% if job.is_processing() %}
             <div class="progress-bar progress-bar-striped progress-bar-animated"
                   role="progressbar"
-                  style="width: {{ progress.percentage }}%"
-                  aria-valuenow="{{ progress.percentage }}"
+                  style="width: {{ job.progress.percent }}%"
+                  aria-valuenow="{{ job.progress.percent }}"
                   aria-valuemin="0"
                   aria-valuemax="100">
             </div>
-          </div>
-        </div>
-        <div class="ms-3 text-light small">
-          <strong>{{ progress.percentage }}%</strong>
-        </div>
-        <div class="ms-3 text-muted small">
-          {{ progress.eta }}
-        </div>
-        <div class="ms-3">
-          <i class="fas fa-chevron-up text-muted"></i>
-        </div>
-      </div>
-    {% else %}
-      <div class="container-fluid py-2 px-3">
-        <div class="d-flex align-items-center">
-          <div class="me-2">
-            <i class="fas fa-circle-notch fa-spin text-primary"></i>
-          </div>
-          <div class="flex-grow-1">
-            <div class="progress" style="height: 8px;">
-              <div class="progress-bar progress-bar-striped progress-bar-animated"
+          {% elif job.is_completed() %}
+            <div class="progress-bar {% if job.is_finished() %} bg-success {% else %} bg-danger {% endif %}"
                   role="progressbar"
-                  style="width: {{ progress.percentage }}%">
-              </div>
+                  style="width: {{ job.progress.percent }}%"
+                  aria-valuenow="{{ job.progress.percent }}"
+                  aria-valuemin="0"
+                  aria-valuemax="100">
             </div>
-          </div>
-          <div class="ms-3 text-light small">
-            <strong>{{ progress.percentage }}%</strong>
-          </div>
+          {% else %}
+            <div class="progress-bar bg-secondary"
+                  role="progressbar"
+                  style="width: {{ job.progress.percent }}%"
+                  aria-valuenow="{{ job.progress.percent }}"
+                  aria-valuemin="0"
+                  aria-valuemax="100">
+            </div>
+          {% endif %}
         </div>
       </div>
-    {% endif %}
+      <div class="ms-3 text-light small">
+        <strong>{{ job.progress.formatted_percentage() }}</strong>
+      </div>
+      <div class="ms-3 text-muted small">
+        {{ job.progress.eta }}
+      </div>
+      <div class="ms-3">
+        <i class="fas fa-chevron-up text-muted"></i>
+      </div>
+    </div>
   {% else %}
     <!-- No Active Progress - Minimal Footer -->
     <div class="container-fluid py-1 px-3 text-center text-muted small">

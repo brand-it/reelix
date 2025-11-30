@@ -44,7 +44,9 @@ pub fn render_show(app_state: &State<'_, AppState>) -> Result<String, super::Err
 
     let ftp_movie_upload_path = {
         let locked_ftp_movie_upload_path = app_state.lock_ftp_movie_upload_path();
-        locked_ftp_movie_upload_path.clone() // or extract what's needed
+        locked_ftp_movie_upload_path
+            .as_ref()
+            .map(|p| p.to_string_lossy().to_string())
     };
     let mut message = String::new();
     if let Err(msg) = validate_ftp_settings(app_state) {

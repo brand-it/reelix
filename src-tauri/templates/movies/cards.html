@@ -1,4 +1,4 @@
-{% macro movie_card_with_title(title, disk) %}
+{% macro movie_card_with_title(title, disk, job) %}
   <div class="col-md-6" id="movie-card-title-{{ title.id }}">
     <div class="card mb-3">
       <div class="card-header">
@@ -6,16 +6,16 @@
         ({{ title.chapter_count.unwrap_or(0) }} Chapter(s))
       </div>
 
-      {% if let Some(progress) = disk.clone_progress() %}
-        {% if progress.matching_title(&title) %}
+      {% if let Some(job) = job %}
+        {% if job.matching_title(&title) %}
           <div class="progress"
                role="progressbar"
-               aria-valuenow="{{ progress.percentage }}"
+               aria-valuenow="{{ job.progress.percent }}"
                aria-valuemin="0"
                aria-valuemax="100"
                style="height: 2px">
             <div class="progress-bar"
-                 style="width: {{ progress.percentage }}%"></div>
+                 style="width: {{ job.progress.percent }}%"></div>
           </div>
         {% else %}
           <div class="progress"
@@ -46,8 +46,8 @@
         <strong>Lang:</strong> {{ title.lang.as_deref().unwrap_or("") }} |
         <strong>Seg Map:</strong> {{ title.segment_map.as_deref().unwrap_or("") }}
 
-        {% if let Some(progress) = disk.clone_progress() %}
-          {% if progress.matching_title(&title) %}
+        {% if let Some(job) = job %}
+          {% if job.matching_title(&title) %}
             <div class="btn btn-outline-primary btn-sm disabled" disabled="disabled">
               <i class="fad fa-compact-disc fa-spinner fa-pulse"></i> Processing ...
             </div>
@@ -73,7 +73,7 @@
   {% if let Some(disk) = selected_disk %}
     {% if disk.any_titles() %}
       {% for title in disk.clone_titles() %}
-        {% call movie_card_with_title(title=title, disk=disk) %}
+        {% call movie_card_with_title(title=title, disk=disk, job=job) %}
       {% endfor %}
     {% else %}
       <div class="d-flex justify-content-center align-items-center py-3">

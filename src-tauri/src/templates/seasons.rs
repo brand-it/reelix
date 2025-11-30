@@ -1,16 +1,19 @@
 use crate::models::movie_db::{SeasonEpisode, SeasonResponse, TvEpisode, TvResponse};
 use crate::models::optical_disk_info::OpticalDiskInfo;
+use crate::state::background_process_state::{copy_job_state, BackgroundProcessState};
+use crate::state::job_state::{Job, JobStatus};
 use crate::state::AppState;
 use crate::templates::disks::DisksOptions;
 use crate::templates::InlineTemplate;
 use askama::Template;
-use tauri::State;
+use tauri::Manager;
 
 #[derive(Template)]
 #[template(path = "seasons/parts.html")]
 pub struct SeasonsParts<'a> {
     pub selected_disk: &'a Option<OpticalDiskInfo>,
     pub episode: &'a Option<TvEpisode>,
+    pub job: &'a Option<Job>,
 }
 
 impl SeasonsParts<'_> {
@@ -65,10 +68,11 @@ impl SeasonsEpisode<'_> {
 }
 
 pub fn render_show(
-    app_state: &State<'_, AppState>,
+    app_handle: &tauri::AppHandle,
     tv: &TvResponse,
     season: &SeasonResponse,
 ) -> Result<String, super::Error> {
+    let app_state = app_handle.state::<AppState>();
     let selected_disk = match app_state.selected_disk() {
         Some(disk) => {
             let disk_lock = disk.read().unwrap();
@@ -76,9 +80,12 @@ pub fn render_show(
         }
         None => None,
     };
+    let job = get_job(app_handle, &selected_disk);
+
     let parts = SeasonsParts {
         selected_disk: &selected_disk,
         episode: &None,
+        job: &job,
     };
     let seasons_show_turbo = SeasonsShowTurbo {
         seasons_show: &SeasonsShow {
@@ -100,9 +107,11 @@ pub fn render_show(
 }
 
 pub fn render_title_selected(
-    app_state: &State<'_, AppState>,
+    app_handle: &tauri::AppHandle,
     season: SeasonResponse,
 ) -> Result<String, super::Error> {
+    let app_state = app_handle.state::<AppState>();
+
     let selected_disk = match app_state.selected_disk() {
         Some(disk) => {
             let disk_lock = disk.read().unwrap();
@@ -111,10 +120,11 @@ pub fn render_title_selected(
         None => None,
     };
     let optical_disks = app_state.clone_optical_disks();
-
+    let job = get_job(app_handle, &selected_disk);
     let parts = SeasonsParts {
         selected_disk: &selected_disk,
         episode: &None,
+        job: &job,
     };
     let episodes = season
         .episodes
@@ -131,10 +141,28 @@ pub fn render_title_selected(
     let disks_options = DisksOptions {
         optical_disks: &optical_disks,
         selected_disk: &selected_disk,
+        job: &job,
     };
     let template = SeasonsTitleSelectedTurbo {
         season_episodes: &seasons_episodes,
         disks_options: &disks_options,
     };
     super::render(template)
+}
+
+fn get_job(app_handle: &tauri::AppHandle, selected_disk: &Option<OpticalDiskInfo>) -> Option<Job> {
+    let background_process_state = app_handle.state::<BackgroundProcessState>();
+    match selected_disk {
+        Some(ref disk) => {
+            let disk_id = disk.id;
+            background_process_state
+                .find_job(
+                    Some(disk_id),
+                    &None,
+                    &[JobStatus::Pending, JobStatus::Ready, JobStatus::Processing],
+                )
+                .and_then(|j| copy_job_state(&Some(j)))
+        }
+        None => None,
+    }
 }

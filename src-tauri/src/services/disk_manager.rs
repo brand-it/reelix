@@ -4,7 +4,7 @@ use objc2_app_kit::NSWorkspace;
 #[cfg(target_os = "macos")]
 use objc2_foundation::{NSString, NSURL};
 use std::path::Path;
-use std::{thread, time::Duration};
+use std::thread;
 
 #[cfg(target_os = "macos")]
 pub fn eject(volume: &Path) {
@@ -34,7 +34,7 @@ pub fn eject(volume: &Path) {
                     );
                     return;
                 }
-                thread::sleep(Duration::from_secs(1));
+                thread::sleep(std::time::Duration::from_secs(1));
             }
         }
     }

@@ -1,4 +1,3 @@
-use super::movie_db::{MovieResponse, SeasonResponse, TvResponse};
 use super::title_info::TitleInfo;
 use log::{debug, error};
 use serde::Serialize;
@@ -7,18 +6,6 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use sysinfo::{Pid, System};
-
-#[derive(Serialize, Clone)]
-pub struct TvSeasonContent {
-    pub season: SeasonResponse,
-    pub tv: TvResponse,
-}
-
-#[derive(Serialize, Clone)]
-pub enum DiskContent {
-    Tv(Box<TvSeasonContent>),
-    Movie(Box<MovieResponse>),
-}
 
 #[derive(Serialize)]
 pub struct OpticalDiskInfo {
@@ -33,46 +20,18 @@ pub struct OpticalDiskInfo {
     pub kind: String,
     pub dev: String, // AKA: Disk Name or Device Name
     pub titles: Mutex<Vec<TitleInfo>>,
-    pub progress: Mutex<Option<Progress>>,
     pub pid: Mutex<Option<u32>>,
-    pub content: Option<DiskContent>,
     pub index: u32,
 }
 
 impl OpticalDiskInfo {
-    pub fn ripping_title(&self) -> Option<TitleInfo> {
-        let titles = self.titles.lock().unwrap();
-        for title in titles.iter() {
-            if title.rip {
-                return Some(title.clone());
-            }
-        }
-        None
-    }
     pub fn set_pid(&self, pid: Option<u32>) {
         *self.pid.lock().expect("failed to unlock pid") = pid;
     }
 
-    pub fn set_progress(&self, progress: Option<Progress>) {
-        *self.progress.lock().expect("failed to unlock progress") = progress;
-    }
-
-    pub fn has_process(&self) -> bool {
-        if let Some(pid) = *self.pid.lock().unwrap() {
-            let mut system = System::new_all();
-            system.refresh_all();
-            debug!("Checking for process with PID {pid}");
-            let sys_pid = Pid::from_u32(pid);
-            debug!("System has {} processes", system.processes().len());
-            system.process(sys_pid).is_some()
-        } else {
-            false
-        }
-    }
-
     pub fn is_selected(&self, disk: &Option<OpticalDiskInfo>) -> bool {
         match disk {
-            Some(selected_disk) => &self.id == &selected_disk.id,
+            Some(selected_disk) => self.id == selected_disk.id,
             None => false,
         }
     }
@@ -102,16 +61,6 @@ impl OpticalDiskInfo {
         }
     }
 
-    pub fn clone_progress(&self) -> Option<Progress> {
-        match self.progress.lock() {
-            Ok(progress) => progress.clone(),
-            Err(e) => {
-                error!("Failed to lock titles {e:?}");
-                None
-            }
-        }
-    }
-
     pub fn clone_titles(&self) -> Vec<TitleInfo> {
         match self.titles.lock() {
             Ok(titles) => titles.clone(),
@@ -122,14 +71,14 @@ impl OpticalDiskInfo {
         }
     }
 
-    pub fn find_title(&self, title_id: &Option<u32>) -> Option<TitleInfo> {
-        match title_id {
-            Some(title_id) => {
-                let titles = self.titles.lock().ok()?;
-                titles.iter().find(|t| t.id == *title_id).cloned()
+    pub fn find_title_by_id(&self, title_id: u32) -> Option<TitleInfo> {
+        let titles = self.titles.lock().unwrap();
+        for title in titles.iter() {
+            if title.id == title_id {
+                return Some(title.clone());
             }
-            None => None,
         }
+        None
     }
 }
 // Can't clone a Mutex so I'm going to do it my self because I need to be
@@ -144,11 +93,7 @@ impl Clone for OpticalDiskInfo {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clone();
-        let cloned_progress = self
-            .progress
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .clone();
+
         let pid = *self
             .pid
             .lock()
@@ -165,9 +110,7 @@ impl Clone for OpticalDiskInfo {
             dev: self.dev.clone(),
             mount_point: self.mount_point.clone(),
             titles: Mutex::new(cloned_titles),
-            progress: Mutex::new(cloned_progress),
             pid: Mutex::new(pid),
-            content: self.content.clone(),
             index: self.index,
         }
     }
@@ -198,10 +141,6 @@ pub struct DiskId(u64);
 impl DiskId {
     pub fn new() -> Self {
         DiskId(NEXT_DISK_ID.fetch_add(1, Ordering::Relaxed))
-    }
-    // added this to make template logic easier
-    pub fn is_empty(&self) -> bool {
-        false
     }
 }
 
@@ -294,22 +233,22 @@ impl TryFrom<&str> for DiskId {
     }
 }
 
-// --- Optical Progress ---
-#[derive(Serialize, Clone)]
-pub struct Progress {
-    pub percentage: String,
-    pub eta: String,
-    pub label: String,
-    pub message: String,
-    pub failed: bool,
-    pub title_id: Option<u32>,
-}
+// // --- Optical Progress ---
+// #[derive(Serialize, Clone)]
+// pub struct Progress {
+//     pub percentage: String,
+//     pub eta: String,
+//     pub label: String,
+//     pub message: String,
+//     pub failed: bool,
+//     pub title_id: Option<u32>,
+// }
 
-impl Progress {
-    pub fn matching_title(&self, title: &TitleInfo) -> bool {
-        match self.title_id {
-            Some(id) => id == title.id,
-            None => false,
-        }
-    }
-}
+// impl Progress {
+//     pub fn matching_title(&self, title: &TitleInfo) -> bool {
+//         match self.title_id {
+//             Some(id) => id == title.id,
+//             None => false,
+//         }
+//     }
+// }

@@ -1,6 +1,5 @@
 <div id="{{ self.dom_id() }}">
-  {% if let Some(progress) = progress %}
-  {% if let Some(title) = title %}
+  {% if let Some(job) = job %}
     <div class="border-top border-secondary">
       <div class="p-3">
         <div class="d-flex align-items-start mb-2">
@@ -8,23 +7,50 @@
             <i class="fas fa-film text-primary"></i>
           </div>
           <div class="flex-grow-1">
+            {% if let Some(title) = job.title %}
             <div class="text-light fw-bold mb-1">{{ title }}</div>
-            <div class="text-muted small mb-2">{{ progress.label }}</div>
+            {% else %}
+            <div class="text-light fw-bold mb-1">{{ job.job_type }}...</div>
+            {% endif %}
+            {% if let Some(subtitle) = job.subtitle %}
+            <div class="text-muted small mb-2">{{ subtitle }}</div>
+            {% endif %}
 
             <div class="progress mb-2" style="height: 20px;">
-              <div class="progress-bar {% if progress.failed %}bg-danger{% else %}progress-bar-striped progress-bar-animated{% endif %}"
-                    role="progressbar"
-                    style="width: {{ progress.percentage }}%"
-                    aria-valuenow="{{ progress.percentage }}"
-                    aria-valuemin="0"
-                    aria-valuemax="100">
-                {{ progress.percentage }}%
-              </div>
+              {% if job.is_processing() %}
+                <div class="progress-bar progress-bar-striped progress-bar-animated"
+                      role="progressbar"
+                      style="width: {{ job.progress.percent }}%"
+                      aria-valuenow="{{ job.progress.percent }}"
+                      aria-valuemin="0"
+                      aria-valuemax="100">
+                  {{ job.progress.formatted_percentage() }}
+                </div>
+              {% elif job.is_completed() %}
+                <div class="progress-bar {% if job.is_finished() %} bg-success {% else %} bg-danger {% endif %}"
+                      role="progressbar"
+                      style="width: {{ job.progress.percent }}%"
+                      aria-valuenow="{{ job.progress.percent }}"
+                      aria-valuemin="0"
+                      aria-valuemax="100">
+                  {{ job.progress.formatted_percentage() }}
+                </div>
+              {% else %}
+                <div class="progress-bar bg-secondary"
+                      role="progressbar"
+                      style="width: {{ job.progress.percent }}%"
+                      aria-valuenow="{{ job.progress.percent }}"
+                      aria-valuemin="0"
+                      aria-valuemax="100">
+                </div>
+              {% endif %}
             </div>
 
             <div class="d-flex justify-content-between text-muted small">
-              <span>{{ progress.message }}</span>
-              <span>ETA: {{ progress.eta }}</span>
+              {% if let Some(message) = job.message %}
+              <span>{{ message }}</span>
+              {% endif %}
+              <span>ETA: {{ job.progress.eta }}</span>
             </div>
           </div>
         </div>
@@ -41,6 +67,5 @@
         </div>
       </div>
     </div>
-  {% endif %}
   {% endif %}
 </div>

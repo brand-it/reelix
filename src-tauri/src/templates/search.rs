@@ -2,13 +2,15 @@ use crate::models::movie_db::SearchResponse;
 use crate::models::optical_disk_info;
 use crate::services::auto_complete::suggestion;
 use crate::services::plex::search_multi;
+use crate::state::background_process_state::{copy_job_state, BackgroundProcessState};
+use crate::state::job_state::JobStatus;
 use crate::state::AppState;
 use crate::templates::disks::{
     DisksOptions, DisksToastProgress, DisksToastProgressDetails, DisksToastProgressSummary,
 };
 use crate::templates::{the_movie_db, GenericError, InlineTemplate};
 use askama::Template;
-use tauri::State;
+use tauri::Manager;
 
 #[derive(Template)]
 #[template(path = "search/index.turbo.html")]
@@ -70,11 +72,13 @@ pub struct SearchResultsTurbo<'a> {
     pub search_results: &'a SearchResults<'a>,
 }
 
-pub fn render_index(app_state: &State<'_, AppState>) -> Result<String, super::Error> {
+pub fn render_index(app_handle: &tauri::AppHandle) -> Result<String, super::Error> {
+    let app_state = app_handle.state::<AppState>();
+    let background_process_state = app_handle.state::<BackgroundProcessState>();
     let query = app_state.query.lock().unwrap().to_string();
-    let search = match search_multi(app_state, &query) {
+    let search = match search_multi(&app_state, &query) {
         Ok(resp) => resp,
-        Err(e) => return the_movie_db::render_index(app_state, &e.message),
+        Err(e) => return the_movie_db::render_index(&app_state, &e.message),
     };
     let suggestion = suggestion(&query);
     let selected_disk: Option<optical_disk_info::OpticalDiskInfo> = match app_state.selected_disk()
@@ -85,15 +89,28 @@ pub fn render_index(app_state: &State<'_, AppState>) -> Result<String, super::Er
         }
         None => None,
     };
+    let job = match &selected_disk {
+        Some(disk) => background_process_state
+            .find_job(
+                Some(disk.id),
+                &None,
+                &[
+                    JobStatus::Pending,
+                    JobStatus::Ready,
+                    JobStatus::Processing,
+                    JobStatus::Finished,
+                    JobStatus::Error,
+                ],
+            )
+            .and_then(|j| copy_job_state(&Some(j))),
+        None => None,
+    };
     let disks_options = DisksOptions {
         optical_disks: &app_state.clone_optical_disks(),
         selected_disk: &selected_disk,
+        job: &job,
     };
-    let progress = match app_state.selected_disk() {
-        Some(disk_arc) => disk_arc.read().unwrap().clone_progress(),
-        None => None,
-    };
-    let title = &selected_disk.as_ref().map(|d| d.name.clone());
+
     let template = SearchIndexTurbo {
         search_index: &SearchIndex {
             disks_options: &disks_options,
@@ -108,14 +125,8 @@ pub fn render_index(app_state: &State<'_, AppState>) -> Result<String, super::Er
             },
             generic_error: &GenericError { message: "" },
             disks_toast_progress: &DisksToastProgress {
-                disks_toast_progress_details: &DisksToastProgressDetails {
-                    title,
-                    progress: &progress.as_ref(),
-                },
-                disks_toast_progress_summary: &DisksToastProgressSummary {
-                    title,
-                    progress: &progress.as_ref(),
-                },
+                disks_toast_progress_details: &DisksToastProgressDetails { job: &job },
+                disks_toast_progress_summary: &DisksToastProgressSummary { job: &job },
             },
         },
     };

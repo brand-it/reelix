@@ -1,5 +1,8 @@
 use serde::Serialize;
 
+/// Disc information output message (CINFO)
+/// Represents a disc-level attribute, such as disc name, type, or other metadata.
+/// Reference: makemkvcon output, CINFO:id,code,value
 #[allow(dead_code)]
 #[allow(clippy::upper_case_acronyms)]
 pub struct CINFO {
@@ -8,6 +11,9 @@ pub struct CINFO {
     pub code: String,
     pub value: String,
 }
+/// Title information output message (TINFO)
+/// Represents a title-level attribute, such as title name, length, or other metadata.
+/// Reference: makemkvcon output, TINFO:id,code,value
 #[allow(dead_code)]
 #[allow(clippy::upper_case_acronyms)]
 pub struct TINFO {
@@ -16,6 +22,9 @@ pub struct TINFO {
     pub code: String,
     pub value: String,
 }
+/// Stream information output message (SINFO)
+/// Represents a stream-level attribute, such as audio, video, or subtitle stream details.
+/// Reference: makemkvcon output, SINFO:id,code,value
 #[allow(dead_code)]
 #[allow(clippy::upper_case_acronyms)]
 pub struct SINFO {
@@ -24,11 +33,17 @@ pub struct SINFO {
     pub code: String,
     pub value: String,
 }
+/// Title count output message (TCOUNT)
+/// Represents the number of titles found on the disc.
+/// Reference: makemkvcon output, TCOUT:count
 #[allow(dead_code)]
 #[allow(clippy::upper_case_acronyms)]
 pub struct TCOUNT {
     pub title_count: String,
 }
+/// Drive scan message (DRV)
+/// Represents information about an optical drive and the disc inserted.
+/// Reference: makemkvcon output, DRV:index,visible,enabled,flags,drive name,disc name
 #[allow(dead_code)]
 #[allow(clippy::upper_case_acronyms)]
 pub struct DRV {
@@ -40,7 +55,9 @@ pub struct DRV {
     pub drive_name: String,
     pub disc_name: String,
 }
-#[allow(dead_code)]
+/// Progress bar values for current and total progress (PRGV)
+/// Represents the current, total, and maximum values for a progress bar.
+/// Reference: makemkvcon output, PRGV:current,total,max
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Serialize, Clone)]
 pub struct PRGV {
@@ -48,6 +65,9 @@ pub struct PRGV {
     pub total: u32,
     pub pmax: u32,
 }
+/// Progress title message (PRGT)
+/// Represents the total progress title, including code, id, and name.
+/// Reference: makemkvcon output, PRGT:code,id,name
 #[allow(dead_code)]
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Clone)]
@@ -56,6 +76,9 @@ pub struct PRGT {
     pub id: u32,
     pub name: String,
 }
+/// Progress current message (PRGC)
+/// Represents the current progress title, including code, id, and name.
+/// Reference: makemkvcon output, PRGC:code,id,name
 #[allow(dead_code)]
 #[allow(clippy::upper_case_acronyms)]
 pub struct PRGC {
@@ -81,6 +104,9 @@ pub struct PRGC {
 //     }
 // }
 
+/// Message output (MSG)
+/// Represents a general message from makemkvcon, including code, flags, message, and parameters.
+/// Reference: makemkvcon output, MSG:code,flags,count,message,format,param0,param1,...
 #[allow(dead_code)]
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Clone)]
@@ -92,6 +118,8 @@ pub struct MSG {
     pub format: String,
     pub params: String,
 }
+/// Parse error message (Error)
+/// Represents an error encountered during parsing of makemkvcon output.
 #[allow(dead_code)]
 #[allow(clippy::upper_case_acronyms)]
 pub struct ParseError {
@@ -99,18 +127,28 @@ pub struct ParseError {
     pub line: Vec<String>,
 }
 
-/// An enum to unify the parsed results.
+/// An enum to unify the parsed results from makemkvcon output.
 #[allow(dead_code)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum MkvData {
+    /// Disc Information Output (CINFO)
     CINFO(CINFO),
+    /// Title Information Output (TINFO)
     TINFO(TINFO),
+    /// Stream Information Output (SINFO)
     SINFO(SINFO),
+    /// Title Count Output (TCOUNT)
     TCOUNT(TCOUNT),
+    /// Drive Scan Message (DRV)
     DRV(DRV),
+    /// Progress Bar Values (PRGV)
     PRGV(PRGV),
+    /// Progress Title Message (PRGT)
     PRGT(PRGT),
+    /// Progress Current Message (PRGC)
     PRGC(PRGC),
+    /// General Message Output (MSG)
     MSG(MSG),
+    /// Parse Error Message (Error)
     Error(ParseError),
 }

@@ -1,10 +1,10 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-use super::helpers::save_query;
 use crate::services::auto_complete;
 use crate::services::plex::{
     find_movie, find_season, find_tv, get_movie_certification, search_multi,
 };
 use crate::services::the_movie_db;
+use crate::state::background_process_state::BackgroundProcessState;
 use crate::state::AppState;
 use crate::templates::{self, render_error};
 use tauri::State;
@@ -12,12 +12,15 @@ use tauri_plugin_opener::OpenerExt;
 
 // This is the entry point, basically it decides what to first show the user
 #[tauri::command]
-pub fn index(state: State<'_, AppState>) -> Result<String, templates::Error> {
-    match search_multi(&state, "Martian") {
+pub fn index(
+    app_handle: tauri::AppHandle,
+    app_state: State<'_, AppState>,
+) -> Result<String, templates::Error> {
+    match search_multi(&app_state, "Martian") {
         Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_index(&state, &e.message),
+        Err(e) => return templates::the_movie_db::render_index(&app_state, &e.message),
     };
-    templates::search::render_index(&state)
+    templates::search::render_index(&app_handle)
 }
 
 #[tauri::command]
@@ -33,6 +36,7 @@ pub fn open_url(url: &str, app_handle: tauri::AppHandle) -> Result<String, templ
 #[tauri::command]
 pub fn movie(
     id: u32,
+    background_process_state: State<'_, BackgroundProcessState>,
     app_state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, templates::Error> {
@@ -45,7 +49,12 @@ pub fn movie(
         Ok(resp) => resp,
         Err(e) => return templates::the_movie_db::render_index(&app_state, &e.message),
     };
-    templates::movies::render_show(&app_state, &movie, &certification)
+    templates::movies::render_show(
+        &app_state,
+        &background_process_state,
+        &movie,
+        &certification,
+    )
 }
 
 #[tauri::command]
@@ -79,12 +88,12 @@ pub fn season(
         Err(e) => return templates::the_movie_db::render_index(&state, &e.message),
     };
 
-    templates::seasons::render_show(&state, &tv, &season)
+    templates::seasons::render_show(&app_handle, &tv, &season)
 }
 
 #[tauri::command]
 pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, templates::Error> {
-    save_query(&state, search);
+    state.save_query(search);
 
     let api_key = &state.lock_the_movie_db_key();
     let language = "en-US";

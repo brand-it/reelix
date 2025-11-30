@@ -60,5 +60,5 @@ pub fn the_movie_db(
     store
         .save()
         .expect("Failed to save store.json in the_movie_db command");
-    search::render_index(&state)
+    search::render_index(&app_handle)
 }

@@ -1,6 +1,8 @@
 use crate::models::optical_disk_info::{DiskId, OpticalDiskInfo};
 use crate::services::drive_info::opticals;
 use crate::services::makemkvcon;
+use crate::state::background_process_state::BackgroundProcessState;
+use crate::state::job_state::{Job, JobStatus, JobType};
 use crate::state::AppState;
 use crate::templates;
 use log::debug;
@@ -75,7 +77,9 @@ pub async fn watch_for_changes(sender: broadcast::Sender<Vec<diff::Result<Optica
 
 fn emit_disk_titles_change(app_handle: &AppHandle) {
     let app_state = app_handle.state::<AppState>();
-    let result = templates::disk_titles::render_options(&app_state)
+    let background_process_state = app_handle.state::<BackgroundProcessState>();
+
+    let result = templates::disk_titles::render_options(&app_state, &background_process_state)
         .expect("Failed to render disk_titles/options");
     app_handle
         .emit("disks-changed", result)
@@ -95,15 +99,38 @@ fn contains(
         .any(|optical_disk| unwrap_disk(optical_disk) == unwrap_disk(disk))
 }
 
-async fn load_titles(app_handle: &AppHandle, disk_id: DiskId) {
+async fn load_titles(app_handle: &AppHandle, job: &Arc<RwLock<Job>>) {
     let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
-    let results = match makemkvcon::title_info(disk_id, app_handle).await {
+    job.write()
+        .expect("failed to lock job for write")
+        .update_status(JobStatus::Processing);
+    job.read()
+        .expect("failed to lock job for read")
+        .emit_progress_change(app_handle);
+    let results = match makemkvcon::title_info(app_handle, job).await {
         Ok(run_result) => run_result,
         Err(message) => {
             debug!("failed to load titles: {message}");
+            job.write()
+                .expect("failed to lock job for write")
+                .update_status(JobStatus::Error);
+            job.write()
+                .expect("failed to lock job for write")
+                .update_message(&format!("Failed to load titles: {message}"));
+            job.read()
+                .expect("failed to lock job for read")
+                .emit_progress_change(app_handle);
             return;
         }
     };
+
+    let disk_id = job
+        .read()
+        .expect("failed to lock job for read")
+        .disk
+        .as_ref()
+        .expect("There should of been a disk")
+        .id;
 
     // extend or append the title info data to the optical disk
     // This then makes it possible later use that title info
@@ -119,6 +146,12 @@ async fn load_titles(app_handle: &AppHandle, disk_id: DiskId) {
         }
         None => debug!("Disk not found in state."),
     }
+    job.write()
+        .expect("failed to lock job for write")
+        .update_status(JobStatus::Finished);
+    job.read()
+        .expect("failed to lock job for read")
+        .emit_progress_change(app_handle);
 }
 
 fn add_optical_disk(app_handle: &AppHandle, disk: &OpticalDiskInfo) {
@@ -206,7 +239,16 @@ pub async fn handle_changes(
                             templates::disks::emit_disk_change(&app_handle);
                             let app_handle_clone = app_handle.clone();
                             tokio::spawn(async move {
-                                load_titles(&app_handle_clone, disk.id).await;
+                                let background_process_state =
+                                    app_handle_clone.state::<BackgroundProcessState>();
+                                let job = background_process_state
+                                    .new_job(JobType::Loading, Some(disk.clone()));
+                                job.write().expect("failed to lock job for write").title =
+                                    Some(format!("Loading Titles for {}", disk.name));
+                                job.read()
+                                    .expect("failed to lock job for read")
+                                    .emit_progress_change(&app_handle_clone);
+                                load_titles(&app_handle_clone, &job).await;
                                 emit_disk_titles_change(&app_handle_clone);
                                 templates::disks::emit_disk_change(&app_handle_clone);
                             });

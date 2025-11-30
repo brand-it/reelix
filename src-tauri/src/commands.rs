@@ -1,6 +1,5 @@
 pub mod disk;
 pub mod general;
-mod helpers;
 pub mod rip;
 pub mod setting;
 

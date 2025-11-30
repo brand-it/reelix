@@ -245,29 +245,29 @@ pub struct TvEpisode {
     pub still_path: Option<String>,
 }
 
-impl TvEpisode {
-    pub fn formatted_vote_average(&self) -> String {
-        let average = (self.vote_average * 10.0).round();
-        format!("{}", average)
-    }
+// impl TvEpisode {
+//     pub fn formatted_vote_average(&self) -> String {
+//         let average = (self.vote_average * 10.0).round();
+//         format!("{}", average)
+//     }
 
-    pub fn formatted_air_date(&self) -> String {
-        NaiveDate::parse_from_str(&self.air_date, "%Y-%m-%d")
-            .ok()
-            .map(|date| date.format("%B %-d, %Y").to_string())
-            .unwrap_or_else(|| "".to_string())
-    }
+//     pub fn formatted_air_date(&self) -> String {
+//         NaiveDate::parse_from_str(&self.air_date, "%Y-%m-%d")
+//             .ok()
+//             .map(|date| date.format("%B %-d, %Y").to_string())
+//             .unwrap_or_else(|| "".to_string())
+//     }
 
-    pub fn formatted_runtime(&self) -> String {
-        let minutes = self.runtime;
-        let hours = minutes / 60;
-        if hours > 0 {
-            format!("{hours}h {}m", minutes % 60)
-        } else {
-            format!("{minutes}m")
-        }
-    }
-}
+//     pub fn formatted_runtime(&self) -> String {
+//         let minutes = self.runtime;
+//         let hours = minutes / 60;
+//         if hours > 0 {
+//             format!("{hours}h {}m", minutes % 60)
+//         } else {
+//             format!("{minutes}m")
+//         }
+//     }
+// }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TvNetwork {
@@ -326,28 +326,6 @@ pub struct SeasonResponse {
     pub vote_average: f32,
 }
 
-// impl SeasonResponse {
-// pub fn title_year(&self) -> String {
-//     match self.year() {
-//         Some(v) => return format!("{} ({})", self.name, v.to_string()),
-//         None => return format!("{}", self.name),
-//     };
-// }
-
-// pub fn year(&self) -> Option<u32> {
-//     NaiveDate::parse_from_str(&self.air_date, "%Y-%m-%d")
-//         .ok()
-//         .and_then(|dt| dt.format("%Y").to_string().parse::<u32>().ok())
-// }
-
-// pub fn formatted_air_date(&self) -> String {
-//     NaiveDate::parse_from_str(&self.air_date, "%Y-%m-%d")
-//         .ok()
-//         .map(|date| date.format("%B %-d, %Y").to_string())
-//         .unwrap_or_else(|| "".to_string())
-// }
-// }
-
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SeasonEpisode {
     pub air_date: Option<String>,
@@ -368,13 +346,13 @@ pub struct SeasonEpisode {
 }
 
 impl SeasonEpisode {
-    pub fn year(&self) -> Option<u32> {
-        self.air_date.as_ref().and_then(|date_str| {
-            chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
-                .ok()
-                .and_then(|dt| dt.format("%Y").to_string().parse::<u32>().ok())
-        })
-    }
+    // pub fn year(&self) -> Option<u32> {
+    //     self.air_date.as_ref().and_then(|date_str| {
+    //         chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
+    //             .ok()
+    //             .and_then(|dt| dt.format("%Y").to_string().parse::<u32>().ok())
+    //     })
+    // }
 
     pub fn formatted_vote_average(&self) -> String {
         let average = (self.vote_average * 10.0).round();
