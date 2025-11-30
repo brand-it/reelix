@@ -123,7 +123,7 @@ fn setup_view_window(app: &mut App) {
     #[cfg(target_os = "macos")]
     let win_builder = win_builder.title_bar_style(TitleBarStyle::Transparent);
 
-    let window = win_builder.build().unwrap();
+    let _window = win_builder.build().unwrap();
 
     // set background color only when building for macOS
     #[cfg(target_os = "macos")]
@@ -131,7 +131,7 @@ fn setup_view_window(app: &mut App) {
         use objc2::rc::Retained;
         use objc2::runtime::AnyObject;
         use objc2_app_kit::{NSColor, NSWindow};
-        let raw = window.ns_window().unwrap();
+        let raw = _window.ns_window().unwrap();
         // SAFETY: We know this pointer is really an NSWindow instance.
         let ns_window: Retained<NSWindow> = unsafe {
             let obj_ptr = raw as *mut AnyObject;
