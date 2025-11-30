@@ -3,7 +3,7 @@
     {% let disc = disk.as_ref().unwrap() %}
     <div class="dropdown-item dropdown-selected" data-disk-select-target="item" data-value="{{ disc.id }}" type="button">
       <span class="icon-column">
-        {% if disc.has_process() %}
+        {% if job.is_some() %}
           <i class="fad fa-spinner fa-pulse"></i>
         {% elif disc.any_titles() %}
           <i class="fad fa-check-square text-success"></i>
@@ -13,9 +13,13 @@
       </span>
       <span class="text-column">
         {{ disc.name }}
-        {% if let Some(title) = disc.ripping_title() %}
-          {% if let Some(title_name) = title.name %}
-            <span class="ripping-title">{{ title_name }}</span>
+        {% if let Some(job) = job %}
+          {% if job.is_processing() %}
+            {% if job.is_loading() %}
+              <span class="ripping-title">Loading Disk...</span>
+            {% elif job.is_ripping() %}
+              <span class="ripping-title">Ripping...</span>
+            {% endif %}
           {% endif %}
         {% endif %}
       </span>
@@ -25,7 +29,7 @@
     <div class="dropdown-item" data-value="{{ disc.id }}" data-disk-select-target="item" type="button"
       data-action="click->disk-select#selected">
       <span class="icon-column">
-        {% if disc.has_process() %}
+        {% if job.is_some() %}
           <i class="fad fa-spinner fa-pulse"></i>
         {% elif disc.any_titles() %}
           <i class="fad fa-check-square text-success"></i>
@@ -35,8 +39,8 @@
       </span>
       <span class="text-column">
         {{ disc.name }}
-        {% if let Some(title) = disc.ripping_title() %}
-          {% if let Some(title_name) = title.name %}
+        {% if let Some(some_job) = job %}
+          {% if let Some(title_name) = some_job.title %}
             <span class="ripping-title">{{ title_name }}</span>
           {% endif %}
         {% endif %}

@@ -1,7 +1,7 @@
 use crate::models::optical_disk_info::OpticalDiskInfo;
 use crate::services::auto_complete;
+use crate::state::background_process_state::BackgroundProcessState;
 use state::AppState;
-use std::sync::{Arc, Mutex, RwLock};
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{App, Manager, WebviewUrl, WebviewWindowBuilder};
@@ -15,6 +15,7 @@ mod disk;
 mod models;
 mod progress_tracker;
 mod services;
+mod standard_error;
 mod state;
 mod templates;
 
@@ -149,17 +150,6 @@ fn setup_view_window(app: &mut App) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let app_state: AppState = AppState {
-        ftp_host: Arc::new(Mutex::new(None)),
-        ftp_movie_upload_path: Arc::new(Mutex::new(None)),
-        ftp_pass: Arc::new(Mutex::new(None)),
-        ftp_user: Arc::new(Mutex::new(None)),
-        optical_disks: Arc::new(RwLock::new(Vec::<Arc<RwLock<OpticalDiskInfo>>>::new())),
-        query: Arc::new(Mutex::new(String::new())),
-        selected_optical_disk_id: Arc::new(RwLock::new(None)),
-        the_movie_db_key: Arc::new(Mutex::new(String::new())),
-    };
-
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
@@ -177,7 +167,8 @@ pub fn run() {
                 ])
                 .build(),
         )
-        .manage(app_state)
+        .manage(AppState::new())
+        .manage(BackgroundProcessState::new())
         .setup(|app| {
             setup_store(app);
             spawn_disk_listener(app);

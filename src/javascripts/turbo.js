@@ -25,24 +25,18 @@ window.turboInvoke = async function turboInvoke(command, commandArgs) {
   }
 };
 
-window.processTurboResponse = (function () {
+window.processTurboResponse = function (turboResponse) {
+  if (typeof turboResponse !== "string") return;
+
   const template = document.createElement("template");
+  template.innerHTML = turboResponse.trim();
+  const streams = template.content.querySelectorAll("turbo-stream");
 
-  return function processTurboResponse(turboResponse) {
-    if (typeof turboResponse !== "string") return;
-
-    // parse into a DocumentFragment via template
-    template.innerHTML = turboResponse.trim();
-    const streams = template.content.querySelectorAll("turbo-stream");
-
-    for (const stream of streams) {
-      Turbo.renderStreamMessage(stream.outerHTML);
-    }
-
-    // drop references immediately
-    template.innerHTML = "";
-  };
-})();
+  for (const stream of streams) {
+    Turbo.renderStreamMessage(stream.outerHTML);
+  }
+  // No need to clear innerHTML; template will be garbage collected
+};
 
 function findClosestRecursively(element, selector) {
   if (element instanceof Element) {
@@ -162,8 +156,6 @@ LinkClickObserver.start();
 
 document.addEventListener("DOMContentLoaded", (event) => {
   turboInvoke("index");
-  // Ensure footer height variable is set on initial load
-  setProgressFooterHeightFromDom();
 });
 
 window.addEventListener("click", function (event) {
@@ -180,35 +172,6 @@ window.addEventListener("click", function (event) {
   //   turboInvoke("open_browser", { url: event.target.href });
   // }
 });
-
-// ----- Fixed footer height -> CSS variable sync -----
-function setProgressFooterHeightFromDom() {
-  try {
-    const footer = document.getElementById("disk-progress-footer");
-    const height = footer ? Math.ceil(footer.getBoundingClientRect().height) : 0;
-    document.body?.style?.setProperty("--progress-footer-height", `${height}px`);
-  } catch (_) {
-    // ignore
-  }
-}
-
-// *-Recalc on window resize
-window.addEventListener("resize", setProgressFooterHeightFromDom);
-
-// Recalc after Turbo renders DOM updates
-document.addEventListener("turbo:render", setProgressFooterHeightFromDom);
-
-// Recalc when Bootstrap collapse within footer toggles
-document.addEventListener("shown.bs.collapse", setProgressFooterHeightFromDom);
-document.addEventListener("hidden.bs.collapse", setProgressFooterHeightFromDom);
-
-// If processTurboResponse is called, schedule a recalculation after updates
-const __originalProcessTurboResponse = window.processTurboResponse;
-window.processTurboResponse = function patchedProcessTurboResponse(html) {
-  __originalProcessTurboResponse(html);
-  // Allow DOM to update, then measure
-  setTimeout(setProgressFooterHeightFromDom, 0);
-};
 
 // window.__TAURI_INTERNALS__.transformCallback = function(event, n = !1) {
 //   console.log("event: transformCallback", event, n);

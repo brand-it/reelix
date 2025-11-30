@@ -48,9 +48,7 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
                 dev: String::new(),
                 mount_point,
                 titles: Mutex::new(Vec::new()),
-                progress: Mutex::new(None),
                 pid: Mutex::new(None),
-                content: None,
                 index: idx as u32,
             })
         });

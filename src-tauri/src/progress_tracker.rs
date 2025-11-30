@@ -84,11 +84,11 @@ impl Progress {
         self.total = new_total;
     }
 
-    pub fn percentage_completed(&self) -> usize {
+    pub fn percentage_completed(&self) -> f32 {
         if self.total == 0 {
-            100
+            100.0
         } else {
-            (self.progress * 100) / self.total
+            (self.progress as f32 * 100.0) / self.total as f32
         }
     }
 
@@ -329,12 +329,8 @@ pub mod components {
             Percentage { progress }
         }
 
-        pub fn percentage(&self) -> String {
-            self.progress
-                .lock()
-                .unwrap()
-                .percentage_completed()
-                .to_string()
+        pub fn percentage(&self) -> f32 {
+            self.progress.lock().unwrap().percentage_completed()
         }
 
         // Unused: warning: method `justified_percentage` is never used
@@ -415,7 +411,7 @@ pub mod components {
         // const OOB_LIMIT_IN_HOURS: u64 = 99;
         // const OOB_UNKNOWN_TIME_TEXT: &'static str = "??:??:??";
         // const OOB_FRIENDLY_TIME_TEXT: &'static str = "> 4 Days";
-        const NO_TIME_ELAPSED_TEXT: &'static str = "--:--:--";
+        pub const NO_TIME_ELAPSED_TEXT: &'static str = "--:--:--";
         // const ESTIMATED_LABEL: &'static str = " ETA";
         // const ELAPSED_LABEL: &'static str = "Time";
         // const WALL_CLOCK_FORMAT: &'static str = "%H:%M:%S";
@@ -432,6 +428,26 @@ pub mod components {
             }
         }
 
+        /// Estimate the time remaining for the tracked operation, formatted as HH:MM:SS.
+        ///
+        /// Purpose:
+        /// - Returns a human-readable ETA (estimated time remaining) for the current progress.
+        /// - Useful for displaying progress bars, status messages, or logs during long-running tasks.
+        ///
+        /// How to use:
+        /// - Call this method on a `TimeComponent` to get the ETA string.
+        /// - Optionally pass an `OOBTimeFormat` to control the output for very large/unknown times.
+        ///
+        /// Example:
+        /// ```rust
+        /// let eta = time_component.estimated(None); // e.g., "00:12:34"
+        /// let eta_friendly = time_component.estimated(Some(OOBTimeFormat::Friendly));
+        /// ```
+        ///
+        /// Notes:
+        /// - Returns "--:--:--" if ETA cannot be determined (e.g., not started, finished, or insufficient data).
+        /// - Caps output at 99 hours; uses OOB format for longer durations.
+        /// - Relies on progress, timer, and projector state for calculation.
         pub fn estimated(&self, oob_format: Option<OOBTimeFormat>) -> String {
             if let Some(estimated_secs) = self.estimated_seconds_remaining() {
                 let (hours, minutes, seconds) = Timer::divide_seconds(estimated_secs);
@@ -681,6 +697,21 @@ impl Base {
     //     }
     // }
 
+    /// Set the current progress value for the tracker.
+    ///
+    /// Purpose:
+    /// - Updates the progress bar to a specific value, typically as work advances.
+    /// - Also updates the internal projector for smoothed progress estimation.
+    /// - Stops the timer if the tracker is finished.
+    ///
+    /// How to use:
+    /// - Call this method with the new progress value (e.g., bytes processed, items completed).
+    /// - Use inside loops, callbacks, or event handlers to reflect real-time progress.
+    ///
+    /// Example:
+    /// ```rust
+    /// tracker.set_progress(42); // Set progress to 42
+    /// ```
     pub fn set_progress(&self, new_progress: usize) {
         self.progress.lock().unwrap().set_progress(new_progress);
         self.projector
@@ -692,6 +723,21 @@ impl Base {
         }
     }
 
+    /// Set the total value for the tracker (e.g., total bytes, total items).
+    ///
+    /// Purpose:
+    /// - Updates the total expected work for the progress bar.
+    /// - Adjusts progress if the new total is less than the current progress.
+    /// - Stops the timer if the tracker is finished.
+    ///
+    /// How to use:
+    /// - Call this method when you know the total work to be done (e.g., file size, item count).
+    /// - Can be called before or during progress updates.
+    ///
+    /// Example:
+    /// ```rust
+    /// tracker.set_total(100); // Set total to 100
+    /// ```
     pub fn set_total(&self, new_total: usize) {
         self.progress.lock().unwrap().set_total(new_total);
         if self.finished() {

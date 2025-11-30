@@ -1,11 +1,19 @@
-<turbo-stream action="replace" target="{{ disks_toast_progress_details.dom_id() }}">
+<turbo-stream action="replace" method="morph" target="{{ disks_toast_progress_details.dom_id() }}">
   <template>
     {{ disks_toast_progress_details.render_html() | safe }}
   </template>
 </turbo-stream>
 
-<turbo-stream action="replace" target="{{ disks_toast_progress_summary.dom_id() }}">
+<turbo-stream action="replace" method="morph" target="{{ disks_toast_progress_summary.dom_id() }}">
   <template>
     {{ disks_toast_progress_summary.render_html() | safe }}
   </template>
 </turbo-stream>
+
+{% if let Some(movie_cards) = movie_cards %}
+  <turbo-stream action="replace" method="morph" target="{{ movie_cards.dom_id() }}">
+    <template>
+      {{ movie_cards.render_html() | safe }}
+    </template>
+  </turbo-stream>
+{% endif %}

@@ -1,4 +1,3 @@
-use super::movie_db::SeasonEpisode;
 use serde::Serialize;
 
 #[derive(Default, Serialize, Clone)]
@@ -17,9 +16,6 @@ pub struct TitleInfo {
     pub lang: Option<String>,
     pub language: Option<String>,
     pub description: Option<String>,
-    pub content: Vec<SeasonEpisode>,
-    pub part: Option<u16>,
-    pub rip: bool,
 }
 
 impl TitleInfo {
@@ -28,13 +24,6 @@ impl TitleInfo {
             id,
             ..Default::default()
         }
-    }
-    pub fn describe_content(&self) -> String {
-        self.content
-            .iter()
-            .map(|episode| episode.name.clone())
-            .collect::<Vec<_>>()
-            .join(", ")
     }
 
     // pub fn segment_map(&self) -> Option<Vec<i32>> {

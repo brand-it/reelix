@@ -1,23 +1,22 @@
-use super::helpers::{
-    add_episode_to_title, mark_title_rippable, remove_episode_from_title, rename_movie_file,
-    rename_tv_file, set_optical_disk_as_movie, set_optical_disk_as_season,
-};
-use crate::commands::helpers::RipError;
 use crate::models::movie_db::MovieResponse;
-use crate::models::optical_disk_info::{DiskContent, DiskId, TvSeasonContent};
-use crate::models::title_info::TitleInfo;
-use crate::services::plex::{create_season_episode_dir, find_tv};
-use crate::services::{self, disk_manager, zip_directory};
+use crate::models::optical_disk_info::{DiskId, OpticalDiskInfo};
+use crate::services::plex::find_tv;
+use crate::services::{self, disk_manager};
 use crate::services::{
     makemkvcon,
-    plex::{create_movie_dir, find_movie, find_season},
+    plex::{find_movie, find_season},
 };
-use crate::state::AppState;
+use crate::standard_error::StandardError;
+use crate::state::background_process_state::BackgroundProcessState;
+use crate::state::job_state::{emit_progress, Job, JobStatus, JobType};
+use crate::state::title_video::{self, TitleVideo, Video};
+use crate::state::{background_process_state, AppState};
 use crate::templates::{self};
-use log::{debug, error};
+use log::{debug, error, warn};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, RwLock};
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_notification::NotificationExt;
 use templates::render_error;
@@ -41,13 +40,6 @@ pub struct Episode {
     parts: Vec<Part>,
 }
 
-#[derive(Serialize)]
-struct RipInfo {
-    directory: PathBuf,
-    titles: Vec<TitleInfo>,
-    content: DiskContent,
-}
-
 #[tauri::command]
 pub fn assign_episode_to_title(
     mvdb_id: u32,
@@ -55,9 +47,10 @@ pub fn assign_episode_to_title(
     episode_number: u32,
     title_id: u32,
     part: u16,
-    app_state: State<'_, AppState>,
+    background_process_state: State<'_, background_process_state::BackgroundProcessState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, templates::Error> {
+    let app_state = app_handle.state::<AppState>();
     let optical_disk = match app_state.selected_disk() {
         Some(disk) => disk,
         None => return render_error("No current selected disk"),
@@ -80,13 +73,56 @@ pub fn assign_episode_to_title(
         Some(episode) => episode,
         None => return templates::render_error("Could not find episode to assign"),
     };
-    set_optical_disk_as_season(&optical_disk, &tv, &season);
-    match add_episode_to_title(&app_state, &optical_disk, episode, &part, &title_id) {
-        Ok(_) => debug!("Added {title_id} to {mvdb_id} {season_number} {episode_number}"),
-        Err(e) => return Err(e),
-    }
+    let disk_id = optical_disk.read().expect("failed to lock optical_disk").id;
+    let job = match background_process_state.find_job(
+        Some(disk_id),
+        &Some(JobType::Ripping),
+        &[JobStatus::Pending, JobStatus::Ready],
+    ) {
+        Some(job) => job,
+        None => {
+            let optical_disk_info = optical_disk.read().unwrap().clone();
+            background_process_state.new_job(JobType::Ripping, Some(optical_disk_info))
+        }
+    };
+    let title_video = job.read().unwrap().find_tv_title_video(
+        mvdb_id,
+        season_number,
+        episode_number,
+        title_id,
+        Some(part),
+    );
 
-    templates::seasons::render_title_selected(&app_state, season)
+    let title_info = match optical_disk.read().unwrap().find_title_by_id(title_id) {
+        Some(title) => title,
+        None => {
+            return render_error("Failed to find Title on Optical Disk to Assign Episode");
+        }
+    };
+
+    match title_video {
+        Some(_) => {
+            return templates::render_error("Episode already assigned to title");
+        }
+        None => {
+            let tv_season_episode = title_video::TvSeasonEpisode {
+                tv: tv.clone(),
+                season: season.clone(),
+                episode: episode.clone(),
+                part: Some(part),
+            };
+            let title_video = TitleVideo {
+                video: Video::Tv(Box::new(tv_season_episode)),
+                title: title_info.clone(),
+            };
+            job.write()
+                .expect("Failed to lock job for write")
+                .title_videos
+                .push(Arc::new(RwLock::new(title_video)));
+        }
+    };
+
+    templates::seasons::render_title_selected(&app_handle, season)
 }
 
 #[tauri::command]
@@ -102,24 +138,33 @@ pub fn withdraw_episode_from_title(
         Some(d) => d,
         None => return render_error("No current selected disk"),
     };
+
     let season = match find_season(&app_handle, mvdb_id, season_number) {
         Ok(season) => season,
         Err(e) => return render_error(&e.message),
     };
-    let episode = match season
-        .episodes
-        .iter()
-        .find(|e| e.episode_number == episode_number)
-    {
-        Some(episode) => episode,
-        None => return templates::render_error("Failed to find episode to add to title"),
-    };
-    match remove_episode_from_title(&app_state, &optical_disk, episode, &title_id) {
-        Ok(_) => debug!("Removed {title_id} to {mvdb_id} {season_number} {episode_number}"),
-        Err(e) => return Err(e),
+
+    let job = find_or_create_job(&app_handle, &optical_disk.read().unwrap());
+    let title_video = job.read().unwrap().find_tv_title_video(
+        mvdb_id,
+        season_number,
+        episode_number,
+        title_id,
+        None,
+    );
+    match title_video {
+        Some(title_video) => {
+            job.write()
+                .expect("Failed to lock job for write")
+                .title_videos
+                .retain(|tv| !Arc::ptr_eq(tv, &title_video));
+        }
+        None => {
+            return render_error("Failed to find Episode to Withdraw from Title");
+        }
     }
 
-    templates::seasons::render_title_selected(&app_state, season)
+    templates::seasons::render_title_selected(&app_handle, season)
 }
 
 #[tauri::command]
@@ -139,8 +184,21 @@ pub fn rip_season(
             return templates::render_error("No selected disk");
         }
     };
-    spawn_rip(app_handle, disk_id);
-    templates::disks::render_toast_progress(&None, &None)
+
+    let optical_disk = match app_state.find_optical_disk_by_id(&disk_id) {
+        Some(optical_disk) => optical_disk,
+        None => return render_error("Failed to find Optical Disk"),
+    };
+    let background_process_state = app_handle.state::<BackgroundProcessState>();
+    let job = background_process_state.find_or_create_job(
+        Some(disk_id),
+        &Some(optical_disk),
+        &JobType::Ripping,
+        &[JobStatus::Pending, JobStatus::Ready],
+    );
+
+    spawn_rip(app_handle, job);
+    Ok("".to_string())
 }
 
 #[tauri::command]
@@ -149,34 +207,54 @@ pub fn rip_movie(
     title_id: u32,
     mvdb_id: u32,
     app_state: State<'_, AppState>,
+    background_process_state: State<'_, background_process_state::BackgroundProcessState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, templates::Error> {
-    // Make sure it is a DiskID object
     let disk_id = DiskId::from(disk_id);
-    // Assign Optical Disk Title as movie type and mvdb ID
     let optical_disk = match app_state.find_optical_disk_by_id(&disk_id) {
         Some(optical_disk) => optical_disk,
         None => return render_error("Failed to find Optical Disk"),
     };
-    // Create Dir from Movie and Make Sure Movie Exists in MVDB
-    match find_movie(&app_handle, mvdb_id) {
-        Ok(movie) => set_optical_disk_as_movie(&optical_disk, movie),
+
+    let title_info = match optical_disk.read().unwrap().find_title_by_id(title_id) {
+        Some(title) => title,
+        None => {
+            return render_error("Failed to find Title on Optical Disk to Rip");
+        }
+    };
+
+    let job = background_process_state.find_or_create_job(
+        Some(disk_id),
+        &Some(optical_disk),
+        &JobType::Ripping,
+        &[JobStatus::Pending, JobStatus::Ready],
+    );
+
+    let movie = match find_movie(&app_handle, mvdb_id) {
+        Ok(movie) => movie,
         Err(e) => return render_error(&e.message),
     };
 
-    mark_title_rippable(optical_disk, title_id);
-    spawn_rip(app_handle, disk_id);
-
-    templates::disks::render_toast_progress(&None, &None)
+    match job
+        .write()
+        .expect("Failed to lock job")
+        .add_title_video(title_info, Video::Movie(Box::new(movie.clone())))
+    {
+        Ok(_) => {}
+        Err(e) => {
+            return render_error(&e.message);
+        }
+    };
+    job.read()
+        .expect("Failed to lock job for read")
+        .emit_progress_change(&app_handle);
+    spawn_rip(app_handle, job);
+    Ok("".to_string())
 }
 
-fn emit_render_cards(
-    state: &State<'_, AppState>,
-    app_handle: &tauri::AppHandle,
-    movie: &MovieResponse,
-) {
+fn emit_render_cards(app_handle: &tauri::AppHandle) {
     let result =
-        templates::movies::render_cards(state, movie).expect("Failed to render movies/cards.html");
+        templates::movies::render_cards(app_handle).expect("Failed to render movies/cards.html");
     app_handle
         .emit("disks-changed", result)
         .expect("Failed to emit disks-changed");
@@ -186,26 +264,26 @@ fn notify_movie_success(app_handle: &tauri::AppHandle, movie: &MovieResponse) {
     app_handle
         .notification()
         .builder()
-        .title("Finished Ripping")
+        .title(format!("Finished Ripping {}", movie.title))
         .body(movie.title_year())
         .show()
         .unwrap();
 }
 
-fn notify_movie_backup_success(app_handle: &tauri::AppHandle, movie: &MovieResponse) {
-    app_handle
-        .notification()
-        .builder()
-        .title("Backup Finished Ripping")
-        .body(format!(
-            "Was Able to backup movie but not create MKV files for you {}",
-            movie.title_year()
-        ))
-        .show()
-        .unwrap();
-}
+// fn notify_movie_backup_success(app_handle: &tauri::AppHandle, movie: &MovieResponse) {
+//     app_handle
+//         .notification()
+//         .builder()
+//         .title("Backup Finished Ripping")
+//         .body(format!(
+//             "Was Able to backup movie but not create MKV files for you {}",
+//             movie.title_year()
+//         ))
+//         .show()
+//         .unwrap();
+// }
 
-fn notify_failure(app_handle: &tauri::AppHandle, error: &RipError) {
+fn notify_failure(app_handle: &tauri::AppHandle, error: &StandardError) {
     app_handle
         .notification()
         .builder()
@@ -240,139 +318,167 @@ fn notify_movie_upload_failure(app_handle: &tauri::AppHandle, file_path: &Path, 
         .unwrap();
 }
 
-fn delete_dir(dir: &Path) {
-    if let Err(error) = fs::remove_dir_all(dir) {
-        error!("Failed to delete directory {}: {}", dir.display(), error);
-    };
-}
+// fn delete_dir(dir: &Path) {
+//     if let Err(error) = fs::remove_dir_all(dir) {
+//         error!("Failed to delete directory {}: {}", dir.display(), error);
+//     };
+// }
 
-fn spawn_upload(app_handle: &tauri::AppHandle, file_path: &Path, rip_info: &RipInfo) {
+fn spawn_upload(app_handle: &tauri::AppHandle, title_video: &Arc<RwLock<TitleVideo>>) {
     let app_handle = app_handle.clone();
-    let path = file_path.to_owned();
-    let directory = rip_info.directory.to_owned();
-
+    let title_video = title_video.clone();
     tauri::async_runtime::spawn(async move {
-        match services::ftp_uploader::upload(&app_handle, &path).await {
+        let background_process_state = app_handle.state::<BackgroundProcessState>();
+        let job = background_process_state.find_or_create_job(
+            None,
+            &None,
+            &JobType::Uploading,
+            &[JobStatus::Pending, JobStatus::Ready],
+        );
+        job.write()
+            .expect("Failed to get job writer")
+            .title_videos
+            .push(title_video.clone());
+        job.write()
+            .expect("Failed to get job writer")
+            .update_status(JobStatus::Processing);
+        job.write().expect("Failed to get job writer").subtitle =
+            Some("Uploading Video".to_string());
+        job.read()
+            .expect("Failed to get job reader")
+            .emit_progress_change(&app_handle);
+
+        match services::ftp_uploader::upload(&app_handle, &job, &title_video).await {
             Ok(_m) => {
+                let path = title_video
+                    .read()
+                    .expect("Failed to get title_video reader")
+                    .video_path(&app_handle.state::<AppState>());
                 notify_movie_upload_success(&app_handle, &path);
-                delete_dir(&directory);
+                job.write()
+                    .expect("Failed to acquire write lock on job")
+                    .update_status(JobStatus::Finished);
+                emit_progress(&app_handle, &job, true);
+                delete_file(&path);
             }
-            Err(e) => notify_movie_upload_failure(&app_handle, &path, &e),
+            Err(e) => {
+                let path = title_video
+                    .read()
+                    .expect("Failed to get title_video reader")
+                    .video_path(&app_handle.state::<AppState>());
+                job.write()
+                    .expect("Failed to get job writer")
+                    .update_status(JobStatus::Error);
+                job.write().expect("Failed to get job writer").message = Some(e.clone());
+                emit_progress(&app_handle, &job, true);
+                notify_movie_upload_failure(&app_handle, &path, &e);
+            }
         };
     });
 }
 
-fn rename_ripped_title(
-    app_handle: &tauri::AppHandle,
-    title: &TitleInfo,
-    disk_id: &DiskId,
-    rip_titles: &[TitleInfo],
-) -> Result<PathBuf, RipError> {
-    debug!("Ripped title {}", title.id);
-    let state = app_handle.state::<AppState>();
-    match state.find_optical_disk_by_id(disk_id) {
-        Some(optical_disk) => {
-            let locked_disk = optical_disk.read().unwrap();
-            match locked_disk.content.as_ref().unwrap() {
-                DiskContent::Movie(movie) => rename_movie_file(title, movie),
-                DiskContent::Tv(season) => rename_tv_file(title, season, rip_titles),
-            }
-        }
-        None => Err(RipError {
-            title: "Rip Failure".to_string(),
-            message: "Optical Disk missing, can't access critical info to rename movie/tv show"
-                .to_string(),
-        }),
-    }
+fn delete_file(file_path: &Path) {
+    if let Err(error) = fs::remove_file(file_path) {
+        error!("Failed to delete file {}: {}", file_path.display(), error);
+    };
 }
 
 async fn rip_title(
     app_handle: &tauri::AppHandle,
-    disk_id: &DiskId,
-    title: &TitleInfo,
-    rip_info: &RipInfo,
-) -> Result<PathBuf, RipError> {
-    match makemkvcon::rip_title(app_handle, disk_id, &title.id, &rip_info.directory).await {
-        Ok(_) => rename_ripped_title(app_handle, title, disk_id, &rip_info.titles),
-        Err(e) => Err(RipError {
+    job: &Arc<RwLock<Job>>,
+    title_video: &Arc<RwLock<TitleVideo>>,
+) -> Result<PathBuf, StandardError> {
+    match makemkvcon::rip_title(app_handle, job, title_video).await {
+        Ok(_) => {
+            let app_state = app_handle.state::<AppState>();
+            title_video
+                .read()
+                .expect("Failed to get title_video reader")
+                .rename_ripped_file(&app_state)
+                .map_err(|e| StandardError {
+                    title: "Rename Failure".into(),
+                    message: e,
+                })
+        }
+        Err(e) => Err(StandardError {
             title: "Rip Failure".into(),
             message: e,
         }),
     }
 }
 
-async fn back_disk(
-    app_handle: &tauri::AppHandle,
-    disk_id: &DiskId,
-    rip_info: &RipInfo,
-) -> Result<(), RipError> {
-    match makemkvcon::back_disk(app_handle, disk_id, &rip_info.directory).await {
-        Ok(_) => Ok(()),
-        Err(e) => Err(RipError {
-            title: "Backup Failure".into(),
-            message: e,
-        }),
-    }
-}
+// this never worked I will work on making this work later
+// async fn back_disk(
+//     app_handle: &tauri::AppHandle,
+//     job: &Arc<RwLock<Job>>,
+//     disk_id: &DiskId,
+//     rip_info: &RipInfo,
+// ) -> Result<(), StandardError> {
+//     match makemkvcon::back_disk(app_handle, job, disk_id, &rip_info.directory).await {
+//         Ok(_) => Ok(()),
+//         Err(e) => Err(StandardError {
+//             title: "Backup Failure".into(),
+//             message: e,
+//         }),
+//     }
+// }
 
-fn notify_tv_success(app_handle: &tauri::AppHandle, season: &TvSeasonContent, title: &TitleInfo) {
+fn notify_tv_success(app_handle: &tauri::AppHandle, title: &title_video::TvSeasonEpisode) {
     app_handle
         .notification()
         .builder()
-        .title("TV Show Completed".to_string())
-        .body(format!(
-            "{} {} {}",
-            season.tv.title_year(),
-            season.season.name,
-            title.describe_content()
-        ))
+        .title(format!("Episode Created for {}", title.tv.name))
+        .body(title.title().to_string())
         .show()
         .unwrap();
 }
 
-fn build_info(app_handle: &tauri::AppHandle, disk_id: &DiskId) -> RipInfo {
-    let state = app_handle.state::<AppState>();
-    let optical_disk = state.find_optical_disk_by_id(disk_id).unwrap();
-    {
-        let locked_disk = optical_disk.read().unwrap();
-        match locked_disk.content.as_ref().unwrap() {
-            DiskContent::Movie(movie) => {
-                let dir = create_movie_dir(movie);
-                let titles = locked_disk
-                    .titles
-                    .lock()
-                    .unwrap()
-                    .iter()
-                    .filter(|t| t.rip)
-                    .cloned()
-                    .collect::<Vec<_>>();
-                RipInfo {
-                    directory: dir,
-                    titles,
-                    content: DiskContent::Movie(movie.clone()),
-                }
-            }
-            DiskContent::Tv(season) => {
-                let dir = create_season_episode_dir(season);
-                let titles = locked_disk
-                    .titles
-                    .lock()
-                    .unwrap()
-                    .iter()
-                    .filter(|t| t.rip)
-                    .cloned()
-                    .collect::<Vec<_>>();
-                RipInfo {
-                    directory: dir,
-                    titles,
-                    content: DiskContent::Tv(season.clone()),
-                }
-            }
-        }
-    }
-}
+// fn build_info(app_handle: &tauri::AppHandle, disk_id: &DiskId) -> JobInfo {
+//     let state = app_handle.state::<AppState>();
+//     let optical_disk = state.find_optical_disk_by_id(disk_id).unwrap();
+//     {
+//         let locked_disk = optical_disk.read().unwrap();
+//         match locked_disk.content.as_ref().unwrap() {
+//             DiskContent::Movie(movie) => {
+//                 let dir = create_movie_dir(movie);
+//                 let titles = locked_disk
+//                     .titles
+//                     .lock()
+//                     .unwrap()
+//                     .iter()
+//                     .filter(|t| t.rip)
+//                     .cloned()
+//                     .collect::<Vec<_>>();
+//                 JobInfo {
+//                     directory: dir,
+//                     titles,
+//                     content: DiskContent::Movie(movie.clone()),
+//                     disk: locked_disk.clone(),
+//                 }
+//             }
+//             DiskContent::Tv(season) => {
+//                 let dir = create_season_episode_dir(season);
+//                 let titles = locked_disk
+//                     .titles
+//                     .lock()
+//                     .unwrap()
+//                     .iter()
+//                     .filter(|t| t.rip)
+//                     .cloned()
+//                     .collect::<Vec<_>>();
+//                 RipInfo {
+//                     directory: dir,
+//                     titles,
+//                     content: DiskContent::Tv(season.clone()),
+//                     disk: locked_disk.clone(),
+//                 }
+//             }
+//         }
+//     }
+// }
 
-fn eject_disk(state: &State<'_, AppState>, disk_id: &DiskId) {
+fn eject_disk(app_handle: &tauri::AppHandle, disk_id: &DiskId) {
+    let state = app_handle.state::<AppState>();
     match state.find_optical_disk_by_id(disk_id) {
         Some(disk) => match disk.read() {
             Ok(locked_disk) => disk_manager::eject(&locked_disk.mount_point),
@@ -384,68 +490,68 @@ fn eject_disk(state: &State<'_, AppState>, disk_id: &DiskId) {
     }
 }
 
-async fn process_titles(
-    state: &State<'_, AppState>,
-    app_handle: &tauri::AppHandle,
-    disk_id: &DiskId,
-    rip_info: &RipInfo,
-) -> bool {
+// fn create_rip_job(
+//     app_handle: &tauri::AppHandle,
+//     disk: &OpticalDiskInfo,
+//     title_video: &TitleVideo,
+// ) -> Arc<RwLock<Job>> {
+//     let job = app_handle
+//         .state::<BackgroundProcessState>()
+//         .new_job(JobType::Ripping, disk.clone().into());
+//     {
+//         let mut job_writer = job.write().expect("Failed to get job writer");
+//         job_writer.update_title(&title_video.clone());
+//         job_writer.update_subtitle(&title_video.clone());
+//     }
+//     job
+// }
+
+async fn process_titles(app_handle: &tauri::AppHandle, job: Arc<RwLock<Job>>) -> bool {
     let mut success = false;
-    for title in &rip_info.titles {
-        match rip_title(app_handle, disk_id, title, rip_info).await {
-            Ok(file_path) => {
+    let title_videos = {
+        let job_guard = job.read().expect("Failed to get job writer");
+        job_guard.title_videos.clone()
+    };
+    for title in title_videos.iter() {
+        job.write()
+            .expect("Failed to get job writer")
+            .update_title(&title.read().unwrap());
+        job.read()
+            .expect("Failed to get job reader")
+            .emit_progress_change(app_handle);
+        match rip_title(app_handle, &job, title).await {
+            Ok(_) => {
                 success = true;
-                match rip_info.content {
-                    DiskContent::Tv(ref season) => {
-                        notify_tv_success(app_handle, season, title);
+                match &title.read().unwrap().video {
+                    Video::Tv(season) => {
+                        notify_tv_success(app_handle, season);
                     }
-                    DiskContent::Movie(ref movie) => {
+                    Video::Movie(movie) => {
                         notify_movie_success(app_handle, movie);
-                        emit_render_cards(state, app_handle, movie);
-                        spawn_upload(app_handle, &file_path, rip_info);
+                        emit_render_cards(app_handle);
+                        spawn_upload(app_handle, title);
                     }
                 };
+                job.write()
+                    .expect("Failed to get job writer")
+                    .update_status(JobStatus::Finished);
             }
             Err(error) => {
-                match rip_info.content {
-                    DiskContent::Tv(ref _season) => {}
-                    DiskContent::Movie(ref movie) => {
-                        emit_render_cards(state, app_handle, movie);
-                        match back_disk(app_handle, disk_id, rip_info).await {
-                            Ok(_) => {
-                                let dst_string =
-                                    format!("{}/backup.zip", rip_info.directory.to_string_lossy());
-                                let dst_file = Path::new(&dst_string);
-                                match zip_directory::zip_dir(
-                                    &rip_info.directory,
-                                    dst_file,
-                                    zip::CompressionMethod::Deflated,
-                                ) {
-                                    Ok(()) => {
-                                        notify_movie_backup_success(app_handle, movie);
-                                        spawn_upload(app_handle, dst_file, rip_info);
-                                        delete_dir(&rip_info.directory);
-                                    }
-                                    Err(error) => {
-                                        debug!("{error}");
-                                        notify_failure(
-                                            app_handle,
-                                            &RipError {
-                                                title: "Backup Failed".into(),
-                                                message: format!(
-                                                    "Was unable to zip Backup {}",
-                                                    rip_info.directory.to_string_lossy()
-                                                ),
-                                            },
-                                        );
-                                    }
-                                }
-                            }
-                            Err(error) => notify_failure(app_handle, &error),
-                        };
+                match &title.read().unwrap().video {
+                    Video::Tv(_) => {}
+                    Video::Movie(_) => {
+                        emit_render_cards(app_handle);
                     }
                 };
-
+                job.write()
+                    .expect("Failed to get job writer")
+                    .update_status(JobStatus::Error);
+                job.write().expect("Failed to get job writer").message =
+                    Some(error.message.clone());
+                job.write().expect("Failed to get job writer").subtitle = Some(error.title.clone());
+                job.read()
+                    .expect("Failed to get job reader")
+                    .emit_progress_change(app_handle);
                 notify_failure(app_handle, &error);
             }
         };
@@ -453,13 +559,55 @@ async fn process_titles(
     success
 }
 
-fn spawn_rip(app_handle: tauri::AppHandle, disk_id: DiskId) {
+fn spawn_rip(app_handle: tauri::AppHandle, job: Arc<RwLock<Job>>) {
     tauri::async_runtime::spawn(async move {
-        let rip_info = build_info(&app_handle, &disk_id);
-        let state = app_handle.state::<AppState>();
-        let success = process_titles(&state, &app_handle, &disk_id, &rip_info).await;
+        job.write()
+            .expect("Failed to get job writer")
+            .update_status(JobStatus::Processing);
+        job.read()
+            .expect("Failed to get job reader")
+            .emit_progress_change(&app_handle);
+        let success = process_titles(&app_handle, job.clone()).await;
         if success {
-            eject_disk(&state, &disk_id);
+            match &job.read().expect("Failed to get job reader").disk {
+                Some(disk) => eject_disk(&app_handle, &disk.id),
+                None => warn!("No disk found in job after ripping nothing to eject"),
+            };
         }
     });
+}
+
+// fn after_process_titles(
+//     app_handle: &tauri::AppHandle,
+//     disk_id: &DiskId,
+//     job: &Arc<RwLock<Job>>,
+//     success: bool,
+// ) {
+//     if success {
+//         job.write()
+//             .expect("Failed to get job writer")
+//             .update_status(JobStatus::Finished);
+//         eject_disk(app_handle, disk_id);
+//     } else {
+//         job.write()
+//             .expect("Failed to get job writer")
+//             .update_status(JobStatus::Error);
+//     }
+// }
+
+fn find_or_create_job(app_handle: &tauri::AppHandle, disk: &OpticalDiskInfo) -> Arc<RwLock<Job>> {
+    let background_process_state = app_handle.state::<BackgroundProcessState>();
+
+    let disk_id = disk.id;
+    match background_process_state.find_job(
+        Some(disk_id),
+        &Some(JobType::Ripping),
+        &[JobStatus::Pending, JobStatus::Ready],
+    ) {
+        Some(job) => job,
+        None => {
+            let optical_disk_info = disk.clone();
+            background_process_state.new_job(JobType::Ripping, Some(optical_disk_info))
+        }
+    }
 }
