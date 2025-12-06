@@ -25,10 +25,12 @@
 
         <!-- Download Button -->
         <div class="mb-3">
-          <a id="btn-download" href="#" class="btn btn-success btn-lg shadow-lg px-5 py-3">
-            <i class="bi bi-download me-2"></i>
-            <span id="download-text">Download for Your Platform</span>
-          </a>
+          <div id="download-buttons" class="d-flex gap-3 flex-wrap">
+            <a id="btn-download" href="#" class="btn btn-success btn-lg shadow-lg px-3 py-3">
+              <i class="bi bi-download me-2"></i>
+              <span id="download-text">Download for Your Platform</span>
+            </a>
+          </div>
           <div class="mt-2">
             <small id="download-sub" class="text-white-50 d-block">Loading latest version...</small>
             <a id="link-changelog" href="#" class="text-secondary small">View Changelog</a>
@@ -137,7 +139,6 @@
       </p>
     </div>
   </footer>
-
 
   <script>
 
@@ -279,6 +280,20 @@
             .textContent = `${tag} · ${(asset.size/1024/1024).toFixed(1)} MB`;
           document.getElementById('link-changelog')
             .href = `https://github.com/brand-it/reelix/releases/tag/${tag}`;
+
+          // Show alternative macOS download if on Mac
+          if (os === 'mac-intel' || os === 'mac-arm' || os === 'mac') {
+            const altOs = os === 'mac-intel' ? 'mac-arm' : 'mac-intel';
+            const altAsset = pickAsset(rel.assets, altOs);
+            if (altAsset) {
+              const altPlatform = altOs === 'mac-intel' ? 'Intel' : 'Apple Silicon';
+              const altButton = document.createElement('a');
+              altButton.href = altAsset.browser_download_url;
+              altButton.className = 'btn btn-outline-success btn-lg shadow-lg px-3 py-3';
+              altButton.innerHTML = `<i class="bi bi-download me-2"></i><span>macOS (${altPlatform})</span>`;
+              document.getElementById('download-buttons').appendChild(altButton);
+            }
+          }
         } else {
           document.getElementById('btn-download').href = 'https://github.com/brand-it/reelix/releases';
           document.getElementById('download-text').textContent = 'View All Releases';
