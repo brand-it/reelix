@@ -124,9 +124,14 @@ pub fn render_options(
         episode: &None,
         job,
     };
+    let video = match app_state.current_video.lock() {
+        Ok(guard) => guard.clone(),
+        Err(_) => return super::render_error("Failed to lock current video"),
+    };
     let movies_cards = MoviesCards {
         selected_disk: &selected_disk,
         job,
+        video: video.as_ref(),
     };
     let disks_options_turbo = DisksOptionsTurbo {
         disks_options: &disks_options,
@@ -150,6 +155,10 @@ pub fn render_toast_progress(
         None => None,
     };
     let job = copy_job_state(&Some(job.clone()));
+    let video = match app_state.current_video.lock() {
+        Ok(guard) => guard.clone(),
+        Err(_) => return super::render_error("Failed to lock current video"),
+    };
     let movie_cards = if job.as_ref().and_then(|j| j.disk.as_ref()).is_none()
         || selected_disk.is_none()
         || job.as_ref().and_then(|j| j.disk.as_ref()).map(|d| d.id)
@@ -160,6 +169,7 @@ pub fn render_toast_progress(
         Some(MoviesCards {
             selected_disk: &selected_disk,
             job: &job,
+            video: video.as_ref(),
         })
     };
 
