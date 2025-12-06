@@ -304,3 +304,9 @@ body:has(#progressDetails.show) #season-fab {
     justify-content: center; /* horizontal centering (optional) */
   }
 }
+
+.movie-card {
+  min-width: 400px;
+  display: inline-block;
+  vertical-align: top;
+}

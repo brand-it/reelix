@@ -3,63 +3,140 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Download Reelix</title>
-  <!-- Darkly theme from Bootswatch -->
-  <link
-    href="index.css"
-    rel="stylesheet"
-  />
+  <title>Reelix - Plex-Friendly DVD & Blu-ray Ripper</title>
+  <meta name="description" content="Simple, cross-platform tool to rip DVDs and Blu-ray discs into Plex-friendly digital files. Free and open source." />
+  <link rel="icon" type="image/png" href="icon.png" />
+  <link href="index.css" rel="stylesheet" />
+  <link href="icons.css" rel="stylesheet" />
 </head>
 <body class="bg-dark text-light">
 
-  <div class="container py-5 text-center">
-    <!-- App Icon -->
-    <img src="icon.png"
-         alt="Reelix Icon"
-         class="mx-auto rounded-3 mb-1"
-         style="width:100px;"/>
-    <!-- Title & tagline -->
-    <h2 id="page-title" class="fw-bold mb-2">Reelix</h2>
-    <!-- Main buttons -->
-    <div class="d-flex justify-content-center gap-4 mb-3 flex-wrap">
-      <!-- Download (filled) -->
-      <div>
-        <a id="btn-download" href="#"
-           class="btn btn-success shadow btn-lg text-start px-4 py-3 d-block">
-          Download<br>
-          <small id="download-sub" class="text-light-50 text-white-50">Latest version v0.0.0</small>
-        </a>
-        <a id="link-changelog" href="#"
-           class="d-block text-secondary mt-2">Changelog</a>
-      </div>
-    </div>
-    <div class="card border-dark mb-3 bg-dark text-light">
-      <div class="card-body">
-
-        <p class="card-text ">
-          <strong>Reelix</strong> is a simple, cross-platform tool that helps you rip your DVDs and Blu-ray discs into Plex-friendly digital files.
+  <!-- Hero Section -->
+  <div class="container py-5">
+    <div class="row align-items-center">
+      <div class="col-lg-6 text-center text-lg-start mb-4 mb-lg-0">
+        <div class="d-flex align-items-center justify-content-center justify-content-lg-start mb-3">
+          <img src="icon.png" alt="Reelix Icon" class="rounded-3 me-3" style="width:80px;"/>
+          <h1 class="display-4 fw-bold mb-0">Reelix</h1>
+        </div>
+        <p class="lead text-white-50 mb-4">
+          A simple, powerful tool that helps you rip your DVDs and Blu-ray discs into Plex-friendly digital files.
         </p>
 
-        <!-- Supported Platforms -->
-        <h6 class="card-subtitle mb-2 ">Supported Platforms</h6>
-        <ul class="list-group list-group-flush ">
-          <li class="bg-dark text-light list-group-item d-flex justify-content-between align-items-center">
-            macOS
-            <span class="badge bg-success rounded-pill">Extensively Tested</span>
+        <!-- Download Button -->
+        <div class="mb-3">
+          <a id="btn-download" href="#" class="btn btn-success btn-lg shadow-lg px-5 py-3">
+            <i class="bi bi-download me-2"></i>
+            <span id="download-text">Download for Your Platform</span>
+          </a>
+          <div class="mt-2">
+            <small id="download-sub" class="text-white-50 d-block">Loading latest version...</small>
+            <a id="link-changelog" href="#" class="text-secondary small">View Changelog</a>
+          </div>
+        </div>
+
+        <!-- Quick Links -->
+        <div class="d-flex gap-3 justify-content-center justify-content-lg-start flex-wrap">
+          <a href="https://github.com/brand-it/reelix" class="btn btn-outline-light btn-sm" target="_blank" rel="noopener">
+            <i class="bi bi-github me-1"></i> GitHub
+          </a>
+          <a href="https://github.com/brand-it/reelix/issues" class="btn btn-outline-light btn-sm" target="_blank" rel="noopener">
+            <i class="bi bi-bug me-1"></i> Report Issue
+          </a>
+        </div>
+      </div>
+
+      <!-- Preview -->
+      <div class="col-lg-6">
+        <img src="preview.gif"
+             class="rounded-3 shadow-lg img-fluid"
+             alt="Reelix Preview"
+             loading="eager"
+             style="max-width: 100%; height: auto;" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Features Section -->
+  <div class="bg-black bg-opacity-25 py-5">
+    <div class="container">
+      <h2 class="text-center mb-4">Key Features</h2>
+      <div class="row g-4">
+        <div class="col-md-4">
+          <div class="card bg-dark border-secondary h-100">
+            <div class="card-body text-center py-4">
+              <div class="fs-1 text-success mb-2"><i class="bi bi-lightning-charge-fill"></i></div>
+              <h5 class="card-title mb-2">Fast & Reliable</h5>
+              <p class="card-text text-white-50 mb-0">Efficiently rip your media using MakeMKV technology with progress tracking.</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card bg-dark border-secondary h-100">
+            <div class="card-body text-center py-4">
+              <div class="fs-1 text-success mb-2"><i class="bi bi-tv-fill"></i></div>
+              <h5 class="card-title mb-2">Plex-Ready</h5>
+              <p class="card-text text-white-50 mb-0">Automatically organizes files with proper naming for seamless Plex integration.</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card bg-dark border-secondary h-100">
+            <div class="card-body text-center py-4">
+              <div class="fs-1 text-success mb-2"><i class="bi bi-laptop"></i></div>
+              <h5 class="card-title mb-2">Cross-Platform</h5>
+              <p class="card-text text-white-50 mb-0">Works on macOS, Windows, and Linux with native performance.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Platform Support -->
+  <div class="container py-5">
+    <h2 class="text-center mb-4">Platform Support</h2>
+    <div class="row justify-content-center">
+      <div class="col-lg-8">
+        <ul class="list-group list-group-flush">
+          <li class="list-group-item bg-dark text-light border-secondary d-flex justify-content-between align-items-center py-3">
+            <div>
+              <i class="bi bi-apple fs-4 me-3 text-white-50"></i>
+              <strong>macOS</strong>
+              <span class="text-white-50 ms-2">(Intel & Apple Silicon)</span>
+            </div>
+            <span class="badge bg-success rounded-pill px-3 py-2">Extensively Tested</span>
           </li>
-          <li class="bg-dark text-light  list-group-item d-flex justify-content-between align-items-center">
-            Windows
-            <span class="badge bg-secondary rounded-pill">Less Tested</span>
+          <li class="list-group-item bg-dark text-light border-secondary d-flex justify-content-between align-items-center py-3">
+            <div>
+              <i class="bi bi-windows fs-4 me-3 text-white-50"></i>
+              <strong>Windows</strong>
+              <span class="text-white-50 ms-2">(64-bit)</span>
+            </div>
+            <span class="badge bg-warning text-dark rounded-pill px-3 py-2">Tested</span>
           </li>
-          <li class="bg-dark text-light  list-group-item d-flex justify-content-between align-items-center">
-            Linux
-            <span class="badge bg-secondary rounded-pill">Never Tested</span>
+          <li class="list-group-item bg-dark text-light border-secondary d-flex justify-content-between align-items-center py-3">
+            <div>
+              <i class="bi bi-ubuntu fs-4 me-3 text-white-50"></i>
+              <strong>Linux</strong>
+              <span class="text-white-50 ms-2">(Debian, RPM, AppImage)</span>
+            </div>
+            <span class="badge bg-secondary rounded-pill px-3 py-2">Community Support</span>
           </li>
         </ul>
       </div>
     </div>
-    <img src="preview.gif" class="rounded mx-auto d-block img-fluid" alt="Reelix Preview GIF" width="700" loading="lazy">
   </div>
+
+  <!-- Footer -->
+  <footer class="bg-black bg-opacity-50 py-4 mt-5">
+    <div class="container text-center text-white-50">
+      <p class="mb-2">Open source and free forever</p>
+      <p class="small mb-0">
+        Built with <i class="bi bi-heart-fill text-danger"></i> using Tauri &amp; Rust
+      </p>
+    </div>
+  </footer>
 
 
   <script>
@@ -181,25 +258,41 @@
         const rel = await getLatest();
         const tag = rel.tag_name;
         const os  = detectPlatform();
-        console.log(os);
-        console.log(rel.assets);
+        console.log('Detected platform:', os);
+        console.log('Available assets:', rel.assets);
         const asset = pickAsset(rel.assets, os);
+
+        // Update button text based on platform
+        const platformNames = {
+          'windows': 'Windows',
+          'linux': 'Linux',
+          'mac-intel': 'macOS (Intel)',
+          'mac-arm': 'macOS (Apple Silicon)',
+          'mac': 'macOS',
+          'unknown': 'Your Platform'
+        };
 
         if (asset) {
           document.getElementById('btn-download').href = asset.browser_download_url;
+          document.getElementById('download-text').textContent = `Download for ${platformNames[os] || 'Your Platform'}`;
           document.getElementById('download-sub')
-            .textContent = `Latest version ${tag} · ${ (asset.size/1024/1024).toFixed(1) } MB`;
+            .textContent = `${tag} · ${(asset.size/1024/1024).toFixed(1)} MB`;
           document.getElementById('link-changelog')
             .href = `https://github.com/brand-it/reelix/releases/tag/${tag}`;
         } else {
           document.getElementById('btn-download').href = 'https://github.com/brand-it/reelix/releases';
+          document.getElementById('download-text').textContent = 'View All Releases';
           document.getElementById('download-sub')
-            .textContent = `View all releases`;
+            .textContent = `Platform-specific builds available`;
+          document.getElementById('link-changelog').style.display = 'none';
         }
       } catch (e) {
+        console.error('Error loading release info:', e);
         document.getElementById('btn-download').href = 'https://github.com/brand-it/reelix/releases';
+        document.getElementById('download-text').textContent = 'View Releases';
         document.getElementById('download-sub')
-          .textContent = `Could not load latest version`;
+          .textContent = `Visit GitHub to download`;
+        document.getElementById('link-changelog').style.display = 'none';
       }
     })();
   </script>

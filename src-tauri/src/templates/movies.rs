@@ -2,8 +2,9 @@ use super::InlineTemplate;
 use crate::models::movie_db;
 use crate::models::optical_disk_info::OpticalDiskInfo;
 use crate::services::ftp_uploader;
-use crate::state::background_process_state::{BackgroundProcessState, copy_job_state};
+use crate::state::background_process_state::{copy_job_state, BackgroundProcessState};
 use crate::state::job_state::{Job, JobStatus};
+use crate::state::title_video::Video;
 use crate::state::{background_process_state, AppState};
 use askama::Template;
 use tauri::{Manager, State};
@@ -13,6 +14,7 @@ use tauri::{Manager, State};
 pub struct MoviesCards<'a> {
     pub selected_disk: &'a Option<OpticalDiskInfo>,
     pub job: &'a Option<Job>,
+    pub video: Option<&'a Video>,
 }
 
 impl MoviesCards<'_> {
@@ -68,6 +70,8 @@ pub fn render_show(
             .and_then(|job_arc| copy_job_state(&Some(job_arc))),
         None => None,
     };
+    let video = Video::Movie(Box::new(movie.clone()));
+    app_state.save_current_video(Some(video.clone()));
     let template = MoviesShowTurbo {
         movies_show: &MoviesShow {
             movie,
@@ -76,6 +80,7 @@ pub fn render_show(
             movies_cards: &MoviesCards {
                 selected_disk: &selected_disk,
                 job: &job,
+                video: Some(&video),
             },
         },
     };
@@ -93,16 +98,23 @@ pub fn render_cards(app_handle: &tauri::AppHandle) -> Result<String, super::Erro
         None => None,
     };
 
+    let video = match app_state.current_video.lock() {
+        Ok(guard) => guard.clone(),
+        Err(_) => return super::render_error("Failed to lock current video"),
+    };
+
     let job = match &selected_disk {
         Some(disk) => background_process_state
             .find_job(Some(disk.id), &None, &[JobStatus::Processing])
             .and_then(|job_arc| copy_job_state(&Some(job_arc))),
         None => None,
     };
+
     let template = MoviesCardsTurbo {
         movies_cards: &MoviesCards {
             selected_disk: &selected_disk,
             job: &job,
+            video: video.as_ref(),
         },
     };
     super::render(template)
