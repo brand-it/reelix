@@ -71,6 +71,26 @@ impl OpticalDiskInfo {
         }
     }
 
+    /// Returns a vector of disk titles sorted by how closely their duration matches the given video runtime.
+    ///
+    /// If a video runtime (in seconds) is provided, each title's duration is compared to the expected runtime.
+    /// The titles are sorted so that the smallest absolute difference (closest match) comes first.
+    /// If no runtime is provided, the original order is preserved.
+    ///
+    /// This is used in the UI to highlight the best title to rip for a given movie or episode.
+    pub fn titles_sorted(&self, video_runtime_seconds: Option<u64>) -> Vec<TitleInfo> {
+        let mut titles = self.clone_titles();
+
+        if let Some(runtime_seconds) = video_runtime_seconds {
+            titles.sort_by_key(|title| {
+                let title_duration = title.duration_seconds().unwrap_or(u64::MAX);
+                title_duration.abs_diff(runtime_seconds)
+            });
+        }
+
+        titles
+    }
+
     pub fn find_title_by_id(&self, title_id: u32) -> Option<TitleInfo> {
         let titles = self.titles.lock().unwrap();
         for title in titles.iter() {

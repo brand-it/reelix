@@ -19,6 +19,7 @@ pub struct AppState {
     pub the_movie_db_key: Arc<Mutex<String>>,
     pub movies_dir: Arc<RwLock<PathBuf>>,
     pub tv_shows_dir: Arc<RwLock<PathBuf>>,
+    pub current_video: Arc<Mutex<Option<title_video::Video>>>,
 }
 
 impl AppState {
@@ -35,7 +36,16 @@ impl AppState {
             movies_dir: Arc::new(RwLock::new(Self::default_movies_dir())),
             tv_shows_dir: Arc::new(RwLock::new(Self::default_tv_shows_dir())),
             ftp_tv_upload_path: Arc::new(Mutex::new(None)),
+            current_video: Arc::new(Mutex::new(None)),
         }
+    }
+
+    pub fn save_current_video(&self, video: Option<title_video::Video>) {
+        let mut guard = self
+            .current_video
+            .lock()
+            .expect("failed to lock current_video");
+        *guard = video;
     }
 
     pub fn save_query(&self, search: &str) {
