@@ -490,22 +490,6 @@ fn eject_disk(app_handle: &tauri::AppHandle, disk_id: &DiskId) {
     }
 }
 
-// fn create_rip_job(
-//     app_handle: &tauri::AppHandle,
-//     disk: &OpticalDiskInfo,
-//     title_video: &TitleVideo,
-// ) -> Arc<RwLock<Job>> {
-//     let job = app_handle
-//         .state::<BackgroundProcessState>()
-//         .new_job(JobType::Ripping, disk.clone().into());
-//     {
-//         let mut job_writer = job.write().expect("Failed to get job writer");
-//         job_writer.update_title(&title_video.clone());
-//         job_writer.update_subtitle(&title_video.clone());
-//     }
-//     job
-// }
-
 async fn process_titles(app_handle: &tauri::AppHandle, job: Arc<RwLock<Job>>) -> bool {
     let mut success = false;
     let title_videos = {
@@ -535,6 +519,7 @@ async fn process_titles(app_handle: &tauri::AppHandle, job: Arc<RwLock<Job>>) ->
                 job.write()
                     .expect("Failed to get job writer")
                     .update_status(JobStatus::Finished);
+                templates::disks::emit_disk_change(app_handle);
             }
             Err(error) => {
                 match &title.read().unwrap().video {
@@ -552,6 +537,7 @@ async fn process_titles(app_handle: &tauri::AppHandle, job: Arc<RwLock<Job>>) ->
                 job.read()
                     .expect("Failed to get job reader")
                     .emit_progress_change(app_handle);
+                templates::disks::emit_disk_change(app_handle);
                 notify_failure(app_handle, &error);
             }
         };
