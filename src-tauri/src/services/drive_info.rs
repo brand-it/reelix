@@ -14,6 +14,7 @@ use sysinfo::{Disk, Disks};
 // https://crates.io/crates/wmi
 #[derive(Deserialize)]
 #[cfg(target_os = "windows")]
+#[allow(dead_code)]
 struct Win32_CDROMDrive {
     Drive: Option<String>,
     Name: String,

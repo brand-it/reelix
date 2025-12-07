@@ -64,12 +64,6 @@ impl DisksToastProgressSummary<'_> {
 }
 
 #[derive(Template)]
-#[template(path = "disks/toast_progress_details.turbo.html")]
-pub struct DisksToastProgressDetailsTurbo<'a> {
-    pub disks_toast_progress_details: &'a DisksToastProgressDetails<'a>,
-}
-
-#[derive(Template)]
 #[template(path = "disks/toast_progress_details.html")]
 pub struct DisksToastProgressDetails<'a> {
     pub job: &'a Option<Job>,
