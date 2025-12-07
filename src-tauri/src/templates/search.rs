@@ -33,6 +33,16 @@ impl<'a> SearchIndex<'a> {
     pub fn dom_id(&self) -> &'static str {
         super::INDEX_ID
     }
+
+    #[cfg(target_os = "macos")]
+    pub fn search_shortcut(&self) -> &'a str {
+        "⌘+F"
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    pub fn search_shortcut(&self) -> &'a str {
+        "Ctrl+F"
+    }
 }
 
 #[derive(Template)]

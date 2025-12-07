@@ -1,35 +1,39 @@
-<div id="search-form">
+<div id="search-form" data-controller="keyboard-shortcuts">
   <form class="simple_form mb-1"
-        action="/search"
-        method="post"
-        data-controller="inline-autocomplete submit-on-keyup"
-        data-submit-on-keyup-target="form">
+    action="/search"
+    method="post"
+    data-controller="inline-autocomplete submit-on-keyup"
+    data-submit-on-keyup-target="form">
     <div class="input-group input-group-lg">
       <div class="entry-box form-control">
-        <div id="search-placeholder" class="input-placeholder" data-inline-autocomplete-target="placeholder">
-        {% match suggestion %}
+        <div id="search-placeholder" class="input-placeholder"
+          data-inline-autocomplete-target="placeholder">
+          {% match suggestion %}
           {% when Some with (s) %}
-            {% if !s.is_empty() %}
-              {% if !query.is_empty() %}{{ query }}{% endif %}{{ s }}
-            {% endif %}
+          {% if !s.is_empty() %}
+          {% if !query.is_empty() %}{{ query }}{% endif %}{{ s }}
+          {% endif %}
           {% when None %}
-        {% endmatch %}
-      </div>
+          {% endmatch %}
+        </div>
 
         <input class="field"
-              type="text"
-              aria-label="TV or Movie Title"
-              name="search"
-              placeholder="TV or Movie Title"
-              data-submit-on-keyup-target="input"
-              data-inline-autocomplete-target="input"
-              required
-              autocomplete="off"
-              value="{% if !query.is_empty() %}{{ query }}{% endif %}"/>
+          type="text"
+          id="search-input"
+          aria-label="TV or Movie Title"
+          name="search"
+          placeholder="TV or Movie Title"
+          data-submit-on-keyup-target="input"
+          data-inline-autocomplete-target="input"
+          data-search-shortcut-target="input"
+          required
+          autocomplete="off"
+          value="{% if !query.is_empty() %}{{ query }}{% endif %}" />
       </div>
       <button class="btn btn-outline-primary" type="submit">Search</button>
     </div>
 
   </form>
-  <small class="text-muted ms-2">Press <kbd>Tab</kbd> to autocomplete</small>
+  <small class="text-muted ms-2">Press <kbd>Tab</kbd> to autocomplete • <kbd>⌘
+      F</kbd> to focus search</small>
 </div>
