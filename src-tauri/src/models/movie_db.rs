@@ -23,6 +23,9 @@ pub struct MovieResponse {
 }
 
 impl MovieResponse {
+    /// Margin for runtime matching, in seconds.
+    const MOVIE_RUNTIME_MARGIN: u64 = 600; // seconds (10 minutes)
+
     pub fn year(&self) -> Option<u32> {
         self.release_date.as_ref().and_then(|date_str| {
             NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
@@ -38,10 +41,26 @@ impl MovieResponse {
         }
     }
 
+    pub fn runtime_seconds(&self) -> u64 {
+        self.runtime * 60
+    }
+
+    /// Returns a range of acceptable runtimes for this movie, centered on the movie's runtime.
+    ///
+    /// The range is calculated as (runtime - margin) to (runtime + margin), where margin is a constant (600 seconds = 10 minutes).
+    /// The returned range is in **seconds**.
+    /// This is useful for matching disk titles whose duration is close to the expected runtime of the movie.
+    pub fn runtime_range(&self) -> std::ops::Range<u64> {
+        self.runtime_seconds()
+            .saturating_sub(Self::MOVIE_RUNTIME_MARGIN)
+            ..self.runtime_seconds() + Self::MOVIE_RUNTIME_MARGIN
+    }
+
     pub fn human_runtime(&self) -> String {
-        let duration = Duration::from_secs(self.runtime * 60);
+        let duration = Duration::from_secs(self.runtime_seconds());
         format!("{}", format_duration(duration))
     }
+
     // returns a basic file path for example Alien (1979)/Alien (1979).mkv
     pub fn to_file_path(&self) -> String {
         format!("{}/{}.mkv", self.title_year(), self.title_year())
@@ -346,13 +365,21 @@ pub struct SeasonEpisode {
 }
 
 impl SeasonEpisode {
-    // pub fn year(&self) -> Option<u32> {
-    //     self.air_date.as_ref().and_then(|date_str| {
-    //         chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
-    //             .ok()
-    //             .and_then(|dt| dt.format("%Y").to_string().parse::<u32>().ok())
-    //     })
-    // }
+    /// Margin for runtime matching, in seconds.
+    const EPISODE_RUNTIME_MARGIN: u64 = 600; // seconds (10 minutes)
+    /// Returns a range of acceptable runtimes for this episode, centered on the episode's runtime.
+    ///
+    /// The range is calculated as (runtime - margin) to (runtime + margin), where margin is a constant (600 seconds = 10 minutes).
+    /// The returned range is in **seconds**.
+    /// This is useful for matching disk titles whose duration is close to the expected runtime of the episode.
+    pub fn runtime_range(&self) -> std::ops::Range<u64> {
+        let runtime = self.runtime_seconds();
+        runtime.saturating_sub(Self::EPISODE_RUNTIME_MARGIN)..runtime + Self::EPISODE_RUNTIME_MARGIN
+    }
+
+    pub fn runtime_seconds(&self) -> u64 {
+        self.runtime.map(|r| r as u64 * 60).unwrap_or(0)
+    }
 
     pub fn formatted_vote_average(&self) -> String {
         let average = (self.vote_average * 10.0).round();

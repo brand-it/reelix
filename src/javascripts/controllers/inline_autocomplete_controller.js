@@ -22,9 +22,11 @@ export default class extends Controller {
 
   autocomplete(input, event) {
     if (event.key === "Tab") {
-      event.preventDefault();
       const placeholder = this.placeholderTarget?.textContent?.trim();
-      if (placeholder) input.value = placeholder;
+      if (placeholder) {
+        event.preventDefault();
+        input.value = placeholder;
+      }
     }
   }
 }

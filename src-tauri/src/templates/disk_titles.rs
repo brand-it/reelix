@@ -26,6 +26,10 @@ pub fn render_options(
         }
         None => None,
     };
+    let video = match app_state.current_video.lock() {
+        Ok(guard) => guard.clone(),
+        Err(_) => return super::render_error("Failed to lock current video"),
+    };
     let job = match selected_disk {
         Some(ref disk) => {
             let disk_id = disk.id;
@@ -48,6 +52,7 @@ pub fn render_options(
         movies_cards: &MoviesCards {
             selected_disk: &selected_disk,
             job: &job,
+            video: video.as_ref(),
         },
     };
     super::render(template)

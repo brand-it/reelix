@@ -26,25 +26,31 @@ impl TitleInfo {
         }
     }
 
-    // pub fn segment_map(&self) -> Option<Vec<i32>> {
-    //     self.segment_map
-    //         .as_ref()
-    //         .map(|map| map.split(',').filter_map(|s| s.parse().ok()).collect())
-    // }
+    pub fn duration_seconds(&self) -> Option<u64> {
+        self.duration.as_ref().and_then(|d| {
+            let parts: Vec<&str> = d.split(':').collect();
+            if parts.len() == 3 {
+                let hours = parts[0].parse::<u64>().ok()?;
+                let minutes = parts[1].parse::<u64>().ok()?;
+                let seconds = parts[2].parse::<u64>().ok()?;
+                Some(hours * 3600 + minutes * 60 + seconds)
+            } else {
+                None
+            }
+        })
+    }
 
-    // pub fn duration_seconds(&self) -> Option<i32> {
-    //     self.duration.as_ref().and_then(|d| {
-    //         let parts: Vec<&str> = d.split(':').collect();
-    //         if parts.len() == 3 {
-    //             let hours = parts[0].parse::<i32>().ok()?;
-    //             let minutes = parts[1].parse::<i32>().ok()?;
-    //             let seconds = parts[2].parse::<i32>().ok()?;
-    //             Some(hours * 3600 + minutes * 60 + seconds)
-    //         } else {
-    //             None
-    //         }
-    //     })
-    // }
+    pub fn within_range(&self, range: Option<std::ops::Range<u64>>) -> bool {
+        let range = match range {
+            Some(r) => r,
+            None => return false,
+        };
+        if let Some(duration) = self.duration_seconds() {
+            range.contains(&duration)
+        } else {
+            false
+        }
+    }
 
     pub fn set_field(&mut self, field: &str, value: String) {
         match field {

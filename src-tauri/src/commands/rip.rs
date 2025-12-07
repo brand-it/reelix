@@ -13,32 +13,12 @@ use crate::state::title_video::{self, TitleVideo, Video};
 use crate::state::{background_process_state, AppState};
 use crate::templates::{self};
 use log::{debug, error, warn};
-use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_notification::NotificationExt;
 use templates::render_error;
-
-#[derive(Serialize, Deserialize)]
-pub struct DiskTitle {
-    title_id: u32,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Part {
-    number: u32,
-    title_id: u32,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Episode {
-    episode_number: u32,
-    title: String,
-    disk_titles: Vec<DiskTitle>,
-    parts: Vec<Part>,
-}
 
 #[tauri::command]
 pub fn assign_episode_to_title(
@@ -490,22 +470,6 @@ fn eject_disk(app_handle: &tauri::AppHandle, disk_id: &DiskId) {
     }
 }
 
-// fn create_rip_job(
-//     app_handle: &tauri::AppHandle,
-//     disk: &OpticalDiskInfo,
-//     title_video: &TitleVideo,
-// ) -> Arc<RwLock<Job>> {
-//     let job = app_handle
-//         .state::<BackgroundProcessState>()
-//         .new_job(JobType::Ripping, disk.clone().into());
-//     {
-//         let mut job_writer = job.write().expect("Failed to get job writer");
-//         job_writer.update_title(&title_video.clone());
-//         job_writer.update_subtitle(&title_video.clone());
-//     }
-//     job
-// }
-
 async fn process_titles(app_handle: &tauri::AppHandle, job: Arc<RwLock<Job>>) -> bool {
     let mut success = false;
     let title_videos = {
@@ -535,6 +499,7 @@ async fn process_titles(app_handle: &tauri::AppHandle, job: Arc<RwLock<Job>>) ->
                 job.write()
                     .expect("Failed to get job writer")
                     .update_status(JobStatus::Finished);
+                templates::disks::emit_disk_change(app_handle);
             }
             Err(error) => {
                 match &title.read().unwrap().video {
@@ -552,6 +517,7 @@ async fn process_titles(app_handle: &tauri::AppHandle, job: Arc<RwLock<Job>>) ->
                 job.read()
                     .expect("Failed to get job reader")
                     .emit_progress_change(app_handle);
+                templates::disks::emit_disk_change(app_handle);
                 notify_failure(app_handle, &error);
             }
         };

@@ -4,6 +4,7 @@ use objc2_app_kit::NSWorkspace;
 #[cfg(target_os = "macos")]
 use objc2_foundation::{NSString, NSURL};
 use std::path::Path;
+#[cfg(target_os = "macos")]
 use std::thread;
 
 #[cfg(target_os = "macos")]
