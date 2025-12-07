@@ -7,7 +7,7 @@ use crate::templates::InlineTemplate;
 use crate::{models::optical_disk_info, state::job_state::Job};
 use askama::Template;
 use std::sync::{Arc, RwLock};
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager};
 
 #[derive(Template)]
 #[template(path = "disks/options.html")]
@@ -64,12 +64,6 @@ impl DisksToastProgressSummary<'_> {
 }
 
 #[derive(Template)]
-#[template(path = "disks/toast_progress_details.turbo.html")]
-pub struct DisksToastProgressDetailsTurbo<'a> {
-    pub disks_toast_progress_details: &'a DisksToastProgressDetails<'a>,
-}
-
-#[derive(Template)]
 #[template(path = "disks/toast_progress_details.html")]
 pub struct DisksToastProgressDetails<'a> {
     pub job: &'a Option<Job>,
@@ -82,20 +76,15 @@ impl DisksToastProgressDetails<'_> {
 }
 
 pub fn emit_disk_change(app_handle: &AppHandle) {
-    let state = app_handle.state::<AppState>();
-    let background_process_state = app_handle.state::<BackgroundProcessState>();
-
-    let result =
-        render_options(&state, &background_process_state).expect("Failed to render disks/options");
+    let result = render_options(app_handle).expect("Failed to render disks/options");
     app_handle
         .emit("disks-changed", result)
         .expect("Failed to emit disks-changed");
 }
 
-pub fn render_options(
-    app_state: &State<'_, AppState>,
-    background_process_state: &State<'_, BackgroundProcessState>,
-) -> Result<String, super::Error> {
+pub fn render_options(app_handle: &AppHandle) -> Result<String, super::Error> {
+    let app_state = app_handle.state::<AppState>();
+    let background_process_state = app_handle.state::<BackgroundProcessState>();
     let optical_disks = app_state.clone_optical_disks();
 
     let selected_disk: Option<optical_disk_info::OpticalDiskInfo> = match app_state.selected_disk()
@@ -124,9 +113,14 @@ pub fn render_options(
         episode: &None,
         job,
     };
+    let video = match app_state.current_video.lock() {
+        Ok(guard) => guard.clone(),
+        Err(_) => return super::render_error("Failed to lock current video"),
+    };
     let movies_cards = MoviesCards {
         selected_disk: &selected_disk,
         job,
+        video: video.as_ref(),
     };
     let disks_options_turbo = DisksOptionsTurbo {
         disks_options: &disks_options,
@@ -150,6 +144,10 @@ pub fn render_toast_progress(
         None => None,
     };
     let job = copy_job_state(&Some(job.clone()));
+    let video = match app_state.current_video.lock() {
+        Ok(guard) => guard.clone(),
+        Err(_) => return super::render_error("Failed to lock current video"),
+    };
     let movie_cards = if job.as_ref().and_then(|j| j.disk.as_ref()).is_none()
         || selected_disk.is_none()
         || job.as_ref().and_then(|j| j.disk.as_ref()).map(|d| d.id)
@@ -160,6 +158,7 @@ pub fn render_toast_progress(
         Some(MoviesCards {
             selected_disk: &selected_disk,
             job: &job,
+            video: video.as_ref(),
         })
     };
 

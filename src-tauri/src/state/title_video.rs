@@ -509,6 +509,22 @@ pub enum Video {
     Movie(Box<MovieResponse>),
 }
 
+impl Video {
+    pub fn runtime_seconds(&self) -> Option<u64> {
+        match self {
+            Video::Movie(movie) => Some(movie.runtime_seconds()),
+            Video::Tv(tv) => tv.runtime_seconds(),
+        }
+    }
+
+    pub fn runtime_range(&self) -> Option<std::ops::Range<u64>> {
+        match self {
+            Video::Movie(movie) => Some(movie.runtime_range()),
+            Video::Tv(tv) => Some(tv.episode.runtime_range()),
+        }
+    }
+}
+
 #[derive(Serialize, Clone)]
 pub struct TvSeasonEpisode {
     pub episode: SeasonEpisode,
@@ -518,6 +534,19 @@ pub struct TvSeasonEpisode {
 }
 
 impl TvSeasonEpisode {
+    /// Returns the Plex-compliant display title for this TV episode.
+    ///
+    /// Format:
+    ///   Show Name (Year) - SXXEYY - Episode Title
+    /// Where:
+    ///   - Show Name (Year): Title and year of the TV show
+    ///   - SXX: Zero-padded season number
+    ///   - EYY: Zero-padded episode number
+    ///   - Episode Title: Name of the episode
+    ///
+    /// Example: "Breaking Bad (2008) - S01E01 - Pilot"
+    ///
+    /// This format is used for filenames and display, ensuring compatibility with Plex and other media managers.
     pub fn title(&self) -> String {
         format!(
             "{} - S{:02}E{:02} - {}",
@@ -526,5 +555,13 @@ impl TvSeasonEpisode {
             self.episode.episode_number,
             self.episode.name
         )
+    }
+
+    /// Returns the runtime of this TV episode in seconds, if available.
+    ///
+    /// The runtime is extracted from the episode metadata and converted to u64.
+    /// Returns `None` if the runtime is not set.
+    pub fn runtime_seconds(&self) -> Option<u64> {
+        self.episode.runtime.map(|r| r as u64 * 60)
     }
 }

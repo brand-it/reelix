@@ -113,6 +113,7 @@ fn setup_tray_icon(app: &mut App) {
 //     "minWidth": 500,
 //     "minHeight": 500
 //   }
+
 fn setup_view_window(app: &mut App) {
     let win_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
         .title("Reelix")

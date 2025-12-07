@@ -18,5 +18,8 @@ application.register("episode", EpisodeController);
 import BootstrapTooltipController from "./bootstrap_tooltip_controller.js";
 application.register("bootstrap-tooltip", BootstrapTooltipController);
 
+import KeyboardShortcutsController from "./search_shortcut_controller.js";
+application.register("keyboard-shortcuts", KeyboardShortcutsController);
+
 import InlineAutocompleteController from "./inline_autocomplete_controller.js";
 application.register("inline-autocomplete", InlineAutocompleteController);

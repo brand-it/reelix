@@ -6,7 +6,8 @@
     <nav class="navbar mb-3">
       <div class="container-fluid p-0">
         <div class="me-2" style="min-height: 5.2em;">
-          <a href="ftp_settings" class="btn btn-outline-secondary p-0" tooltip="FTP Settings">
+          <a href="ftp_settings" class="btn btn-outline-secondary p-0"
+            tooltip="FTP Settings">
             <i class="fal fa-sliders-h fa-lg" style="margin: 0.94em;"></i>
           </a>
         </div>
@@ -17,41 +18,42 @@
         <div class="col" style="min-height: 5.2em;">
           <div id="search-form">
             <form class="simple_form mb-1"
-                  action="/search"
-                  method="post"
-                  data-controller="inline-autocomplete submit-on-keyup"
-                  data-submit-on-keyup-target="form">
+              action="/search"
+              method="post"
+              data-controller="inline-autocomplete submit-on-keyup search-shortcut"
+              data-submit-on-keyup-target="form">
               <div class="input-group input-group-lg">
                 <div class="entry-box form-control">
                   {{ suggestion.render_html() | safe }}
 
                   <input class="field"
-                        type="text"
-                        aria-label="TV or Movie Title"
-                        name="search"
-                        placeholder="TV or Movie Title"
-                        data-submit-on-keyup-target="input"
-                        data-inline-autocomplete-target="input"
-                        required
-                        autocomplete="off"
-                        value="{% if !query.is_empty() %}{{ query }}{% endif %}"/>
+                    type="text"
+                    id="search-input"
+                    aria-label="TV or Movie Title"
+                    name="search"
+                    placeholder="TV or Movie Title"
+                    data-submit-on-keyup-target="input"
+                    data-inline-autocomplete-target="input"
+                    data-search-shortcut-target="input"
+                    required
+                    autocomplete="off"
+                    value="{% if !query.is_empty() %}{{ query }}{% endif %}" />
                 </div>
-                <button class="btn btn-outline-primary" type="submit">Search</button>
+                <button class="btn btn-outline-primary"
+                  type="submit">Search</button>
               </div>
 
             </form>
-            <small class="text-muted ms-2">Press <kbd>Tab</kbd> to autocomplete</small>
-          </div>
-
-        </div>
+            <small class="text-muted ms-2">
+              Press <kbd>Tab</kbd> to autocomplete •
+              <kbd>{{ search_shortcut() }}</kbd> to focus search
+            </small>
+          </div> </div>
       </div>
     </nav>
 
-
-
   </div>
 </div>
-
 
 <div class="row">
   <div class="col-12">
@@ -59,6 +61,5 @@
   </div>
 
 </div>
-
 
 {{ disks_toast_progress.render_html() | safe }}

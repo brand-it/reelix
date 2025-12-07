@@ -152,6 +152,7 @@ async fn load_titles(app_handle: &AppHandle, job: &Arc<RwLock<Job>>) {
     job.read()
         .expect("failed to lock job for read")
         .emit_progress_change(app_handle);
+    templates::disks::emit_disk_change(app_handle);
 }
 
 fn add_optical_disk(app_handle: &AppHandle, disk: &OpticalDiskInfo) {
