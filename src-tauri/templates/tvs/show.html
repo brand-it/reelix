@@ -1,19 +1,22 @@
 {% import "_poster.html" as macros %}
 
-<div class="row">
+<div class="row" id="{{ self.dom_id() }}">
   <div class="col show-img-posters">
-    {{ macros::poster(poster_path=tv.poster_path, name=tv.name, original_name=tv.original_name) }}
+    {% call macros::poster(poster_path=tv.poster_path) %}
   </div>
   <div class="col" style="width: 75%;">
     <h3 class="tv-name">
       <i class="fa fa-film" data-prefix="fas" data-icon="film"></i>
       <a class="link-light link-opacity-50-hover link-underline-opacity-25 pb-1"
         href="https://www.themoviedb.org/tv/{{ tv.id }}" command="open_url">
-        {{ tv.title_year }}
+        {{ tv.title_year() }}
       </a>
     </h3>
     <div class='tv-facts'>
-      <span>{{ tv.first_air_date }}</span>
+      {% if let Some(first_air_date) = tv.first_air_date %}
+      <span>{{ first_air_date }}</span>
+      {% endif %}
+      <span>• {{ tv.average_episode_run_time() }}</span>
       {% for genre in tv.genres %}
       <span class="badge rounded-pill text-bg-secondary">
         {{ genre.name }}
@@ -25,13 +28,13 @@
         {{ tv.overview }}
       </p>
     </div>
-    {% if tv.seasons | length > 0 %}
+    {% if !tv.seasons.is_empty() %}
     <div class="display-flex">
       {% for season in tv.seasons %}
       <div class="width-200 m-1 text-center">
         <a class="btn img-poster-btn p-0 mb-2 m-0"
           href="/season?tvId={{ tv.id }}&seasonNumber={{ season.season_number }}">
-          {{ macros::poster(poster_path=season.poster_path, name=season.name, original_name=season.name) }}
+          {% call macros::poster(poster_path=season.poster_path) %}
         </a>
         <p class="card-title overflow-hidden text-start height-60 mt-2 mb-0">
           {{ season.name }}

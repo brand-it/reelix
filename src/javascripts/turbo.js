@@ -1,4 +1,5 @@
 import * as Turbo from "@hotwired/turbo";
+import { trace, error } from '@tauri-apps/plugin-log';
 
 function splitPath(location) {
   return location.pathname.split("/").filter((element) => element !== "");
@@ -10,36 +11,32 @@ window.turboInvoke = async function turboInvoke(command, commandArgs) {
       command,
       commandArgs
     );
+    trace(`turboInvoke: command=${command} args=${JSON.stringify(commandArgs)}`);
     window.processTurboResponse(tauriResponse);
     return new Response(tauriResponse, { status: 200 });
-  } catch (error) {
+  } catch (e) {
     const errorElem = document.getElementById("error");
+    error(`turboInvoke failed: command=${command} args=${JSON.stringify(commandArgs)} error=${e}`);
     if (errorElem) {
       // avoid innerHTML, just set plain text
-      errorElem.textContent = error?.message?.toString() ?? String(error);
+      errorElem.textContent = e?.message?.toString() ?? String(e);
     }
-    return new Response(String(error), { status: 500 });
+    return new Response(String(e), { status: 500 });
   }
 };
 
-window.processTurboResponse = (function () {
+window.processTurboResponse = function (turboResponse) {
+  if (typeof turboResponse !== "string") return;
+
   const template = document.createElement("template");
+  template.innerHTML = turboResponse.trim();
+  const streams = template.content.querySelectorAll("turbo-stream");
 
-  return function processTurboResponse(turboResponse) {
-    if (typeof turboResponse !== "string") return;
-
-    // parse into a DocumentFragment via template
-    template.innerHTML = turboResponse.trim();
-    const streams = template.content.querySelectorAll("turbo-stream");
-
-    for (const stream of streams) {
-      Turbo.renderStreamMessage(stream.outerHTML);
-    }
-
-    // drop references immediately
-    template.innerHTML = "";
-  };
-})();
+  for (const stream of streams) {
+    Turbo.renderStreamMessage(stream.outerHTML);
+  }
+  // No need to clear innerHTML; template will be garbage collected
+};
 
 function findClosestRecursively(element, selector) {
   if (element instanceof Element) {

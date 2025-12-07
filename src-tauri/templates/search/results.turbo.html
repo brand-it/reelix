@@ -1,0 +1,5 @@
+<turbo-stream action="replace" method="morph" target="{{ search_results.dom_id() }}">
+  <template>
+    {{ search_results.render_html() | safe }}
+  </template>
+</turbo-stream>

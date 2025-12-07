@@ -1,0 +1,6 @@
+<turbo-stream action="replace" target="{{ movies_show.dom_id() }}">
+  <template>
+    {# {% include "movies/show.html" %} #}
+    {{ movies_show.render_html() | safe }}
+  </template>
+</turbo-stream>

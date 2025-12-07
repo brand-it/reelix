@@ -1,7 +1,8 @@
-{% if message %}
-<div id="error" class="alert alert-danger m-3 mb-0">
-  {{message}}
+
+{% if message.len() > 0 %}
+<div id="{{ self.dom_id() }}" class="alert alert-danger m-3 mb-0">
+  {{ message }}
 </div>
 {% else %}
-<div id="error"></div>
+<div id="{{ self.dom_id() }}" class="hidden"></div>
 {% endif %}

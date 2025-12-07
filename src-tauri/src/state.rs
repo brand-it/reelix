@@ -1,20 +1,70 @@
 use crate::models::optical_disk_info::{DiskId, OpticalDiskInfo};
+use log::debug;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
-use tera::Tera;
+
+pub mod background_process_state;
+pub mod job_state;
+pub mod title_video;
 // Structure to hold shared state, thread safe version
 pub struct AppState {
     pub ftp_host: Arc<Mutex<Option<String>>>,
-    pub ftp_movie_upload_path: Arc<Mutex<Option<String>>>,
+    pub ftp_movie_upload_path: Arc<Mutex<Option<PathBuf>>>,
+    pub ftp_tv_upload_path: Arc<Mutex<Option<PathBuf>>>,
     pub ftp_pass: Arc<Mutex<Option<String>>>,
     pub ftp_user: Arc<Mutex<Option<String>>>,
     pub optical_disks: Arc<RwLock<Vec<Arc<RwLock<OpticalDiskInfo>>>>>,
     pub query: Arc<Mutex<String>>,
     pub selected_optical_disk_id: Arc<RwLock<Option<DiskId>>>,
-    pub tera: Arc<Tera>,
     pub the_movie_db_key: Arc<Mutex<String>>,
+    pub movies_dir: Arc<RwLock<PathBuf>>,
+    pub tv_shows_dir: Arc<RwLock<PathBuf>>,
+    pub current_video: Arc<Mutex<Option<title_video::Video>>>,
 }
 
 impl AppState {
+    pub fn new() -> Self {
+        Self {
+            ftp_host: Arc::new(Mutex::new(None)),
+            ftp_movie_upload_path: Arc::new(Mutex::new(None)),
+            ftp_pass: Arc::new(Mutex::new(None)),
+            ftp_user: Arc::new(Mutex::new(None)),
+            optical_disks: Arc::new(RwLock::new(Vec::<Arc<RwLock<OpticalDiskInfo>>>::new())),
+            query: Arc::new(Mutex::new(String::new())),
+            selected_optical_disk_id: Arc::new(RwLock::new(None)),
+            the_movie_db_key: Arc::new(Mutex::new(String::new())),
+            movies_dir: Arc::new(RwLock::new(Self::default_movies_dir())),
+            tv_shows_dir: Arc::new(RwLock::new(Self::default_tv_shows_dir())),
+            ftp_tv_upload_path: Arc::new(Mutex::new(None)),
+            current_video: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    pub fn save_current_video(&self, video: Option<title_video::Video>) {
+        let mut guard = self
+            .current_video
+            .lock()
+            .expect("failed to lock current_video");
+        *guard = video;
+    }
+
+    pub fn save_query(&self, search: &str) {
+        let mut query = self.query.lock().unwrap();
+        *query = search.to_string();
+    }
+
+    fn default_movies_dir() -> PathBuf {
+        dirs::home_dir()
+            .expect("failed to find home dir")
+            .join("Movies")
+    }
+
+    fn default_tv_shows_dir() -> PathBuf {
+        dirs::home_dir()
+            .expect("failed to find home dir")
+            .join("TV Shows")
+    }
+
     pub fn lock_the_movie_db_key(&self) -> MutexGuard<'_, String> {
         self.the_movie_db_key
             .lock()
@@ -32,7 +82,7 @@ impl AppState {
         self.ftp_pass.lock().expect("failed to lock ftp_pass")
     }
 
-    pub fn lock_ftp_movie_upload_path(&self) -> MutexGuard<'_, Option<String>> {
+    pub fn lock_ftp_movie_upload_path(&self) -> MutexGuard<'_, Option<PathBuf>> {
         self.ftp_movie_upload_path
             .lock()
             .expect("failed to lock ftp_movie_upload_path")
@@ -47,7 +97,7 @@ impl AppState {
                 Some(trimmed.to_string())
             }
         });
-        println!("Updating State {key} {cleaned:?}");
+        debug!("Updating State {key} {cleaned:?}");
         match key {
             "ftp_host" => {
                 let mut ftp_host = self.lock_ftp_host();
@@ -63,7 +113,7 @@ impl AppState {
             }
             "ftp_movie_upload_path" => {
                 let mut ftp_movie_upload_path = self.lock_ftp_movie_upload_path();
-                *ftp_movie_upload_path = cleaned;
+                *ftp_movie_upload_path = cleaned.map(PathBuf::from);
             }
             "the_movie_db_key" => {
                 if let Some(val) = cleaned {
@@ -71,9 +121,43 @@ impl AppState {
                     *the_movie_db_key = val;
                 };
             }
+            "movies_dir" => {
+                if let Some(val) = cleaned {
+                    let mut movies_dir = self
+                        .movies_dir
+                        .write()
+                        .expect("failed to lock movies_dir for write");
+                    // validate path exists
+                    if !movies_dir.exists() {
+                        return Err(format!("movies_dir path does not exist: {val}"));
+                    }
+                    *movies_dir = PathBuf::from(val);
+                };
+            }
+            "tv_shows_dir" => {
+                if let Some(val) = cleaned {
+                    let mut tv_shows_dir = self
+                        .tv_shows_dir
+                        .write()
+                        .expect("failed to lock tv_shows_dir for write");
+                    // validate path exists
+                    if !tv_shows_dir.exists() {
+                        return Err(format!("tv_shows_dir path does not exist: {val}"));
+                    }
+                    *tv_shows_dir = PathBuf::from(val);
+                };
+            }
             _ => return Err(format!("can't update {key}")),
         }
         Ok(())
+    }
+
+    pub fn clone_optical_disks(&self) -> Vec<OpticalDiskInfo> {
+        let guard = self.optical_disks.read().unwrap();
+        guard
+            .iter()
+            .map(|disk_arc| disk_arc.read().unwrap().to_owned())
+            .collect()
     }
 
     pub fn selected_disk(&self) -> Option<Arc<RwLock<OpticalDiskInfo>>> {

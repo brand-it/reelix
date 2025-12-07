@@ -4,6 +4,7 @@
 @import "bg_process";
 @import "movies";
 @import "disk_selector";
+@import "inline_autocomplete";
 @import "font-awesome/fontawesome";
 @import "font-awesome/brands";
 @import "font-awesome/duotone";
@@ -12,18 +13,44 @@
 @import "font-awesome/solid";
 @import "font-awesome/v4-shims";
 
-html,
-body {
-  height: 100%;
-}
+ :root {
+   /* CSS-only approach: fixed values (tunable) used for layout spacing */
+   --progress-footer-collapsed: 56px; /* height of summary bar */
+   --progress-footer-expanded-max: 30vh; /* max extra height when expanded */
+ }
 
 body {
   font-family: "Lucida Console", Monaco, monospace;
+  padding: 1em;
+  /* Keep content clear of the fixed progress footer (collapsed) */
+  padding-bottom: calc(var(--progress-footer-collapsed) + 1rem);
+}
 
-  main {
-    padding: 1em;
-    // padding-bottom: 20em;
-  }
+/* When footer details are expanded (Bootstrap adds .show), reserve more space */
+body:has(#progressDetails.show) {
+  padding-bottom: calc(
+    var(--progress-footer-collapsed) + var(--progress-footer-expanded-max) + 1rem
+  );
+}
+
+/* FAB offset so it never overlaps the footer */
+#season-fab {
+  bottom: calc(var(--progress-footer-collapsed) + 1rem) !important;
+}
+body:has(#progressDetails.show) #season-fab {
+  bottom: calc(
+    var(--progress-footer-collapsed) + var(--progress-footer-expanded-max) + 1rem
+  ) !important;
+}
+
+/* Footer details panel should never exceed the configured max; scroll inside */
+#disk-progress-footer .progress-details {
+  max-height: var(--progress-footer-expanded-max);
+  overflow-y: auto;
+}
+
+#main-view {
+  padding-bottom: 5em;
 }
 
 .nav-link {
@@ -269,10 +296,6 @@ body {
   color: #6c757d;
 }
 
-.parts-selector .form-select {
-  font-size: 0.875rem;
-}
-
 .input-group {
   a.btn,
   button.btn {
@@ -280,4 +303,10 @@ body {
     align-items: center; /* vertical centering of icon + text */
     justify-content: center; /* horizontal centering (optional) */
   }
+}
+
+.movie-card {
+  min-width: 400px;
+  display: inline-block;
+  vertical-align: top;
 }

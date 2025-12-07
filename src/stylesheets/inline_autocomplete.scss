@@ -1,0 +1,46 @@
+.entry-box {
+  min-height: 3em;
+  position: relative;
+  .input-placeholder,
+  .field {
+    -webkit-appearance: none;
+    align-items: center;
+    appearance: none;
+    background: transparent;
+    border: none;
+    display: flex;
+    font: inherit;
+    height: 100%;
+    left: 0;
+    line-height: normal;
+    padding: 0.8rem 1rem;
+    position: absolute;
+    top: 0;
+    transform: translateZ(0);
+    width: 100%;
+  }
+
+  .input-placeholder {
+    user-select: none;
+    pointer-events: none;
+    opacity: 0.4;
+    z-index: 2;
+  }
+
+  .field {
+    z-index: 1;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .input-placeholder,
+  .field {
+    left: 0;
+    outline: none;
+    overflow: hidden;
+    position: absolute;
+    resize: none;
+    top: 0;
+    background-color: transparent;
+  }
+}
