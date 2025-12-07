@@ -13,32 +13,12 @@ use crate::state::title_video::{self, TitleVideo, Video};
 use crate::state::{background_process_state, AppState};
 use crate::templates::{self};
 use log::{debug, error, warn};
-use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_notification::NotificationExt;
 use templates::render_error;
-
-#[derive(Serialize, Deserialize)]
-pub struct DiskTitle {
-    title_id: u32,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Part {
-    number: u32,
-    title_id: u32,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Episode {
-    episode_number: u32,
-    title: String,
-    disk_titles: Vec<DiskTitle>,
-    parts: Vec<Part>,
-}
 
 #[tauri::command]
 pub fn assign_episode_to_title(

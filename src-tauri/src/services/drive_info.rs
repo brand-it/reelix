@@ -5,11 +5,7 @@ use crate::models::optical_disk_info::OpticalDiskInfo;
 use std::sync::Mutex;
 
 #[cfg(target_os = "windows")]
-use {
-    serde::Deserialize,
-    // std::path::PathBuf, (removed unused import)
-    wmi::{COMLibrary, WMIConnection},
-};
+use {serde::Deserialize, wmi::WMIConnection};
 
 #[cfg(not(target_os = "windows"))]
 use sysinfo::{Disk, Disks};
@@ -18,6 +14,7 @@ use sysinfo::{Disk, Disks};
 // https://crates.io/crates/wmi
 #[derive(Deserialize)]
 #[cfg(target_os = "windows")]
+#[allow(dead_code)]
 struct Win32_CDROMDrive {
     Drive: Option<String>,
     Name: String,
@@ -68,8 +65,7 @@ fn is_optical_disk(disk: &Disk) -> bool {
 pub fn opticals() -> Vec<OpticalDiskInfo> {
     // use std::path::PathBuf; (removed unused import)
 
-    let com_con = COMLibrary::new().expect("Failed to initialize COM library");
-    let wmi_con = WMIConnection::new(com_con.into()).expect("Failed to create WMI connection");
+    let wmi_con = WMIConnection::new().expect("Failed to create WMI connection");
 
     let results: Vec<Win32_CDROMDrive> = wmi_con
         .query()
