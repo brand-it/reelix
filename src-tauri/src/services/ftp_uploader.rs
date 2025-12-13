@@ -91,7 +91,7 @@ fn connect_to_ftp(state: &State<'_, AppState>) -> Result<FtpStream, FtpError> {
         format!("{ftp_host}:21")
     };
 
-    debug!("Connecting to FTP server at: {}", ftp_addr);
+    debug!("Connecting to FTP server at: {ftp_addr}");
     let mut ftp_stream = FtpStream::connect(&ftp_addr)?;
     ftp_stream.login(ftp_user, ftp_pass)?;
     Ok(ftp_stream)

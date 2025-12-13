@@ -134,9 +134,7 @@ jobs:
             libwebkit2gtk-4.1-dev \
             libappindicator3-dev \
             librsvg2-dev \
-            patchelf \
-            libfuse2 \
-            zsync
+            patchelf
 
       - name: Install frontend dependencies
         run: npm install
@@ -151,8 +149,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ARCH: "x86_64"
+          RUST_BACKTRACE: "full"
+          RUST_LOG: "debug"
+          TAURI_CLI_VERBOSE: "true"
         with:
-          args: ${{ matrix.args }}
+          args: ${{ matrix.args }} --verbose
 
       # Release build (tag + GitHub release)
       - name: Build & Release Tauri
@@ -164,6 +165,9 @@ jobs:
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
           ARCH: "x86_64"
+          RUST_BACKTRACE: "full"
+          RUST_LOG: "debug"
+          TAURI_CLI_VERBOSE: "true"
         with:
           tagName: reelix-v__VERSION__
           releaseName: "Reelix v__VERSION__"
