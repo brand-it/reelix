@@ -129,12 +129,31 @@ jobs:
       - name: Install dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
         run: |
-          sudo apt-get update
+          echo "=== Installing Linux dependencies ==="
+          sudo apt-get update -y
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev \
             libappindicator3-dev \
             librsvg2-dev \
-            patchelf
+            patchelf \
+            libfuse2 \
+            zsync \
+            ffmpeg \
+            libavcodec-dev \
+            libavformat-dev \
+            libavutil-dev \
+            libswscale-dev \
+            libswresample-dev
+          echo "=== Verifying pkg-config appindicator ==="
+          pkg-config --modversion appindicator3-0.1 || echo "appindicator3-0.1 not found"
+          pkg-config --cflags appindicator3-0.1 || echo "appindicator3-0.1 cflags failed"
+          pkg-config --libs appindicator3-0.1 || echo "appindicator3-0.1 libs failed"
+          echo "=== Checking for fusermount ==="
+          which fusermount || echo "fusermount not found"
+          ls -l /dev/fuse || echo "/dev/fuse not found"
+          echo "=== Checking FFmpeg libs ==="
+          ls -l /usr/lib/x86_64-linux-gnu/libavcodec.so* || true
+          ldd /usr/bin/ffmpeg || true
 
       - name: Install frontend dependencies
         run: npm install
