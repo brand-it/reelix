@@ -47,24 +47,18 @@ pub fn eject(volume: &Path) {
 }
 
 #[cfg(target_os = "linux")]
-pub fn eject(volume: &Path) {
+pub fn eject_by_device(device: &str) {
     use std::process::Command;
 
-    // Try to get the device path from the mount point
-    let device = match get_device_from_mount(volume) {
-        Some(dev) => dev,
-        None => {
-            debug!(
-                "Could not find device for mount point: {}",
-                volume.display()
-            );
-            return;
-        }
-    };
+    if device.is_empty() {
+        debug!("Device path is empty, cannot eject");
+        return;
+    }
 
     debug!("Attempting to eject device: {device}");
 
-    match Command::new("umount").arg(&device).output() {
+    // First try to unmount
+    match Command::new("umount").arg(device).output() {
         Ok(output) => {
             if !output.status.success() {
                 debug!(
@@ -78,7 +72,8 @@ pub fn eject(volume: &Path) {
         }
     }
 
-    match Command::new("eject").arg(&device).output() {
+    // Then try to eject
+    match Command::new("eject").arg(device).output() {
         Ok(output) => {
             if output.status.success() {
                 debug!("Successfully ejected {device}");
@@ -93,6 +88,25 @@ pub fn eject(volume: &Path) {
             debug!("Failed to run eject command: {e}");
         }
     }
+}
+
+#[cfg(target_os = "linux")]
+pub fn eject(volume: &Path) {
+    use std::process::Command;
+
+    // Try to get the device path from the mount point (fallback method)
+    let device = match get_device_from_mount(volume) {
+        Some(dev) => dev,
+        None => {
+            debug!(
+                "Could not find device for mount point: {}",
+                volume.display()
+            );
+            return;
+        }
+    };
+
+    eject_by_device(&device);
 }
 
 #[cfg(target_os = "linux")]

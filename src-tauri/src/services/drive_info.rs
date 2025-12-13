@@ -84,7 +84,7 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
                 is_removable: disk.is_removable(),
                 is_read_only: disk.is_removable(),
                 kind: format!("{:?}", disk.kind()),
-                dev: String::new(),
+                dev: disk.name().to_string_lossy().to_string(),
                 mount_point,
                 titles: Mutex::new(Vec::new()),
                 pid: Mutex::new(None),
