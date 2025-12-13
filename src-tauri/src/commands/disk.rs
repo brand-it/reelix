@@ -31,7 +31,14 @@ pub fn eject_disk(
     match state.selected_disk() {
         Some(optical_disk) => {
             match optical_disk.read() {
-                Ok(disk) => disk_manager::eject(&disk.mount_point),
+                Ok(disk) => {
+                    // On Linux, use the device path; on other platforms use mount point
+                    #[cfg(target_os = "linux")]
+                    disk_manager::eject_by_device(&disk.dev);
+
+                    #[cfg(not(target_os = "linux"))]
+                    disk_manager::eject(&disk.mount_point);
+                }
                 Err(_) => return render_error("Failed to get lock on memory for optical disk"),
             };
         }

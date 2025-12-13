@@ -82,7 +82,17 @@ fn connect_to_ftp(state: &State<'_, AppState>) -> Result<FtpStream, FtpError> {
             )));
         }
     };
-    let mut ftp_stream = FtpStream::connect(ftp_host)?;
+
+    // Ensure the host has a port; default to FTP standard port 21 if not provided
+    // This is only been a problem on linux where windows & macos ftp libraries auto add :21
+    let ftp_addr = if ftp_host.contains(':') {
+        ftp_host.clone()
+    } else {
+        format!("{ftp_host}:21")
+    };
+
+    debug!("Connecting to FTP server at: {ftp_addr}");
+    let mut ftp_stream = FtpStream::connect(&ftp_addr)?;
     ftp_stream.login(ftp_user, ftp_pass)?;
     Ok(ftp_stream)
 }
