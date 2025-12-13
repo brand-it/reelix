@@ -92,8 +92,6 @@ pub fn eject_by_device(device: &str) {
 
 #[cfg(target_os = "linux")]
 pub fn eject(volume: &Path) {
-    use std::process::Command;
-
     // Try to get the device path from the mount point (fallback method)
     let device = match get_device_from_mount(volume) {
         Some(dev) => dev,
