@@ -9,7 +9,11 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": {},
+    "resources": {
+      "libraries/linux/libdriveio.so.0": "libdriveio.so.0",
+      "libraries/linux/libmakemkv.so.1": "libmakemkv.so.1",
+      "libraries/linux/libmmbd.so.0": "libmmbd.so.0"
+    },
     "externalBin": [
       "binaries/makemkvcon"
     ]
