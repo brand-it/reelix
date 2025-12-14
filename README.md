@@ -83,6 +83,13 @@ sudo apt install \
   libappindicator3-dev
 ```
 
+
+Found this helps with development on linux
+```
+env WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 cargo tauri
+ dev --config src-tauri/tauri.linux.dev.conf.json
+ ```
+
 ## Build / Deployment
 
 1. `asdf install`
@@ -116,7 +123,7 @@ Problem
 ```
 cargo tauri dev --config src-tauri/tauri.dev.conf.json
 No version is set for command cargo-tauri
-Consider adding one of the following versions in your config file at /Users/brandit/apps/reelix/.tool-versions
+Consider adding one of the following versions in yor config file at /Users/brandit/apps/reelix/.tool-versions
 rust 1.83.0
 ```
 
