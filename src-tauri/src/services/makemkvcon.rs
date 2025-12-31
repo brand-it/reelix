@@ -326,7 +326,7 @@ fn spawn<I: IntoIterator<Item = S> + std::fmt::Debug + std::marker::Copy, S: AsR
     // where the shared libraries are located
     #[cfg(target_os = "linux")]
     {
-        if let Some(resource_path) = app_handle.path().resource_dir().ok() {
+        if let Ok(resource_path) = app_handle.path().resource_dir() {
             sidecar_command = sidecar_command.env("LD_LIBRARY_PATH", resource_path);
         }
     }
