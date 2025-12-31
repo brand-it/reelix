@@ -26,8 +26,6 @@ By registering it using their official process, the binaries used by this tool w
 
 Really There is nothing better out there I could find then MakeMKV. The process to get lossless conversion of your movie data this is the best. It is a lot of money to buy but I will leave that up to you to decided if you think it is worth it. In the end this tool will have more feature out side of simply ripping movies for Plex. So you might end up not using it for the Ripping your collection. Might end up using it to manage your Plex Library. I don't know we will see.
 
-
-
 ## Development
 
 1. `asdf install`
@@ -47,6 +45,26 @@ npm upgrade
 ```
 cargo update --manifest-path src-tauri/Cargo.toml
 ```
+
+### Bumping the Version
+
+When releasing a new version, update the version number in all 4 locations:
+
+```bash
+# 1. Update package.json
+# Change "version": "0.31.0" to "version": "0.32.0"
+
+# 2. Update src-tauri/Cargo.toml
+# Change version = "0.31.0" to version = "0.32.0"
+
+# 3. Update src-tauri/tauri.conf.json
+# Change "version": "0.31.0" to "version": "0.32.0"
+
+# 4. Update src-tauri/Cargo.lock
+# Change version = "0.31.0" to version = "0.32.0"
+```
+
+All four files must have matching version numbers for builds to work correctly across all platforms (macOS, Linux, Windows).
 
 ### Using Node
 
@@ -83,12 +101,12 @@ sudo apt install \
   libappindicator3-dev
 ```
 
-
 Found this helps with development on linux
+
 ```
 env WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 cargo tauri
  dev --config src-tauri/tauri.linux.dev.conf.json
- ```
+```
 
 ## Build / Deployment
 
@@ -137,10 +155,10 @@ cargo install tauri-cli --locked --version "^2"
 
 There is a titles.txt file that has all the possible auto complete for movies. I used SQLlite to pre process the data and then just copy the text into the file. Removed the follow characters ":\, and double spaces. Just clean it up, updating this file ever so often is a good idea but even if we don't it has so much info it can general provide good suggestions for most movies except for new movies. It some times suggest things that don't exist but that is fine. recommend download new movies from the internet as I find them.
 
-
 # Macro Debugging
 
 Good luck, askama makes micro debugging a pain so best solution I found is delete a single line rerun the thing and just keep checking. This is the worst way to do it but it will get you a answer eventually.
+
 ```
 error[E0599]: the method `askama_auto_escape` exists for reference `&&AutoEscaper<'_, Option<u32>, Html>`, but its trait bounds were not satisfied
    --> src/templates/seasons.rs:16:10
