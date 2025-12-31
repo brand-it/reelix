@@ -1,4 +1,5 @@
 {
+  "$schema": "https://schema.tauri.app/config/2",
   "bundle": {
     "active": true,
     "targets": "all",
@@ -15,7 +16,9 @@
       "libraries/linux/libmmbd.so.0": "libmmbd.so.0"
     },
     "externalBin": [
-      "binaries/makemkvcon"
+      "binaries/makemkvcon",
+      "binaries/mmgplsrv",
+      "binaries/mmccextr"
     ]
   }
 }
