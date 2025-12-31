@@ -11,9 +11,9 @@
       "icons/icon.ico"
     ],
     "resources": {
-      "libraries/linux/libdriveio.so.0": "libdriveio.so.0",
-      "libraries/linux/libmakemkv.so.1": "libmakemkv.so.1",
-      "libraries/linux/libmmbd.so.0": "libmmbd.so.0"
+      "libraries/linux/libdriveio.so.0": "bin/libdriveio.so.0",
+      "libraries/linux/libmakemkv.so.1": "bin/libmakemkv.so.1",
+      "libraries/linux/libmmbd.so.0": "bin/libmmbd.so.0"
     },
     "externalBin": [
       "binaries/makemkvcon",
