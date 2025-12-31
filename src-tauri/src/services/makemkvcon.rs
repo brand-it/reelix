@@ -4,8 +4,8 @@ use crate::models::optical_disk_info::OpticalDiskInfo;
 use crate::models::{mkv, title_info};
 use crate::progress_tracker::{self, ProgressOptions};
 use crate::services::makemkvcon_parser;
-use crate::state::job_state::Job;
 use crate::state::job_state::emit_progress;
+use crate::state::job_state::Job;
 use crate::state::title_video::TitleVideo;
 use crate::state::AppState;
 use crate::templates;
@@ -317,10 +317,20 @@ fn spawn<I: IntoIterator<Item = S> + std::fmt::Debug + std::marker::Copy, S: AsR
     job: &Arc<RwLock<Job>>,
     args: I,
 ) -> Receiver<CommandEvent> {
-    let sidecar_command = app_handle
+    let mut sidecar_command = app_handle
         .shell()
         .sidecar(MAKEMKVCON)
         .expect("failed to get makemkvcon");
+
+    // On Linux, set LD_LIBRARY_PATH to include the resource directory
+    // where the shared libraries are located
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(resource_path) = app_handle.path().resource_dir().ok() {
+            sidecar_command = sidecar_command.env("LD_LIBRARY_PATH", resource_path);
+        }
+    }
+
     let (receiver, child) = sidecar_command
         .args(args)
         .spawn()
