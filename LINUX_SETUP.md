@@ -26,7 +26,7 @@ Reelix requires MakeMKV binaries and shared libraries that are **NOT** included 
 
 ### 1. Install MakeMKV on Linux
 
-There are to many ways to do this, I did it with flatpak but I'm sure you can do it your way. I'm tempted to not ship MKV Maker with linux and point to how ever the user decided to install it given how complex it can be. 
+There are too many ways to do this, I did it with flatpak but I'm sure you can do it your way. I'm tempted to not ship MKV Maker with linux and point to however the user decided to install it given how complex it can be. 
 
 ### 2. Gather MakeMKV Files
 
