@@ -17,9 +17,10 @@
         Chapters
         {% endif %}
       </span>
-      {% if is_best_match %}
-      <span class="badge bg-success flex-shrink-0 ms-auto">
-        <i class="fas fa-check-circle me-1"></i>Best Match
+      {% if title.chapter_count.unwrap_or(0) == 0 %}
+      <span class="badge bg-warning text-dark flex-shrink-0 ms-auto"
+        tooltip="Missing chapters; this is odd but possible issue.">
+        <i class="fas fa-exclamation-triangle me-1"></i>Possible Match
       </span>
       {% endif %}
     </div>
