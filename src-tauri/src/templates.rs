@@ -1,5 +1,5 @@
 use crate::{
-    models::{movie_db::TvEpisode, title_info::TitleInfo},
+    models::{movie_db::SeasonEpisode, title_info::TitleInfo},
     state::{job_state::Job, title_video::Video},
 };
 use askama::Template;
@@ -129,7 +129,7 @@ pub fn render_error(message: &str) -> Result<String, Error> {
 ///     // Found the associated TitleVideo for this episode/part
 /// }
 /// ```
-pub fn find_previous_value(episode: &TvEpisode, part: &u16, job: &Job) -> Option<u32> {
+pub fn find_previous_value(episode: &SeasonEpisode, part: &u16, job: &Job) -> Option<u32> {
     for title_video in job.title_videos.iter() {
         match &title_video.read().unwrap().video {
             Video::Tv(tv) => {
@@ -156,7 +156,7 @@ pub fn find_previous_value(episode: &TvEpisode, part: &u16, job: &Job) -> Option
 /// Usage:
 /// - Use this to determine if a specific episode is already associated with a given title in a job.
 pub fn job_contains_episode_for_title(
-    episode: &TvEpisode,
+    episode: &SeasonEpisode,
     title_info: &TitleInfo,
     job: &Job,
 ) -> bool {
@@ -188,7 +188,7 @@ pub fn job_contains_episode_for_title(
 /// Usage:
 /// - Use this to determine if a specific episode/part/title combination is currently selected in a job.
 pub fn is_selected_title(
-    episode: &TvEpisode,
+    episode: &SeasonEpisode,
     part: &u16,
     title_info: &TitleInfo,
     job: &Job,

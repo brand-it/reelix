@@ -29,6 +29,7 @@ Really There is nothing better out there I could find then MakeMKV. The process 
 ## Development
 
 1. `asdf install`
+2. `cd src-tauri && cargo tauri build` (run after code changes to ensure the Rust side still compiles)
 
 ### Upgrade
 
