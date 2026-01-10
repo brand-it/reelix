@@ -293,6 +293,9 @@ fn start_upload(
         let percent = (total_bytes_sent as f64 / file_info.file_size as f64) * 100.0;
         tracker.set_progress(percent as usize);
 
+        job.write()
+            .expect("Failed to acquire write lock on job")
+            .update_progress(&tracker);
         emit_progress(app_handle, job, false);
     }
 
