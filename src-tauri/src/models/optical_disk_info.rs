@@ -84,9 +84,7 @@ impl OpticalDiskInfo {
         if let Some(runtime_seconds) = video_runtime_seconds {
             titles.sort_by_key(|title| {
                 let title_duration = title.duration_seconds().unwrap_or(u64::MAX);
-                let diff = title_duration.abs_diff(runtime_seconds);
-                let no_chapters = !title.has_chapters();
-                (no_chapters, diff)
+                title_duration.abs_diff(runtime_seconds)
             });
         }
 
