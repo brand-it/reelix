@@ -1,4 +1,4 @@
-use crate::models::movie_db::{SeasonEpisode, SeasonResponse, TvEpisode, TvResponse};
+use crate::models::movie_db::{SeasonEpisode, SeasonResponse, TvResponse};
 use crate::models::optical_disk_info::OpticalDiskInfo;
 use crate::state::background_process_state::{copy_job_state, BackgroundProcessState};
 use crate::state::job_state::{Job, JobStatus};
@@ -12,13 +12,35 @@ use tauri::Manager;
 #[template(path = "seasons/parts.html")]
 pub struct SeasonsParts<'a> {
     pub selected_disk: &'a Option<OpticalDiskInfo>,
-    pub episode: &'a Option<TvEpisode>,
     pub job: &'a Option<Job>,
 }
 
 impl SeasonsParts<'_> {
     pub fn selector_class(&self) -> &'static str {
         super::SEASONS_PARTS_SELECTOR_CLASS
+    }
+
+    /// Resolves the episode from the job's title_videos based on the episode ID.
+    ///
+    /// Purpose:
+    /// - Extracts the SeasonEpisode data from the job's title_videos.
+    /// - Searches for a matching TV episode by ID.
+    /// - Returns the episode if one is already assigned in the job, otherwise None.
+    /// - This allows the template to determine what episode data to use without
+    ///   needing it to be pre-computed and passed in.
+    pub fn resolve_episode_from_job(&self) -> Option<SeasonEpisode> {
+        match &self.job {
+            Some(job) => job.title_videos.iter().find_map(|title_video| {
+                let tv = title_video.read().unwrap();
+                match &tv.video {
+                    crate::state::title_video::Video::Tv(tv_episode) => {
+                        Some(tv_episode.episode.clone())
+                    }
+                    crate::state::title_video::Video::Movie(_) => None,
+                }
+            }),
+            None => None,
+        }
     }
 }
 
@@ -84,7 +106,6 @@ pub fn render_show(
 
     let parts = SeasonsParts {
         selected_disk: &selected_disk,
-        episode: &None,
         job: &job,
     };
     let seasons_show_turbo = SeasonsShowTurbo {
@@ -121,17 +142,19 @@ pub fn render_title_selected(
     };
     let optical_disks = app_state.clone_optical_disks();
     let job = get_job(app_handle, &selected_disk);
-    let parts = SeasonsParts {
+
+    // Use a shared SeasonsParts for all episodes since episode matching is resolved from the job
+    let shared_parts = SeasonsParts {
         selected_disk: &selected_disk,
-        episode: &None,
         job: &job,
     };
-    let episodes = season
+
+    let episodes: Vec<SeasonsEpisode> = season
         .episodes
         .iter()
         .map(|ep| SeasonsEpisode {
             episode: ep,
-            seasons_parts: &parts,
+            seasons_parts: &shared_parts,
         })
         .collect::<Vec<SeasonsEpisode>>();
 

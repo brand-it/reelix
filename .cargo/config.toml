@@ -1,0 +1,3 @@
+# Ensure AppImage bundling works when FUSE2 is unavailable
+[env]
+APPIMAGE_EXTRACT_AND_RUN = "1"

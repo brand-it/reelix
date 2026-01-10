@@ -34,9 +34,18 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
         .for_each(|(idx, disk)| {
             let mount_point =
                 std::path::PathBuf::from(format!("{}", disk.mount_point().to_string_lossy()));
+
+            // Extract disc name from mount point (e.g., /Volumes/THE_NAKED_GUN -> THE_NAKED_GUN)
+            // Fall back to device name if mount point doesn't have a filename component
+            let name = mount_point
+                .file_name()
+                .and_then(|n| n.to_str())
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| disk.name().to_string_lossy().to_string());
+
             opticals.push(OpticalDiskInfo {
                 id: optical_disk_info::DiskId::new(),
-                name: disk.name().to_string_lossy().to_string(),
+                name,
                 available_space: disk.available_space(),
                 total_space: disk.total_space(),
                 file_system: disk.file_system().to_string_lossy().to_string(),
@@ -75,9 +84,18 @@ pub fn opticals() -> Vec<OpticalDiskInfo> {
         .for_each(|(idx, disk)| {
             let mount_point =
                 std::path::PathBuf::from(format!("{}", disk.mount_point().to_string_lossy()));
+
+            // Extract disc name from mount point (e.g., /media/user/THE_NAKED_GUN -> THE_NAKED_GUN)
+            // Fall back to device name if mount point doesn't have a filename component
+            let name = mount_point
+                .file_name()
+                .and_then(|n| n.to_str())
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| disk.name().to_string_lossy().to_string());
+
             opticals.push(OpticalDiskInfo {
                 id: optical_disk_info::DiskId::new(),
-                name: disk.name().to_string_lossy().to_string(),
+                name,
                 available_space: disk.available_space(),
                 total_space: disk.total_space(),
                 file_system: disk.file_system().to_string_lossy().to_string(),

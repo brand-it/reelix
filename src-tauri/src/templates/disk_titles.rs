@@ -46,7 +46,6 @@ pub fn render_options(
     let template = DiskTitlesOptionsTurbo {
         seasons_parts: &SeasonsParts {
             selected_disk: &selected_disk,
-            episode: &None,
             job: &job,
         },
         movies_cards: &MoviesCards {

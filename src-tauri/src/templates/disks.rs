@@ -110,7 +110,6 @@ pub fn render_options(app_handle: &AppHandle) -> Result<String, super::Error> {
     };
     let seasons_parts = SeasonsParts {
         selected_disk: &selected_disk,
-        episode: &None,
         job,
     };
     let video = match app_state.current_video.lock() {

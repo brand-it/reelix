@@ -26,6 +26,14 @@ impl TitleInfo {
         }
     }
 
+    pub fn has_chapters(&self) -> bool {
+        self.chapter_count.unwrap_or(0) > 0
+    }
+
+    pub fn without_chapters(&self) -> bool {
+        self.chapter_count.unwrap_or(0) == 0
+    }
+
     pub fn duration_seconds(&self) -> Option<u64> {
         self.duration.as_ref().and_then(|d| {
             let parts: Vec<&str> = d.split(':').collect();
@@ -40,7 +48,7 @@ impl TitleInfo {
         })
     }
 
-    pub fn within_range(&self, range: Option<std::ops::Range<u64>>) -> bool {
+    pub fn within_range(&self, range: &Option<std::ops::Range<u64>>) -> bool {
         let range = match range {
             Some(r) => r,
             None => return false,

@@ -1,15 +1,16 @@
-{% macro movie_card_with_title(title, disk, job, is_best_match) %}
+{% macro movie_card_with_title(title, disk, job, has_video,
+video_duration_range) %}
 <div class="mb-3 col movie-card" id="movie-card-{{ title.id }}">
   <div
-    class="card h-100 {% if is_best_match %}border-success border-2 shadow-sm{% endif %}">
+    class="card h-100 {% if has_video && title.within_range(video_duration_range) && title.has_chapters() %}border-success border-2 shadow-sm{% endif %}">
     <div
-      class="card-header d-flex align-items-center {% if is_best_match %}bg-success-subtle{% endif %}">
+      class="card-header d-flex align-items-center {% if has_video && title.within_range(video_duration_range) && title.has_chapters() %}bg-success-subtle{% endif %}">
       <div class="overflow-hidden">
         <i class="fad fa-film text-muted"></i>
         <span class="fw-semibold me-2">{{
           title.filename.as_deref().unwrap_or("") }}</span>
       </div>
-      <span class="badge bg-secondary-subtle text-secondary border">
+      <span class="badge bg-secondary-subtle text-secondary border me-1">
         {{ title.chapter_count.unwrap_or(0) }}
         {% if title.chapter_count.unwrap_or(0) < 2 %}
         Chapter
@@ -17,9 +18,21 @@
         Chapters
         {% endif %}
       </span>
-      {% if is_best_match %}
-      <span class="badge bg-success flex-shrink-0 ms-auto">
+      {% if has_video && title.within_range(video_duration_range) &&
+      title.has_chapters() %}
+      <span class="badge bg-success text-white flex-shrink-0 ms-auto"
+        data-bs-toggle="tooltip"
+        data-bs-placement="top"
+        data-bs-title="This title is the best match for the selected video.">
         <i class="fas fa-check-circle me-1"></i>Best Match
+      </span>
+      {% elif has_video && title.without_chapters() &&
+      title.within_range(video_duration_range) %}
+      <span class="badge bg-warning text-dark flex-shrink-0 ms-auto"
+        data-bs-toggle="tooltip"
+        data-bs-placement="top"
+        data-bs-title="Missing chapters; this is odd but possible issue.">
+        <i class="fas fa-exclamation-triangle me-1"></i>Possible Match
       </span>
       {% endif %}
     </div>
@@ -125,18 +138,20 @@
 </div>
 {% endmacro movie_card_with_title %}
 
-<div class="text-center row" id="movie-cards-selector">
+<div class="text-center row" id="movie-cards-selector"
+  data-controller="bootstrap-tooltip">
   {% if let Some(disk) = selected_disk %}
   {% if disk.any_titles() %}
   {% if let Some(v) = video %}
   {% for title in disk.titles_sorted(v.runtime_seconds()) %}
   {% call movie_card_with_title(title=title, disk=disk, job=job,
-  is_best_match=title.within_range(v.runtime_range())) %}
+  has_video=true, video_duration_range=v.runtime_range())
+  %}
   {% endfor %}
   {% else %}
   {% for title in disk.clone_titles() %}
   {% call movie_card_with_title(title=title, disk=disk, job=job,
-  is_best_match=false) %}
+  has_video=false, video_duration_range=None) %}
   {% endfor %}
   {% endif %}
   {% else %}
