@@ -1,10 +1,10 @@
-use crate::models::movie_db::{SeasonEpisode, SeasonResponse, TvResponse};
 use crate::models::optical_disk_info::OpticalDiskInfo;
 use crate::state::background_process_state::{copy_job_state, BackgroundProcessState};
 use crate::state::job_state::{Job, JobStatus};
 use crate::state::AppState;
 use crate::templates::disks::DisksOptions;
 use crate::templates::InlineTemplate;
+use crate::the_movie_db::{SeasonEpisode, SeasonResponse, TvResponse};
 use askama::Template;
 use tauri::Manager;
 

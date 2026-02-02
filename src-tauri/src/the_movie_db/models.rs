@@ -2,6 +2,11 @@ use chrono::NaiveDate;
 use humantime::format_duration;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+
+// -------------------------
+// -------- Movies ---------
+// -------------------------
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct MovieResponse {
     pub adult: bool,
@@ -73,6 +78,33 @@ pub struct MovieGenre {
     pub name: String,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct MovieReleaseDatesResponse {
+    pub id: u32,
+    pub results: Vec<CountryReleaseDates>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct CountryReleaseDates {
+    pub iso_3166_1: String,
+    pub release_dates: Vec<ReleaseDate>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ReleaseDate {
+    pub certification: String,
+    pub descriptors: Vec<String>,
+    pub iso_639_1: String,
+    pub note: String,
+    pub release_date: String,
+    #[serde(rename = "type")]
+    pub release_type: u32,
+}
+
+// -------------------------
+// -------- Search ---------
+// -------------------------
+
 // Struct to represent the full response
 #[derive(Serialize, Deserialize)]
 pub struct SearchResponse {
@@ -137,32 +169,10 @@ impl SearchResult {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct MovieReleaseDatesResponse {
-    pub id: u32,
-    pub results: Vec<CountryReleaseDates>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct CountryReleaseDates {
-    pub iso_3166_1: String,
-    pub release_dates: Vec<ReleaseDate>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct ReleaseDate {
-    pub certification: String,
-    pub descriptors: Vec<String>,
-    pub iso_639_1: String,
-    pub note: String,
-    pub release_date: String,
-    #[serde(rename = "type")]
-    pub release_type: u32,
-}
-
 // -------------------------
 // ---------- TV -----------
 // -------------------------
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TvResponse {
     pub adult: bool,
@@ -200,6 +210,7 @@ pub struct TvResponse {
     pub vote_average: f64,
     pub vote_count: u32,
 }
+
 impl TvResponse {
     pub fn year(&self) -> Option<u32> {
         self.first_air_date.as_ref().and_then(|date_str| {
@@ -225,10 +236,6 @@ impl TvResponse {
         let duration = Duration::from_secs((average * 60.0) as u64);
         format!("{}", format_duration(duration))
     }
-
-    // pub fn find_season(&self, id: u32) -> Option<TvSeason> {
-    //     self.seasons.iter().find(|s| s.id == id).cloned()
-    // }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -263,30 +270,6 @@ pub struct TvEpisode {
     pub show_id: u32,
     pub still_path: Option<String>,
 }
-
-// impl TvEpisode {
-//     pub fn formatted_vote_average(&self) -> String {
-//         let average = (self.vote_average * 10.0).round();
-//         format!("{}", average)
-//     }
-
-//     pub fn formatted_air_date(&self) -> String {
-//         NaiveDate::parse_from_str(&self.air_date, "%Y-%m-%d")
-//             .ok()
-//             .map(|date| date.format("%B %-d, %Y").to_string())
-//             .unwrap_or_else(|| "".to_string())
-//     }
-
-//     pub fn formatted_runtime(&self) -> String {
-//         let minutes = self.runtime;
-//         let hours = minutes / 60;
-//         if hours > 0 {
-//             format!("{hours}h {}m", minutes % 60)
-//         } else {
-//             format!("{minutes}m")
-//         }
-//     }
-// }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TvNetwork {
@@ -332,6 +315,7 @@ pub struct TvSpokenLanguage {
 // ------------------------------------
 // ------- TV Season Response ---------
 // ------------------------------------
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SeasonResponse {
     pub _id: String,
@@ -367,6 +351,7 @@ pub struct SeasonEpisode {
 impl SeasonEpisode {
     /// Margin for runtime matching, in seconds.
     const EPISODE_RUNTIME_MARGIN: u64 = 600; // seconds (10 minutes)
+
     /// Returns a range of acceptable runtimes for this episode, centered on the episode's runtime.
     ///
     /// The range is calculated as (runtime - margin) to (runtime + margin), where margin is a constant (600 seconds = 10 minutes).
@@ -404,6 +389,7 @@ impl SeasonEpisode {
         }
     }
 }
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SeasonCrewMember {
     pub job: String,

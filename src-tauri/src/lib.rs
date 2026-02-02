@@ -18,6 +18,7 @@ mod services;
 mod standard_error;
 mod state;
 mod templates;
+mod the_movie_db;
 
 // only on macOS:
 #[cfg(target_os = "macos")]

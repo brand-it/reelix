@@ -1,4 +1,4 @@
-use crate::models::movie_db::SearchResponse;
+use crate::the_movie_db::SearchResponse;
 use crate::models::optical_disk_info;
 use crate::services::auto_complete::suggestion;
 use crate::services::plex::search_multi;

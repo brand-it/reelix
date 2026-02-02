@@ -1,8 +1,6 @@
 use crate::{
-    models::{
-        movie_db::{MovieResponse, SeasonEpisode, SeasonResponse, TvResponse},
-        title_info::TitleInfo,
-    },
+    the_movie_db::{MovieResponse, SeasonEpisode, SeasonResponse, TvResponse},
+    models::title_info::TitleInfo,
     state::AppState,
 };
 use serde::Serialize;

@@ -1,5 +1,6 @@
 use crate::{
-    models::{movie_db::SeasonEpisode, title_info::TitleInfo},
+    the_movie_db::SeasonEpisode,
+    models::title_info::TitleInfo,
     state::{job_state::Job, title_video::Video},
 };
 use askama::Template;

@@ -1,12 +1,11 @@
-use super::the_movie_db;
-use crate::models::movie_db;
 use crate::state::AppState;
+use crate::the_movie_db;
 use tauri::{AppHandle, Manager};
 
 pub fn search_multi(
     app_state: &tauri::State<'_, AppState>,
     query: &str,
-) -> Result<movie_db::SearchResponse, the_movie_db::Error> {
+) -> Result<the_movie_db::SearchResponse, the_movie_db::Error> {
     let api_key = &app_state.lock_the_movie_db_key().to_string();
     let language = "en-US";
     let movie_db = the_movie_db::TheMovieDb::new(api_key, language);
@@ -17,7 +16,7 @@ pub fn search_multi(
 pub fn find_movie(
     app_handle: &AppHandle,
     id: u32,
-) -> Result<movie_db::MovieResponse, the_movie_db::Error> {
+) -> Result<the_movie_db::MovieResponse, the_movie_db::Error> {
     let state: tauri::State<AppState> = app_handle.state::<AppState>();
     let api_key = &state.lock_the_movie_db_key().to_string();
 
@@ -29,7 +28,7 @@ pub fn find_movie(
 pub fn find_tv(
     app_handle: &AppHandle,
     id: u32,
-) -> Result<movie_db::TvResponse, the_movie_db::Error> {
+) -> Result<the_movie_db::TvResponse, the_movie_db::Error> {
     let state: tauri::State<AppState> = app_handle.state::<AppState>();
     let api_key = &state.lock_the_movie_db_key().to_string();
 
@@ -42,7 +41,7 @@ pub fn find_season(
     app_handle: &AppHandle,
     tv_id: u32,
     season_number: u32,
-) -> Result<movie_db::SeasonResponse, the_movie_db::Error> {
+) -> Result<the_movie_db::SeasonResponse, the_movie_db::Error> {
     let state: tauri::State<AppState> = app_handle.state::<AppState>();
     let api_key = &state.lock_the_movie_db_key().to_string();
 

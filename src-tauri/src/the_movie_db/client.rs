@@ -1,4 +1,4 @@
-use crate::models::movie_db::{
+use crate::the_movie_db::models::{
     MovieReleaseDatesResponse, MovieResponse, SearchResponse, SeasonResponse, TvResponse,
 };
 use serde::de::DeserializeOwned;
