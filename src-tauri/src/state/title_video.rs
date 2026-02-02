@@ -8,6 +8,26 @@ use crate::{
 use serde::Serialize;
 use std::{fs, path::PathBuf};
 
+/// Wrapper for MovieResponse to support multipart and edition info for movies.
+#[derive(Serialize, Clone)]
+pub struct MoviePartEdition {
+    pub movie: MovieResponse,
+    pub part: Option<u16>,
+    pub edition: Option<String>,
+}
+
+impl MoviePartEdition {
+    /// Returns the runtime of this movie in seconds, if available.
+    pub fn runtime_seconds(&self) -> u64 {
+        self.movie.runtime_seconds()
+    }
+
+    /// Returns the runtime range of this movie (±5 minutes), used for matching titles.
+    pub fn runtime_range(&self) -> std::ops::Range<u64> {
+        self.movie.runtime_range()
+    }
+}
+
 #[derive(Serialize, Clone)]
 pub struct TitleVideo {
     pub title: TitleInfo,
@@ -226,13 +246,14 @@ impl TitleVideo {
     /// Notes:
     /// - Does not create the directory; only computes the path.
     /// - Used for external transfers, not local Plex organization.
-    fn upload_movie_dir(app_state: &AppState, movie: &MovieResponse) -> Option<PathBuf> {
+    fn upload_movie_dir(app_state: &AppState, movie: &MoviePartEdition) -> Option<PathBuf> {
         let movies_dir = app_state
             .ftp_movie_upload_path
             .lock()
             .expect("failed to lock ftp_movie_upload_path");
-
-        movies_dir.as_ref().map(|dir| dir.join(movie.title_year()))
+        movies_dir
+            .as_ref()
+            .map(|dir| dir.join(movie.movie.title_year()))
     }
 
     /// Get the FTP upload directory for a TV episode, if configured.
@@ -268,8 +289,8 @@ impl TitleVideo {
             .map(|dir| dir.join(Self::tv_season_episode_path(app_state, tv_season_episode)))
     }
 
-    fn create_movie_dir(app_state: &AppState, movie: &MovieResponse) -> PathBuf {
-        let dir = Self::movie_dir(app_state, movie);
+    fn create_movie_dir(app_state: &AppState, movie: &MoviePartEdition) -> PathBuf {
+        let dir = Self::movie_dir(app_state, &movie.movie);
         if !dir.exists() {
             fs::create_dir_all(&dir)
                 .unwrap_or_else(|_| panic!("Failed to create {}", dir.display()));
@@ -412,20 +433,44 @@ impl TitleVideo {
     ///   /Movies/Star Wars: Episode IV - A New Hope (1977)/Star Wars: Episode IV - A New Hope (1977).mkv
     /// - Title with internal slash sanitized earlier (if applied outside):
     ///   /Movies/Artist Documentary Part 1-2 (2022)/Artist Documentary Part 1-2 (2022).mkv
-    /// - Potential future edition (not implemented here):
-    ///   /Movies/Blade Runner (1982) {edition-Final Cut}/Blade Runner (1982) {edition-Final Cut}.mkv
+    /// - Edition (filename only):
+    ///   /Movies/Blade Runner (1982)/Blade Runner (1982) {edition-Final Cut}.mkv
     ///
     /// Notes:
     /// - The extension is currently hard-coded to ".mkv"; adjust if supporting multiple codecs.
     /// - Edition variants (e.g. Director's Cut) would require an adjusted naming convention (not yet implemented here).
-    fn movie_path(app_state: &AppState, movie: &MovieResponse) -> PathBuf {
-        let dir = Self::movie_dir(app_state, movie);
+    /// Build the full filesystem path for a movie, supporting part and edition info.
+    ///
+    /// Directory Layout (per Plex recommendations):
+    ///   /Movies/Movie Name (Year)/Movie Name (Year) {edition-Final Cut}-pt1.mkv
+    ///
+    /// The directory does NOT include the edition tag, only the filename does.
+    fn movie_path(app_state: &AppState, movie: &MoviePartEdition) -> PathBuf {
+        let dir = Self::movie_dir(app_state, &movie.movie);
         let file_name = Self::movie_filename(movie);
         dir.join(file_name)
     }
 
-    fn movie_filename(movie: &MovieResponse) -> String {
-        format!("{}.mkv", movie.title_year())
+    /// Build the Plex-compliant filename for a movie, supporting part and edition info.
+    ///
+    /// Naming format (single-part, no edition):
+    ///   Movie Name (Year).mkv
+    /// With part: Movie Name (Year)-pt1.mkv
+    /// With edition: Movie Name (Year) {edition-Final Cut}.mkv
+    /// With both: Movie Name (Year) {edition-Final Cut}-pt1.mkv
+    fn movie_filename(movie: &MoviePartEdition) -> String {
+        let mut base = movie.movie.title_year();
+        // Add edition if present
+        if let Some(ref edition) = movie.edition {
+            base = format!("{} {{edition-{}}}", base, edition);
+        }
+        let mut file_name = format!("{}.mkv", base);
+        // Add part if present
+        if let Some(part) = movie.part {
+            file_name = format!("{}-pt{}", file_name.trim_end_matches(".mkv"), part);
+            file_name.push_str(".mkv");
+        }
+        file_name
     }
 
     /// Build the full filesystem path for a TV episode following Plex naming conventions.
@@ -506,7 +551,7 @@ impl TitleVideo {
 #[derive(Serialize, Clone)]
 pub enum Video {
     Tv(Box<TvSeasonEpisode>),
-    Movie(Box<MovieResponse>),
+    Movie(Box<MoviePartEdition>),
 }
 
 impl Video {
@@ -563,5 +608,80 @@ impl TvSeasonEpisode {
     /// Returns `None` if the runtime is not set.
     pub fn runtime_seconds(&self) -> Option<u64> {
         self.episode.runtime.map(|r| r as u64 * 60)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Helper function to create a minimal test MovieResponse
+    fn create_test_movie(title: &str, year: i32, runtime_minutes: u64) -> MovieResponse {
+        MovieResponse {
+            adult: false,
+            backdrop_path: None,
+            genres: vec![],
+            homepage: String::new(),
+            id: 1,
+            imdb_id: String::new(),
+            origin_country: vec![],
+            original_language: String::new(),
+            original_title: title.to_string(),
+            overview: "Test movie".to_string(),
+            popularity: 0.0,
+            poster_path: None,
+            release_date: Some(format!("{}-01-01", year)),
+            revenue: 0,
+            runtime: runtime_minutes,
+            title: title.to_string(),
+        }
+    }
+
+    #[test]
+    fn test_movie_filename_no_part_no_edition() {
+        let movie = MoviePartEdition {
+            movie: create_test_movie("Inception", 2010, 120),
+            part: None,
+            edition: None,
+        };
+
+        let filename = TitleVideo::movie_filename(&movie);
+        assert_eq!(filename, "Inception (2010).mkv");
+    }
+
+    #[test]
+    fn test_movie_filename_with_part() {
+        let movie = MoviePartEdition {
+            movie: create_test_movie("The Lord of the Rings", 2001, 180),
+            part: Some(1),
+            edition: None,
+        };
+
+        let filename = TitleVideo::movie_filename(&movie);
+        assert_eq!(filename, "The Lord of the Rings (2001)-pt1.mkv");
+    }
+
+    #[test]
+    fn test_movie_filename_with_edition() {
+        let movie = MoviePartEdition {
+            movie: create_test_movie("Blade Runner", 1982, 117),
+            part: None,
+            edition: Some("Final Cut".to_string()),
+        };
+
+        let filename = TitleVideo::movie_filename(&movie);
+        assert_eq!(filename, "Blade Runner (1982) {edition-Final Cut}.mkv");
+    }
+
+    #[test]
+    fn test_movie_filename_with_part_and_edition() {
+        let movie = MoviePartEdition {
+            movie: create_test_movie("Kill Bill", 2003, 111),
+            part: Some(2),
+            edition: Some("Uncut".to_string()),
+        };
+
+        let filename = TitleVideo::movie_filename(&movie);
+        assert_eq!(filename, "Kill Bill (2003) {edition-Uncut}-pt2.mkv");
     }
 }

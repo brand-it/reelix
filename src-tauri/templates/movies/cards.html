@@ -123,6 +123,16 @@ video_duration_range) %}
         </button>
         {% endif %}
         {% else %}
+        <div class="input-group mb-2">
+          <span class="input-group-text">Part</span>
+          <input type="number" min="1" class="form-control"
+            placeholder="Part (optional)" data-rip-movie-target="part" />
+        </div>
+        <div class="input-group mb-2">
+          <span class="input-group-text">Edition</span>
+          <input type="text" maxlength="32" class="form-control"
+            placeholder="Edition (optional)" data-rip-movie-target="edition" />
+        </div>
         <a class="btn btn-success btn-sm"
           data-rip-movie-target="link"
           data-action="click->rip-movie#rip"

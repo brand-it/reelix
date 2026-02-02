@@ -1,4 +1,3 @@
-use crate::models::movie_db::MovieResponse;
 use crate::models::optical_disk_info::{DiskId, OpticalDiskInfo};
 use crate::services::plex::find_tv;
 use crate::services::{self, disk_manager};
@@ -186,6 +185,8 @@ pub fn rip_movie(
     disk_id: u32,
     title_id: u32,
     mvdb_id: u32,
+    part: Option<u16>,
+    edition: Option<String>,
     app_state: State<'_, AppState>,
     background_process_state: State<'_, background_process_state::BackgroundProcessState>,
     app_handle: tauri::AppHandle,
@@ -215,10 +216,16 @@ pub fn rip_movie(
         Err(e) => return render_error(&e.message),
     };
 
+    let movie_part_edition = crate::state::title_video::MoviePartEdition {
+        movie: movie.clone(),
+        part,
+        edition,
+    };
+
     match job
         .write()
         .expect("Failed to lock job")
-        .add_title_video(title_info, Video::Movie(Box::new(movie.clone())))
+        .add_title_video(title_info, Video::Movie(Box::new(movie_part_edition)))
     {
         Ok(_) => {}
         Err(e) => {
@@ -240,12 +247,15 @@ fn emit_render_cards(app_handle: &tauri::AppHandle) {
         .expect("Failed to emit disks-changed");
 }
 
-fn notify_movie_success(app_handle: &tauri::AppHandle, movie: &MovieResponse) {
+fn notify_movie_success(
+    app_handle: &tauri::AppHandle,
+    movie: &crate::state::title_video::MoviePartEdition,
+) {
     app_handle
         .notification()
         .builder()
-        .title(format!("Finished Ripping {}", movie.title))
-        .body(movie.title_year())
+        .title(format!("Finished Ripping {}", movie.movie.title))
+        .body(movie.movie.title_year())
         .show()
         .unwrap();
 }
