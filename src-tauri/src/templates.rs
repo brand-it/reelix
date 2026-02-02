@@ -124,7 +124,7 @@ pub fn render_error(message: &str) -> Result<String, Error> {
 /// This is useful for linking UI selections or previous state to the correct TitleVideo entry.
 ///
 /// Example usage:
-/// ```rust
+/// ```rust,ignore
 /// if let Some(id) = find_previous_value(&episode, &part, &job) {
 ///     // Found the associated TitleVideo for this episode/part
 /// }

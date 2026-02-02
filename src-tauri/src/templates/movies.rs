@@ -70,7 +70,11 @@ pub fn render_show(
             .and_then(|job_arc| copy_job_state(&Some(job_arc))),
         None => None,
     };
-    let video = Video::Movie(Box::new(movie.clone()));
+    let video = Video::Movie(Box::new(crate::state::title_video::MoviePartEdition {
+        movie: movie.clone(),
+        part: None,
+        edition: None,
+    }));
     app_state.save_current_video(Some(video.clone()));
     let template = MoviesShowTurbo {
         movies_show: &MoviesShow {

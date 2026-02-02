@@ -52,7 +52,7 @@ impl Job {
     /// Finds a TitleVideo in the job that matches the given TV episode, season, title, and part.
     ///
     /// How to use:
-    /// ```rust
+    /// ```rust,ignore
     /// let maybe_title_video = job.find_tv_title_video(mvdb_id, season_number, episode_number, title_id, Some(part));
     /// if let Some(title_video) = maybe_title_video {
     ///     // Do something with the matching TitleVideo
@@ -128,7 +128,7 @@ impl Job {
     /// - Pass a reference to a `progress_tracker::Base` that tracks the operation's progress and time.
     ///
     /// Example:
-    /// ```rust
+    /// ```rust,ignore
     /// job.update_progress(&tracker);
     /// ```
     ///
@@ -178,7 +178,7 @@ impl Job {
 
     pub fn update_title(&mut self, title_video: &TitleVideo) {
         let title = match title_video.video {
-            Video::Movie(ref movie) => Some(movie.title_year()),
+            Video::Movie(ref movie) => Some(movie.movie.title_year()),
             Video::Tv(ref tv) => Some(tv.title()),
         };
         self.title = title;
