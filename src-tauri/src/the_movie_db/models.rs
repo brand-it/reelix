@@ -125,6 +125,7 @@ pub struct SearchResult {
     #[serde(default)]
     genre_ids: Vec<u32>,
     pub id: u32,
+    #[serde(default)]
     pub media_type: String,
     #[serde(default)]
     original_language: String,

@@ -9,6 +9,7 @@ use crate::standard_error::StandardError;
 use crate::state::background_process_state::BackgroundProcessState;
 use crate::state::job_state::{emit_progress, Job, JobStatus, JobType};
 use crate::state::title_video::{self, TitleVideo, Video};
+use crate::state::uploaded_state::UploadedState;
 use crate::state::{background_process_state, AppState};
 use crate::templates::{self};
 use log::{debug, error, warn};
@@ -181,6 +182,7 @@ pub fn rip_season(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn rip_movie(
     disk_id: u32,
     title_id: u32,
@@ -260,19 +262,6 @@ fn notify_movie_success(
         .unwrap();
 }
 
-// fn notify_movie_backup_success(app_handle: &tauri::AppHandle, movie: &MovieResponse) {
-//     app_handle
-//         .notification()
-//         .builder()
-//         .title("Backup Finished Ripping")
-//         .body(format!(
-//             "Was Able to backup movie but not create MKV files for you {}",
-//             movie.title_year()
-//         ))
-//         .show()
-//         .unwrap();
-// }
-
 fn notify_failure(app_handle: &tauri::AppHandle, error: &StandardError) {
     app_handle
         .notification()
@@ -308,16 +297,64 @@ fn notify_movie_upload_failure(app_handle: &tauri::AppHandle, file_path: &Path, 
         .unwrap();
 }
 
-// fn delete_dir(dir: &Path) {
-//     if let Err(error) = fs::remove_dir_all(dir) {
-//         error!("Failed to delete directory {}: {}", dir.display(), error);
-//     };
-// }
+/// Extract upload preparation data from a title_video
+fn extract_upload_info(
+    app_handle: &tauri::AppHandle,
+    title_video: &Arc<RwLock<TitleVideo>>,
+) -> Option<(
+    UploadedState,
+    PathBuf,
+    crate::state::upload_state::UploadType,
+)> {
+    let uploaded_state = match app_handle.try_state::<UploadedState>() {
+        Some(state) => {
+            let state_ref = state.inner();
+            UploadedState {
+                queue: Arc::clone(&state_ref.queue),
+            }
+        }
+        None => {
+            error!("Failed to get UploadedState");
+            return None;
+        }
+    };
+
+    let path = title_video
+        .read()
+        .expect("Failed to get title_video reader")
+        .video_path(&app_handle.state::<AppState>());
+
+    let upload_type = {
+        let video_guard = title_video
+            .read()
+            .expect("Failed to get title_video reader");
+        match &video_guard.video {
+            Video::Movie(_) => crate::state::upload_state::UploadType::Movie,
+            Video::Tv(_) => crate::state::upload_state::UploadType::TvShow,
+        }
+    };
+
+    Some((uploaded_state, path, upload_type))
+}
 
 fn spawn_upload(app_handle: &tauri::AppHandle, title_video: &Arc<RwLock<TitleVideo>>) {
     let app_handle = app_handle.clone();
     let title_video = title_video.clone();
     tauri::async_runtime::spawn(async move {
+        let (uploaded_state, path, upload_type) =
+            match extract_upload_info(&app_handle, &title_video) {
+                Some(info) => info,
+                None => return,
+            };
+
+        // Add to persistent upload queue before starting
+        if let Err(e) =
+            uploaded_state.add_upload(&app_handle, path.to_string_lossy().to_string(), upload_type)
+        {
+            error!("Failed to add video to upload queue: {e}");
+            return;
+        }
+
         let background_process_state = app_handle.state::<BackgroundProcessState>();
         let job = background_process_state.find_or_create_job(
             None,
@@ -340,28 +377,27 @@ fn spawn_upload(app_handle: &tauri::AppHandle, title_video: &Arc<RwLock<TitleVid
 
         match services::ftp_uploader::upload(&app_handle, &job, &title_video).await {
             Ok(_m) => {
-                let path = title_video
-                    .read()
-                    .expect("Failed to get title_video reader")
-                    .video_path(&app_handle.state::<AppState>());
                 notify_movie_upload_success(&app_handle, &path);
                 job.write()
                     .expect("Failed to acquire write lock on job")
                     .update_status(JobStatus::Finished);
                 emit_progress(&app_handle, &job, true);
+
+                // Remove from upload queue on success
+                if let Err(e) = uploaded_state.remove_upload(&app_handle, &path.to_string_lossy()) {
+                    error!("Failed to remove video from upload queue: {e}");
+                }
+
                 delete_file(&path);
             }
             Err(e) => {
-                let path = title_video
-                    .read()
-                    .expect("Failed to get title_video reader")
-                    .video_path(&app_handle.state::<AppState>());
                 job.write()
                     .expect("Failed to get job writer")
                     .update_status(JobStatus::Error);
                 job.write().expect("Failed to get job writer").message = Some(e.clone());
                 emit_progress(&app_handle, &job, true);
                 notify_movie_upload_failure(&app_handle, &path, &e);
+                // Keep in upload queue on failure for retry on next boot
             }
         };
     });

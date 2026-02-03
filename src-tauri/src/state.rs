@@ -6,6 +6,9 @@ use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 pub mod background_process_state;
 pub mod job_state;
 pub mod title_video;
+pub mod upload_state;
+pub mod uploaded_state;
+
 // Structure to hold shared state, thread safe version
 pub struct AppState {
     pub ftp_host: Arc<Mutex<Option<String>>>,

@@ -437,7 +437,7 @@ impl TitleVideo {
     /// Notes:
     /// - The extension is currently hard-coded to ".mkv"; adjust if supporting multiple codecs.
     /// - Edition variants (e.g. Director's Cut) would require an adjusted naming convention (not yet implemented here).
-    /// Build the full filesystem path for a movie, supporting part and edition info.
+    ///   Build the full filesystem path for a movie, supporting part and edition info.
     ///
     /// Directory Layout (per Plex recommendations):
     ///   /Movies/Movie Name (Year)/Movie Name (Year) {edition-Final Cut}-pt1.mkv
@@ -460,9 +460,9 @@ impl TitleVideo {
         let mut base = movie.movie.title_year();
         // Add edition if present
         if let Some(ref edition) = movie.edition {
-            base = format!("{} {{edition-{}}}", base, edition);
+            base = format!("{base} {{edition-{edition}}}");
         }
-        let mut file_name = format!("{}.mkv", base);
+        let mut file_name = format!("{base}.mkv");
         // Add part if present
         if let Some(part) = movie.part {
             file_name = format!("{}-pt{}", file_name.trim_end_matches(".mkv"), part);
@@ -628,7 +628,7 @@ mod tests {
             overview: "Test movie".to_string(),
             popularity: 0.0,
             poster_path: None,
-            release_date: Some(format!("{}-01-01", year)),
+            release_date: Some(format!("{year}-01-01")),
             revenue: 0,
             runtime: runtime_minutes,
             title: title.to_string(),

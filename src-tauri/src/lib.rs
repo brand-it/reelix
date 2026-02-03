@@ -1,6 +1,7 @@
 use crate::models::optical_disk_info::OpticalDiskInfo;
 use crate::services::auto_complete;
 use crate::state::background_process_state::BackgroundProcessState;
+use crate::state::uploaded_state::UploadedState;
 use state::AppState;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
@@ -53,6 +54,21 @@ fn setup_store(app: &mut App) {
         }
     });
     store.close_resource();
+}
+
+fn setup_uploaded_state(app: &mut App) {
+    let uploaded_state = match UploadedState::new(app.handle()) {
+        Ok(state) => state,
+        Err(e) => {
+            eprintln!("Failed to initialize UploadedState: {e}");
+            UploadedState::new(app.handle()).unwrap()
+        }
+    };
+    app.manage(uploaded_state);
+    let app_handle = app.handle().clone();
+    tauri::async_runtime::spawn(async move {
+        services::upload_recovery::resume_pending_uploads(app_handle).await;
+    });
 }
 /// Custom filter that formats a datetime string into "YYYY"
 // pub fn to_year(value: &Value, _args: &HashMap<String, Value>) -> TeraResult<Value> {
@@ -176,6 +192,7 @@ pub fn run() {
             spawn_disk_listener(app);
             setup_tray_icon(app);
             setup_view_window(app);
+            setup_uploaded_state(app);
             Ok(())
         })
         .on_window_event(|window, event| {

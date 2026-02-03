@@ -6,4 +6,5 @@ pub mod ftp_uploader;
 pub mod makemkvcon;
 pub mod makemkvcon_parser;
 pub mod plex;
+pub mod upload_recovery;
 pub mod zip_directory;
