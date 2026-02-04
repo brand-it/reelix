@@ -1,6 +1,7 @@
 use crate::models::optical_disk_info::OpticalDiskInfo;
 use crate::services::auto_complete;
 use crate::state::background_process_state::BackgroundProcessState;
+use crate::state::uploaded_state::UploadedState;
 use state::AppState;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
@@ -18,6 +19,7 @@ mod services;
 mod standard_error;
 mod state;
 mod templates;
+mod the_movie_db;
 
 // only on macOS:
 #[cfg(target_os = "macos")]
@@ -53,6 +55,21 @@ fn setup_store(app: &mut App) {
     });
     store.close_resource();
 }
+
+fn setup_uploaded_state(app: &mut App) {
+    let uploaded_state = match UploadedState::new(app.handle()) {
+        Ok(state) => state,
+        Err(e) => {
+            eprintln!("Failed to initialize UploadedState: {e}");
+            UploadedState::new(app.handle()).unwrap()
+        }
+    };
+    app.manage(uploaded_state);
+    let app_handle = app.handle().clone();
+    tauri::async_runtime::spawn(async move {
+        services::upload_recovery::resume_pending_uploads(app_handle).await;
+    });
+}
 /// Custom filter that formats a datetime string into "YYYY"
 // pub fn to_year(value: &Value, _args: &HashMap<String, Value>) -> TeraResult<Value> {
 //     let date_str = value
@@ -70,12 +87,15 @@ fn setup_store(app: &mut App) {
 //     to_value(formatted).map_err(Into::into)
 // }
 fn setup_tray_icon(app: &mut App) {
+    let version_label = format!("Version {}", app.package_info().version);
+    let version_i = MenuItem::with_id(app, "version", version_label, false, None::<&str>)
+        .expect("failed to create version item");
     let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)
         .expect("failed to create quit item");
     let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)
         .expect("failed to create quit item");
-    let menu =
-        Menu::with_items(app, &[&show_i, &quit_i]).expect("Failed to define menu with items");
+    let menu = Menu::with_items(app, &[&show_i, &version_i, &quit_i])
+        .expect("Failed to define menu with items");
     let tray_icon = tauri::image::Image::from_bytes(ICON_BYTES).expect("failure to load tray icon");
     TrayIconBuilder::new()
         .icon(tray_icon)
@@ -175,6 +195,7 @@ pub fn run() {
             spawn_disk_listener(app);
             setup_tray_icon(app);
             setup_view_window(app);
+            setup_uploaded_state(app);
             Ok(())
         })
         .on_window_event(|window, event| {

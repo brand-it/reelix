@@ -1,4 +1,4 @@
-use crate::models::movie_db::{
+use crate::the_movie_db::models::{
     MovieReleaseDatesResponse, MovieResponse, SearchResponse, SeasonResponse, TvResponse,
 };
 use serde::de::DeserializeOwned;
@@ -55,6 +55,60 @@ impl TheMovieDb {
         params.insert("language", self.language.as_str());
         params.insert("query", query);
         params.insert("page", page);
+
+        let request = self.client.get(url).query(&params);
+        self.send_request(request)
+    }
+
+    /// Search for movies by title, optionally filtering by release year
+    pub fn search_movie(
+        &self,
+        query: &str,
+        year: Option<u32>,
+        page: u32,
+    ) -> Result<SearchResponse, Error> {
+        let url = format!("{}/{}", URL_ENDPOINT, "search/movie");
+        let page_str = page.to_string();
+        let year_str = year.map(|y| y.to_string());
+
+        let mut params = HashMap::new();
+        params.insert("api_key", self.api_key.as_str());
+        params.insert("language", self.language.as_str());
+        params.insert("query", query);
+        params.insert("page", &page_str);
+
+        // Add year parameter if provided
+        let year_ref = year_str.as_deref();
+        if let Some(y) = year_ref {
+            params.insert("primary_release_year", y);
+        }
+
+        let request = self.client.get(url).query(&params);
+        self.send_request(request)
+    }
+
+    /// Search for TV shows by name, optionally filtering by first air date year
+    pub fn search_tv(
+        &self,
+        query: &str,
+        year: Option<u32>,
+        page: u32,
+    ) -> Result<SearchResponse, Error> {
+        let url = format!("{}/{}", URL_ENDPOINT, "search/tv");
+        let page_str = page.to_string();
+        let year_str = year.map(|y| y.to_string());
+
+        let mut params = HashMap::new();
+        params.insert("api_key", self.api_key.as_str());
+        params.insert("language", self.language.as_str());
+        params.insert("query", query);
+        params.insert("page", &page_str);
+
+        // Add year parameter if provided
+        let year_ref = year_str.as_deref();
+        if let Some(y) = year_ref {
+            params.insert("first_air_date_year", y);
+        }
 
         let request = self.client.get(url).query(&params);
         self.send_request(request)

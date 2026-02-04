@@ -1,0 +1,12 @@
+<div class="progress-item border-bottom border-secondary"
+  data-job-id="{{ job.id }}" id="{{ self.dom_id() }}">
+  <div id="{{ summary.dom_id() }}">
+    {{ summary.render_html() | safe }}
+  </div>
+
+  <div class="collapse progress-details" id="{{ summary.collapse_id() }}">
+    <div id="{{ details.dom_id() }}">
+      {{ details.render_html() | safe }}
+    </div>
+  </div>
+</div>

@@ -205,8 +205,25 @@ async fn run(
             }
             CommandEvent::Terminated(payload) => {
                 debug!("Terminated: {payload:?}");
-                if payload.code > Some(0) {
-                    Err(format!("makemkvcon terminated: {payload:?}"))?;
+                // Handle both exit codes and signals as errors
+                // Exit code 0 is success, any non-zero code is failure
+                // Any signal (including SIGTERM/15) is an abnormal termination
+                match payload.code {
+                    Some(0) => {
+                        // Normal exit with code 0
+                    }
+                    Some(_code) => {
+                        // Non-zero exit code indicates failure
+                        Err(format!(
+                            "makemkvcon terminated with non-zero exit code: {payload:?}"
+                        ))?;
+                    }
+                    None => {
+                        // Process was killed by a signal
+                        if payload.signal.is_some() {
+                            Err(format!("makemkvcon terminated by signal: {payload:?}"))?;
+                        }
+                    }
                 }
             }
             other => {

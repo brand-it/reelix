@@ -1,6 +1,7 @@
 use crate::{
-    models::{movie_db::SeasonEpisode, title_info::TitleInfo},
+    models::title_info::TitleInfo,
     state::{job_state::Job, title_video::Video},
+    the_movie_db::SeasonEpisode,
 };
 use askama::Template;
 use log::debug;
@@ -19,6 +20,7 @@ impl<T: Template> InlineTemplate for T {}
 pub mod disk_titles;
 pub mod disks;
 pub mod ftp_settings;
+pub mod jobs;
 pub mod movies;
 pub mod search;
 pub mod seasons;
@@ -43,12 +45,9 @@ pub const ERROR_ID: &str = "error";
 // Sub-IDs for specific sections within the content
 pub const SEARCH_SUGGESTION_ID: &str = "search-suggestion";
 pub const SEARCH_RESULTS_ID: &str = "search-results";
-pub const DISK_TOAST_PROGRESS_DOM_ID: &str = "disk-progress-footer";
 pub const MOVIE_CARDS_SELECTOR_DOM_ID: &str = "movie-cards-selector";
 pub const SEASONS_PARTS_SELECTOR_CLASS: &str = "seasons-parts-selector"; // targets="{{ .seasons-parts-selector }}" for multiple elements
 pub const DISK_SELECTOR_DOM_ID: &str = "disk-selector";
-pub const DISK_TOAST_PROGRESS_SUMMARY_DOM_ID: &str = "disk-progress-summary-footer";
-pub const DISK_TOAST_PROGRESS_DETAILS_DOM_ID: &str = "disk-progress-details-footer";
 // Docs on how to build templates
 // https://askama.readthedocs.io/en/stable/creating_templates.html
 #[derive(Template)]

@@ -3,10 +3,10 @@ use crate::services::auto_complete;
 use crate::services::plex::{
     find_movie, find_season, find_tv, get_movie_certification, search_multi,
 };
-use crate::services::the_movie_db;
 use crate::state::background_process_state::BackgroundProcessState;
 use crate::state::AppState;
 use crate::templates::{self, render_error};
+use crate::the_movie_db;
 use tauri::State;
 use tauri_plugin_opener::OpenerExt;
 

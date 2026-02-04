@@ -1,11 +1,11 @@
 use super::InlineTemplate;
-use crate::models::movie_db;
 use crate::models::optical_disk_info::OpticalDiskInfo;
 use crate::services::ftp_uploader;
 use crate::state::background_process_state::{copy_job_state, BackgroundProcessState};
 use crate::state::job_state::{Job, JobStatus};
 use crate::state::title_video::Video;
 use crate::state::{background_process_state, AppState};
+use crate::the_movie_db;
 use askama::Template;
 use tauri::{Manager, State};
 
@@ -37,7 +37,7 @@ pub struct MoviesShowTurbo<'a> {
 #[derive(Template)]
 #[template(path = "movies/show.html")]
 pub struct MoviesShow<'a> {
-    pub movie: &'a movie_db::MovieResponse,
+    pub movie: &'a the_movie_db::MovieResponse,
     pub certification: &'a Option<String>,
     pub ripped: &'a bool,
     pub movies_cards: &'a MoviesCards<'a>,
@@ -52,7 +52,7 @@ impl MoviesShow<'_> {
 pub fn render_show(
     app_state: &State<'_, AppState>,
     background_process_state: &State<'_, background_process_state::BackgroundProcessState>,
-    movie: &movie_db::MovieResponse,
+    movie: &the_movie_db::MovieResponse,
     certification: &Option<String>,
 ) -> Result<String, super::Error> {
     let ripped = ftp_uploader::file_exists(&movie.to_file_path(), app_state);

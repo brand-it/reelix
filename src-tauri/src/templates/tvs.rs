@@ -1,5 +1,5 @@
 use super::InlineTemplate;
-use crate::models::movie_db::TvResponse;
+use crate::the_movie_db::TvResponse;
 use askama::Template;
 
 #[derive(Template)]

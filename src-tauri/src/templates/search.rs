@@ -1,14 +1,16 @@
-use crate::models::movie_db::SearchResponse;
 use crate::models::optical_disk_info;
 use crate::services::auto_complete::suggestion;
 use crate::services::plex::search_multi;
-use crate::state::background_process_state::{copy_job_state, BackgroundProcessState};
-use crate::state::job_state::JobStatus;
+use crate::state::background_process_state::BackgroundProcessState;
+use crate::state::job_state::Job;
 use crate::state::AppState;
-use crate::templates::disks::{
-    DisksOptions, DisksToastProgress, DisksToastProgressDetails, DisksToastProgressSummary,
+use crate::templates::disks::DisksOptions;
+use crate::templates::jobs::{
+    JobsCompletedItem, JobsCompletedSection, JobsContainer, JobsItem, JobsItemDetails,
+    JobsItemSummary,
 };
 use crate::templates::{the_movie_db, GenericError, InlineTemplate};
+use crate::the_movie_db::SearchResponse;
 use askama::Template;
 use tauri::Manager;
 
@@ -26,7 +28,7 @@ pub struct SearchIndex<'a> {
     pub suggestion: &'a SearchSuggestion<'a>,
     pub search_results: &'a SearchResults<'a>,
     pub generic_error: &'a GenericError<'a>,
-    pub disks_toast_progress: &'a DisksToastProgress<'a>,
+    pub disks_toast_progress: &'a JobsContainer<'a>,
 }
 
 impl<'a> SearchIndex<'a> {
@@ -99,26 +101,84 @@ pub fn render_index(app_handle: &tauri::AppHandle) -> Result<String, super::Erro
         }
         None => None,
     };
+
+    // Get all jobs from background_process_state
+    let jobs_vec: Vec<crate::state::job_state::Job> = {
+        let jobs = background_process_state
+            .jobs
+            .read()
+            .expect("lock jobs for read");
+        jobs.iter()
+            .map(|job_arc| {
+                let job_guard = job_arc.read().expect("lock job for read");
+                job_guard.clone()
+            })
+            .collect()
+    };
+
     let job = match &selected_disk {
-        Some(disk) => background_process_state
-            .find_job(
-                Some(disk.id),
-                &None,
-                &[
-                    JobStatus::Pending,
-                    JobStatus::Ready,
-                    JobStatus::Processing,
-                    JobStatus::Finished,
-                    JobStatus::Error,
-                ],
-            )
-            .and_then(|j| copy_job_state(&Some(j))),
+        Some(disk) => jobs_vec
+            .iter()
+            .find(|j| j.disk.as_ref().map(|d| d.id) == Some(disk.id))
+            .cloned(),
         None => None,
     };
+
     let disks_options = DisksOptions {
         optical_disks: &app_state.clone_optical_disks(),
         selected_disk: &selected_disk,
         job: &job,
+    };
+
+    let background_process_state = app_handle.state::<BackgroundProcessState>();
+    let jobs = background_process_state.clone_all_jobs();
+    let mut sorted_jobs: Vec<&Job> = jobs.iter().collect();
+    sorted_jobs.sort_by(|a, b| b.id.cmp(&a.id));
+
+    let summaries: Vec<JobsItemSummary> = sorted_jobs
+        .iter()
+        .filter(|job| !job.is_completed())
+        .map(|job| JobsItemSummary { job })
+        .collect();
+
+    let details: Vec<JobsItemDetails> = sorted_jobs
+        .iter()
+        .filter(|job| !job.is_completed())
+        .map(|job| JobsItemDetails { job })
+        .collect();
+
+    let items: Vec<JobsItem> = sorted_jobs
+        .iter()
+        .filter(|job| !job.is_completed())
+        .enumerate()
+        .map(|(index, job)| JobsItem {
+            job,
+            summary: &summaries[index],
+            details: &details[index],
+        })
+        .collect();
+
+    let completed_jobs: Vec<&Job> = sorted_jobs
+        .iter()
+        .copied()
+        .filter(|job| job.is_completed())
+        .collect();
+
+    let completed_items: Vec<JobsCompletedItem> = completed_jobs
+        .iter()
+        .map(|job| JobsCompletedItem { job })
+        .collect();
+
+    let success_count = completed_jobs
+        .iter()
+        .filter(|job| job.is_finished())
+        .count();
+    let failure_count = completed_jobs.iter().filter(|job| job.is_error()).count();
+
+    let completed_section = JobsCompletedSection {
+        items: &completed_items,
+        success_count,
+        failure_count,
     };
 
     let template = SearchIndexTurbo {
@@ -134,9 +194,9 @@ pub fn render_index(app_handle: &tauri::AppHandle) -> Result<String, super::Erro
                 search: &search,
             },
             generic_error: &GenericError { message: "" },
-            disks_toast_progress: &DisksToastProgress {
-                disks_toast_progress_details: &DisksToastProgressDetails { job: &job },
-                disks_toast_progress_summary: &DisksToastProgressSummary { job: &job },
+            disks_toast_progress: &JobsContainer {
+                items: &items,
+                completed: &completed_section,
             },
         },
     };
