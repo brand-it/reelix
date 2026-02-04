@@ -3,7 +3,7 @@ name: "build"
 on:
   push:
     branches:
-      - release
+      - main
   pull_request:
     types:
       - opened
@@ -41,6 +41,18 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if version changed
+        id: version_check
+        shell: bash
+        run: |
+          if git diff HEAD~1 HEAD --name-only | grep -E '(package\.json|src-tauri/tauri\.conf\.json|Cargo\.toml)'; then
+            echo "version_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "version_changed=false" >> $GITHUB_OUTPUT
+          fi
 
       # Node setup + npm cache
       - name: Setup Node
@@ -167,7 +179,7 @@ jobs:
       # Non-release build (no release artifacts)
       - name: Build Tauri (non-release)
         uses: tauri-apps/tauri-action@v0
-        if: github.ref_name != 'release'
+        if: github.ref_name != 'main' || steps.version_check.outputs.version_changed != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ARCH: "x86_64"
@@ -181,7 +193,7 @@ jobs:
       # Release build (tag + GitHub release)
       - name: Build & Release Tauri
         uses: tauri-apps/tauri-action@v0
-        if: github.ref_name == 'release'
+        if: github.ref_name == 'main' && steps.version_check.outputs.version_changed == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
