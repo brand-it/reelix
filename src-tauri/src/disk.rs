@@ -244,6 +244,7 @@ pub async fn handle_changes(
                                     app_handle_clone.state::<BackgroundProcessState>();
                                 let job = background_process_state
                                     .new_job(JobType::Loading, Some(disk.clone()));
+                                background_process_state.emit_jobs_changed(&app_handle_clone);
                                 job.write().expect("failed to lock job for write").title =
                                     Some(format!("Loading Titles for {}", disk.name));
                                 job.read()

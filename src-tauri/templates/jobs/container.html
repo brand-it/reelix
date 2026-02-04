@@ -1,0 +1,17 @@
+<div id="disk-progress-footer"
+  class="fixed-bottom bg-dark border-top border-secondary">
+  <div id="{{ self.dom_id() }}" class="container-fluid">
+    {% if items.is_empty() %}
+    <div class="py-1 px-3 text-center text-muted small">
+      <i class="fas fa-check-circle text-success me-2"></i>
+      <span>No active jobs</span>
+    </div>
+    {% else %}
+    {% for item in items %}
+    {{ item.render_html() | safe }}
+    {% endfor %}
+    {% endif %}
+
+    {{ completed.render_html() | safe }}
+  </div>
+</div>

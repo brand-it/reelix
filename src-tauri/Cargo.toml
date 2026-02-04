@@ -1,16 +1,16 @@
 [package]
 name = "Reelix"
-version = "0.33.0"
+version = "0.34.0"
 description = "A tool for ripping Movies & TV Shows"
 authors = ["Brandt Lareau"]
 edition = "2021"
 build = "build.rs"
 
 [profile.release]
-lto = true        # Enables link-time-optimizations.
-opt-level = "s"   # Prioritizes small binary size. Use `3` if you prefer speed.
-panic = "abort"   # Higher performance by disabling panic handlers.
-strip = true      # Ensures debug symbols are removed.
+lto = true      # Enables link-time-optimizations.
+opt-level = "s" # Prioritizes small binary size. Use `3` if you prefer speed.
+panic = "abort" # Higher performance by disabling panic handlers.
+strip = true    # Ensures debug symbols are removed.
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]

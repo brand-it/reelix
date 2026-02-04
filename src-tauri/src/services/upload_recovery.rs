@@ -674,7 +674,7 @@ async fn upload_video(
 ) {
     let background_process_state = app_handle.state::<BackgroundProcessState>();
 
-    let job = background_process_state.find_or_create_job(
+    let (job, is_new) = background_process_state.find_or_create_job(
         None,
         &None,
         &JobType::Uploading,
@@ -690,6 +690,10 @@ async fn upload_video(
         .update_status(JobStatus::Processing);
     job.write().expect("Failed to get job writer").subtitle =
         Some(format!("Resuming upload: {video_path}"));
+
+    if is_new {
+        background_process_state.emit_jobs_changed(app_handle);
+    }
     job.read()
         .expect("Failed to get job reader")
         .emit_progress_change(app_handle);

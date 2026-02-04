@@ -1,11 +1,11 @@
 use crate::models::title_info::TitleInfo;
 use crate::standard_error::StandardError;
 use crate::state::title_video::{TitleVideo, Video};
-use crate::templates;
 use crate::{
     models::optical_disk_info::OpticalDiskInfo,
     progress_tracker::{self, components::TimeComponent},
 };
+use log::debug;
 use serde::Serialize;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
@@ -143,20 +143,25 @@ impl Job {
         };
     }
 
-    /// Emits a progress change event for this job to the frontend UI.
+    /// Emits a progress change event for THIS JOB ONLY to the frontend UI.
     ///
     /// Purpose:
-    /// - Renders the current job's progress as HTML using the `render_toast_progress` template.
-    /// - Emits a `disks-changed` event to the frontend via Tauri, allowing the UI to update progress bars or status.
-    /// - Used whenever the job's progress changes (e.g., during ripping, uploading, etc.) to keep the UI in sync.
+    /// - Renders only this job's progress using the `render_job_item` template.
+    /// - Emits a `disks-changed` event to the frontend via Tauri for targeted update.
+    /// - Used whenever THIS JOB'S progress changes to keep UI in sync without re-rendering all jobs.
+    /// - Much more efficient than re-rendering all jobs every time one changes.
     ///
     /// How to use:
-    /// - Call this method after updating the job's progress or status.
-    /// - The frontend should listen for the `disks-changed` event and update the progress display accordingly.
+    /// - Call this method after updating this specific job's progress or status.
+    /// - The frontend listens for the `disks-changed` event and updates only this job's progress display.
     pub fn emit_progress_change(&self, app_handle: &tauri::AppHandle) {
-        let job = Arc::new(RwLock::new(self.clone()));
-        let result = templates::disks::render_toast_progress(app_handle, &job)
-            .expect("Failed to render job/progress");
+        debug!(
+            "Emitting progress for {} (percentage={})",
+            self.id,
+            self.progress.formatted_percentage()
+        );
+        let result =
+            crate::templates::jobs::render_job_item(self).expect("Failed to render job item");
         app_handle
             .emit("disks-changed", result)
             .expect("Failed to emit job-changed");
@@ -228,10 +233,6 @@ impl Job {
 
     pub fn is_modifiable(&self) -> bool {
         self.status == JobStatus::Pending || self.status == JobStatus::Ready
-    }
-
-    pub fn is_pending(&self) -> bool {
-        self.status == JobStatus::Pending
     }
 
     pub fn is_processing(&self) -> bool {
@@ -330,7 +331,7 @@ impl fmt::Display for JobType {
 
 static NEXT_JOB_ID: AtomicU64 = AtomicU64::new(1);
 
-#[derive(Serialize, Clone, PartialEq, Copy)]
+#[derive(Serialize, Clone, PartialEq, Eq, Copy, PartialOrd, Ord)]
 pub struct JobId(u64);
 
 impl JobId {

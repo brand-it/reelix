@@ -87,12 +87,15 @@ fn setup_uploaded_state(app: &mut App) {
 //     to_value(formatted).map_err(Into::into)
 // }
 fn setup_tray_icon(app: &mut App) {
+    let version_label = format!("Version {}", app.package_info().version);
+    let version_i = MenuItem::with_id(app, "version", version_label, false, None::<&str>)
+        .expect("failed to create version item");
     let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)
         .expect("failed to create quit item");
     let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)
         .expect("failed to create quit item");
-    let menu =
-        Menu::with_items(app, &[&show_i, &quit_i]).expect("Failed to define menu with items");
+    let menu = Menu::with_items(app, &[&show_i, &version_i, &quit_i])
+        .expect("Failed to define menu with items");
     let tray_icon = tauri::image::Image::from_bytes(ICON_BYTES).expect("failure to load tray icon");
     TrayIconBuilder::new()
         .icon(tray_icon)

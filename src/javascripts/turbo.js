@@ -1,5 +1,5 @@
 import * as Turbo from "@hotwired/turbo";
-import { trace, error } from '@tauri-apps/plugin-log';
+import { trace, error } from "@tauri-apps/plugin-log";
 
 function splitPath(location) {
   return location.pathname.split("/").filter((element) => element !== "");
@@ -9,14 +9,18 @@ window.turboInvoke = async function turboInvoke(command, commandArgs) {
   try {
     const tauriResponse = await window.__TAURI__.core.invoke(
       command,
-      commandArgs
+      commandArgs,
     );
-    trace(`turboInvoke: command=${command} args=${JSON.stringify(commandArgs)}`);
+    trace(
+      `turboInvoke: command=${command} args=${JSON.stringify(commandArgs)}`,
+    );
     window.processTurboResponse(tauriResponse);
     return new Response(tauriResponse, { status: 200 });
   } catch (e) {
     const errorElem = document.getElementById("error");
-    error(`turboInvoke failed: command=${command} args=${JSON.stringify(commandArgs)} error=${e}`);
+    error(
+      `turboInvoke failed: command=${command} args=${JSON.stringify(commandArgs)} error=${e}`,
+    );
     if (errorElem) {
       // avoid innerHTML, just set plain text
       errorElem.textContent = e?.message?.toString() ?? String(e);
@@ -32,7 +36,13 @@ window.processTurboResponse = function (turboResponse) {
   template.innerHTML = turboResponse.trim();
   const streams = template.content.querySelectorAll("turbo-stream");
 
+  trace(`processTurboResponse: received ${streams.length} turbo-stream(s)`);
   for (const stream of streams) {
+    trace(
+      `processTurboResponse: processing turbo-stream action=${stream.getAttribute(
+        "action",
+      )} target=${stream.getAttribute("target")}`,
+    );
     Turbo.renderStreamMessage(stream.outerHTML);
   }
   // No need to clear innerHTML; template will be garbage collected
@@ -44,7 +54,7 @@ function findClosestRecursively(element, selector) {
       element.closest(selector) ||
       findClosestRecursively(
         element.assignedSlot || element.getRootNode()?.host,
-        selector
+        selector,
       )
     );
   }
@@ -53,7 +63,7 @@ function findClosestRecursively(element, selector) {
 function findLinkFromClickTarget(target) {
   return findClosestRecursively(
     target,
-    "a[href]:not([target^=_]):not([download])"
+    "a[href]:not([target^=_]):not([download])",
   );
 }
 
@@ -123,8 +133,8 @@ class LinkClickObserver {
                 ([key, value]) => {
                   const parsed = parseInt(value);
                   return [key, isNaN(parsed) ? value : parsed];
-                }
-              )
+                },
+              ),
             ),
             id: parseInt(id),
           };

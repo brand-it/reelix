@@ -1,11 +1,9 @@
 use crate::models::optical_disk_info::{DiskId, OpticalDiskInfo};
 use crate::state::job_state::{Job, JobStatus, JobType};
 use std::sync::{Arc, RwLock};
+use tauri::Emitter;
 
 pub struct BackgroundProcessState {
-    // A list of all background jobs currently running
-    // Each job is wrapped in an Arc<RwLock> to allow for concurrent access
-    // Data can be read or modified from multiple threads safely
     pub jobs: RwLock<Vec<Arc<RwLock<Job>>>>,
 }
 
@@ -27,6 +25,24 @@ impl BackgroundProcessState {
 
     pub fn new_job(&self, job_type: JobType, disk: Option<OpticalDiskInfo>) -> Arc<RwLock<Job>> {
         self.add_job(Job::new(job_type, disk))
+    }
+
+    pub fn clone_all_jobs(&self) -> Vec<Job> {
+        self.jobs
+            .read()
+            .expect("lock jobs for read")
+            .iter()
+            .map(|job| job.read().expect("lock job for read").clone())
+            .collect()
+    }
+
+    pub fn emit_jobs_changed(&self, app_handle: &tauri::AppHandle) {
+        let jobs = self.clone_all_jobs();
+        let result = crate::templates::jobs::render_container(&jobs)
+            .expect("Failed to render jobs container");
+        app_handle
+            .emit("disks-changed", result)
+            .expect("Failed to emit jobs-changed");
     }
 
     pub fn find_job(
@@ -72,17 +88,18 @@ impl BackgroundProcessState {
         optical_disk: &Option<Arc<RwLock<OpticalDiskInfo>>>,
         job_type: &JobType,
         job_states: &[JobStatus],
-    ) -> Arc<RwLock<Job>> {
+    ) -> (Arc<RwLock<Job>>, bool) {
         if let Some(job) = self.find_job(disk_id, &Some(job_type.clone()), job_states) {
-            job
+            (job, false)
         } else {
-            match optical_disk {
+            let job = match optical_disk {
                 None => self.new_job(job_type.clone(), None),
                 Some(optical_disk) => {
                     let optical_disk_info = optical_disk.read().unwrap().clone();
                     self.new_job(job_type.clone(), Some(optical_disk_info))
                 }
-            }
+            };
+            (job, true)
         }
     }
 }

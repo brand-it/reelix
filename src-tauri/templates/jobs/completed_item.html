@@ -1,0 +1,37 @@
+<div
+  class="d-flex align-items-center justify-content-between py-2 px-3 border-bottom border-secondary">
+  <div class="d-flex flex-column gap-1 text-light flex-grow-1">
+    <div class="d-flex align-items-center gap-2">
+      <span class="text-muted small" style="font-weight: 500; min-width: 60px;">
+        {% if self.job.job_type == crate::state::job_state::JobType::Loading %}
+        Loading
+        {% elif self.job.job_type == crate::state::job_state::JobType::Ripping
+        %}
+        Ripping
+        {% elif self.job.job_type == crate::state::job_state::JobType::Uploading
+        %}
+        Upload
+        {% endif %}
+      </span>
+      {% if let Some(title) = self.job.title %}
+      <span class="text-truncate">{{ title }}</span>
+      {% else %}
+      <span class="text-truncate">{{ self.job.job_type }}</span>
+      {% endif %}
+    </div>
+    {% if self.job.is_error() %}
+    {% if let Some(message) = self.job.message %}
+    <span class="text-danger small text-truncate">{{ message }}</span>
+    {% elif let Some(subtitle) = self.job.subtitle %}
+    <span class="text-danger small text-truncate">{{ subtitle }}</span>
+    {% endif %}
+    {% endif %}
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    {% if self.job.is_finished() %}
+    <i class="fas fa-check-circle text-success"></i>
+    {% elif self.job.is_error() %}
+    <i class="fas fa-times-circle text-danger"></i>
+    {% endif %}
+  </div>
+</div>

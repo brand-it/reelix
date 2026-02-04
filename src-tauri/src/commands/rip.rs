@@ -62,7 +62,9 @@ pub fn assign_episode_to_title(
         Some(job) => job,
         None => {
             let optical_disk_info = optical_disk.read().unwrap().clone();
-            background_process_state.new_job(JobType::Ripping, Some(optical_disk_info))
+            let job = background_process_state.new_job(JobType::Ripping, Some(optical_disk_info));
+            background_process_state.emit_jobs_changed(&app_handle);
+            job
         }
     };
     let title_video = job.read().unwrap().find_tv_title_video(
@@ -170,12 +172,16 @@ pub fn rip_season(
         None => return render_error("Failed to find Optical Disk"),
     };
     let background_process_state = app_handle.state::<BackgroundProcessState>();
-    let job = background_process_state.find_or_create_job(
+    let (job, is_new) = background_process_state.find_or_create_job(
         Some(disk_id),
         &Some(optical_disk),
         &JobType::Ripping,
         &[JobStatus::Pending, JobStatus::Ready],
     );
+
+    if is_new {
+        background_process_state.emit_jobs_changed(&app_handle);
+    }
 
     spawn_rip(app_handle, job);
     Ok("".to_string())
@@ -206,12 +212,16 @@ pub fn rip_movie(
         }
     };
 
-    let job = background_process_state.find_or_create_job(
+    let (job, is_new) = background_process_state.find_or_create_job(
         Some(disk_id),
         &Some(optical_disk),
         &JobType::Ripping,
         &[JobStatus::Pending, JobStatus::Ready],
     );
+
+    if is_new {
+        background_process_state.emit_jobs_changed(&app_handle);
+    }
 
     let movie = match find_movie(&app_handle, mvdb_id) {
         Ok(movie) => movie,
@@ -356,12 +366,17 @@ fn spawn_upload(app_handle: &tauri::AppHandle, title_video: &Arc<RwLock<TitleVid
         }
 
         let background_process_state = app_handle.state::<BackgroundProcessState>();
-        let job = background_process_state.find_or_create_job(
+        let (job, is_new) = background_process_state.find_or_create_job(
             None,
             &None,
             &JobType::Uploading,
             &[JobStatus::Pending, JobStatus::Ready],
         );
+
+        if is_new {
+            background_process_state.emit_jobs_changed(&app_handle);
+        }
+
         job.write()
             .expect("Failed to get job writer")
             .title_videos
@@ -619,7 +634,9 @@ fn find_or_create_job(app_handle: &tauri::AppHandle, disk: &OpticalDiskInfo) -> 
         Some(job) => job,
         None => {
             let optical_disk_info = disk.clone();
-            background_process_state.new_job(JobType::Ripping, Some(optical_disk_info))
+            let job = background_process_state.new_job(JobType::Ripping, Some(optical_disk_info));
+            background_process_state.emit_jobs_changed(&app_handle);
+            job
         }
     }
 }
