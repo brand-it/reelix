@@ -55,10 +55,18 @@ pub fn spawn_version_checker(app: &App) {
 pub async fn check_on_boot(app_handle: &AppHandle) -> Result<VersionState, String> {
     let current_version = app_handle.package_info().version.to_string();
     let app_state = app_handle.state::<crate::state::AppState>();
-    let state = app_state.get_version_state(app_handle);
+    let mut state = app_state.get_version_state(app_handle);
 
     if state.has_update {
-        return Ok(state);
+        if let Some(latest_version) = &state.latest_version {
+            let current_clean = current_version.trim_start_matches('v');
+            let latest_clean = latest_version.trim_start_matches('v');
+
+            if latest_clean != current_clean {
+                state.current_version = current_version;
+                return Ok(state);
+            }
+        }
     }
 
     let (latest_version, has_update) = check_for_update(&current_version).await?;
