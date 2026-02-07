@@ -202,11 +202,11 @@ impl AppState {
         }
 
         // Save version info
-        if let Some(ref version) = *self
+        let latest_version_guard = self
             .latest_version
             .lock()
-            .expect("failed to lock latest_version")
-        {
+            .expect("failed to lock latest_version");
+        if let Some(version) = latest_version_guard.as_ref() {
             store.set("latest_version", serde_json::json!(version));
         }
         let has_update = *self.has_update.lock().expect("failed to lock has_update");
