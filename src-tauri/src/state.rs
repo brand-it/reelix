@@ -182,7 +182,7 @@ impl AppState {
         // Save The Movie DB key
         let tmdb_key = self.lock_the_movie_db_key();
         if !tmdb_key.is_empty() {
-            store.set("the_movie_db_key", serde_json::json!(*tmdb_key));
+            store.set("the_movie_db_key", serde_json::json!(tmdb_key.as_str()));
         }
 
         // Save directory paths
