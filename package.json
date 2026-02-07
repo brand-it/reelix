@@ -1,7 +1,7 @@
 {
   "name": "reelix",
   "private": true,
-  "version": "0.35.0",
+  "version": "0.35.1",
   "scripts": {
     "watch": "webpack --watch",
     "dev": "webpack --watch",
