@@ -7,4 +7,5 @@ pub mod makemkvcon;
 pub mod makemkvcon_parser;
 pub mod plex;
 pub mod upload_recovery;
+pub mod version_checker;
 pub mod zip_directory;

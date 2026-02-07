@@ -439,7 +439,7 @@ pub mod components {
         /// - Optionally pass an `OOBTimeFormat` to control the output for very large/unknown times.
         ///
         /// Example:
-        /// ```rust,ignore
+        /// ```text
         /// let eta = time_component.estimated(None); // e.g., "00:12:34"
         /// let eta_friendly = time_component.estimated(Some(OOBTimeFormat::Friendly));
         /// ```
@@ -709,7 +709,7 @@ impl Base {
     /// - Use inside loops, callbacks, or event handlers to reflect real-time progress.
     ///
     /// Example:
-    /// ```rust,ignore
+    /// ```text
     /// tracker.set_progress(42); // Set progress to 42
     /// ```
     pub fn set_progress(&self, new_progress: usize) {
@@ -735,7 +735,7 @@ impl Base {
     /// - Can be called before or during progress updates.
     ///
     /// Example:
-    /// ```rust,ignore
+    /// ```text
     /// tracker.set_total(100); // Set total to 100
     /// ```
     pub fn set_total(&self, new_total: usize) {

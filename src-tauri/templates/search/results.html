@@ -7,6 +7,7 @@
         <h1 class="display-4">To Getting Started</h1>
         <p class="lead">Type in the name of the movie or TV show you're looking
           for into the search bar above.</p>
+        {{ update_indicator.render_html() | safe }}
       </div>
     </div>
     {% elif search.results.len() == 0 %}

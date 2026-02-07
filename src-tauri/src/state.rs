@@ -2,6 +2,7 @@ use crate::models::optical_disk_info::{DiskId, OpticalDiskInfo};
 use log::debug;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
+use tauri_plugin_store::StoreExt;
 
 pub mod background_process_state;
 pub mod job_state;
@@ -23,9 +24,13 @@ pub struct AppState {
     pub movies_dir: Arc<RwLock<PathBuf>>,
     pub tv_shows_dir: Arc<RwLock<PathBuf>>,
     pub current_video: Arc<Mutex<Option<title_video::Video>>>,
+    pub latest_version: Arc<Mutex<Option<String>>>,
+    pub has_update: Arc<Mutex<bool>>,
 }
 
 impl AppState {
+    const STORE_NAME: &'static str = "store.json";
+
     pub fn new() -> Self {
         Self {
             ftp_host: Arc::new(Mutex::new(None)),
@@ -40,7 +45,178 @@ impl AppState {
             tv_shows_dir: Arc::new(RwLock::new(Self::default_tv_shows_dir())),
             ftp_tv_upload_path: Arc::new(Mutex::new(None)),
             current_video: Arc::new(Mutex::new(None)),
+            latest_version: Arc::new(Mutex::new(None)),
+            has_update: Arc::new(Mutex::new(false)),
         }
+    }
+
+    /// Load state from the persistent store file
+    pub fn load_from_store(&self, app_handle: &tauri::AppHandle) -> Result<(), String> {
+        let store = app_handle
+            .store(Self::STORE_NAME)
+            .map_err(|e| format!("Failed to load store: {e}"))?;
+
+        for key in store.keys() {
+            if let Some(value) = store.get(&key) {
+                if let Some(value_str) = value.as_str() {
+                    // Load values directly without triggering save
+                    let cleaned: Option<String> = if value_str.trim().is_empty() {
+                        None
+                    } else {
+                        Some(value_str.trim().to_string())
+                    };
+
+                    match key.as_str() {
+                        "ftp_host" => {
+                            let mut ftp_host = self.lock_ftp_host();
+                            *ftp_host = cleaned;
+                        }
+                        "ftp_user" => {
+                            let mut ftp_user = self.lock_ftp_user();
+                            *ftp_user = cleaned;
+                        }
+                        "ftp_pass" => {
+                            let mut ftp_pass = self.lock_ftp_pass();
+                            *ftp_pass = cleaned;
+                        }
+                        "ftp_movie_upload_path" => {
+                            let mut ftp_movie_upload_path = self.lock_ftp_movie_upload_path();
+                            *ftp_movie_upload_path = cleaned.map(PathBuf::from);
+                        }
+                        "ftp_tv_upload_path" => {
+                            let mut path = self
+                                .ftp_tv_upload_path
+                                .lock()
+                                .expect("failed to lock ftp_tv_upload_path");
+                            *path = cleaned.map(PathBuf::from);
+                        }
+                        "the_movie_db_key" => {
+                            if let Some(val) = cleaned {
+                                let mut the_movie_db_key = self.lock_the_movie_db_key();
+                                *the_movie_db_key = val;
+                            }
+                        }
+                        "movies_dir" => {
+                            if let Some(val) = cleaned {
+                                let path = PathBuf::from(&val);
+                                if path.exists() {
+                                    let mut movies_dir =
+                                        self.movies_dir.write().expect("failed to lock movies_dir");
+                                    *movies_dir = path;
+                                } else {
+                                    debug!("Skipping movies_dir load: path does not exist: {val}");
+                                }
+                            }
+                        }
+                        "tv_shows_dir" => {
+                            if let Some(val) = cleaned {
+                                let path = PathBuf::from(&val);
+                                if path.exists() {
+                                    let mut tv_shows_dir = self
+                                        .tv_shows_dir
+                                        .write()
+                                        .expect("failed to lock tv_shows_dir");
+                                    *tv_shows_dir = path;
+                                } else {
+                                    debug!(
+                                        "Skipping tv_shows_dir load: path does not exist: {val}"
+                                    );
+                                }
+                            }
+                        }
+                        "latest_version" => {
+                            let mut lv = self.latest_version.lock().unwrap();
+                            *lv = cleaned;
+                        }
+                        "has_update" => {
+                            if let Some(val) = cleaned {
+                                if let Ok(hu) = val.parse::<bool>() {
+                                    let mut update_flag = self.has_update.lock().unwrap();
+                                    *update_flag = hu;
+                                }
+                            }
+                        }
+                        _ => debug!("Unknown key in store: {key}"),
+                    }
+                    debug!("Loaded {key} from store: {value_str}");
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Save current state to the persistent store file
+    pub fn save(&self, app_handle: &tauri::AppHandle) -> Result<(), String> {
+        use tauri_plugin_store::StoreExt;
+
+        let store = app_handle
+            .store(Self::STORE_NAME)
+            .map_err(|e| format!("Failed to load store: {e}"))?;
+
+        // Save FTP settings
+        if let Some(ref host) = *self.lock_ftp_host() {
+            store.set("ftp_host", serde_json::json!(host));
+        }
+        if let Some(ref user) = *self.lock_ftp_user() {
+            store.set("ftp_user", serde_json::json!(user));
+        }
+        if let Some(ref pass) = *self.lock_ftp_pass() {
+            store.set("ftp_pass", serde_json::json!(pass));
+        }
+        if let Some(ref path) = *self.lock_ftp_movie_upload_path() {
+            if let Some(path_str) = path.to_str() {
+                store.set("ftp_movie_upload_path", serde_json::json!(path_str));
+            }
+        }
+        if let Some(ref path) = *self
+            .ftp_tv_upload_path
+            .lock()
+            .expect("failed to lock ftp_tv_upload_path")
+        {
+            if let Some(path_str) = path.to_str() {
+                store.set("ftp_tv_upload_path", serde_json::json!(path_str));
+            }
+        }
+
+        // Save The Movie DB key
+        let tmdb_key = self.lock_the_movie_db_key();
+        if !tmdb_key.is_empty() {
+            store.set("the_movie_db_key", serde_json::json!(*tmdb_key));
+        }
+
+        // Save directory paths
+        let movies_dir = self
+            .movies_dir
+            .read()
+            .expect("failed to lock movies_dir for read");
+        if let Some(path_str) = movies_dir.to_str() {
+            store.set("movies_dir", serde_json::json!(path_str));
+        }
+        let tv_shows_dir = self
+            .tv_shows_dir
+            .read()
+            .expect("failed to lock tv_shows_dir for read");
+        if let Some(path_str) = tv_shows_dir.to_str() {
+            store.set("tv_shows_dir", serde_json::json!(path_str));
+        }
+
+        // Save version info
+        if let Some(ref version) = *self
+            .latest_version
+            .lock()
+            .expect("failed to lock latest_version")
+        {
+            store.set("latest_version", serde_json::json!(version));
+        }
+        let has_update = *self.has_update.lock().expect("failed to lock has_update");
+        store.set("has_update", serde_json::json!(has_update.to_string()));
+
+        store
+            .save()
+            .map_err(|e| format!("Failed to save store: {e}"))?;
+        debug!("State saved to store successfully");
+        Ok(())
     }
 
     pub fn save_current_video(&self, video: Option<title_video::Video>) {
@@ -91,7 +267,12 @@ impl AppState {
             .expect("failed to lock ftp_movie_upload_path")
     }
 
-    pub fn update(&self, key: &str, value: Option<String>) -> Result<(), String> {
+    pub fn update(
+        &self,
+        app_handle: &tauri::AppHandle,
+        key: &str,
+        value: Option<String>,
+    ) -> Result<(), String> {
         let cleaned: Option<String> = value.and_then(|s| {
             let trimmed = s.trim();
             if trimmed.is_empty() {
@@ -150,8 +331,22 @@ impl AppState {
                     *tv_shows_dir = PathBuf::from(val);
                 };
             }
+            "latest_version" => {
+                let mut lv = self.latest_version.lock().unwrap();
+                *lv = cleaned;
+            }
+            "has_update" => {
+                if let Some(val) = cleaned {
+                    let hu = val.parse::<bool>().unwrap_or(false);
+                    let mut update_flag = self.has_update.lock().unwrap();
+                    *update_flag = hu;
+                }
+            }
             _ => return Err(format!("can't update {key}")),
         }
+
+        // Automatically persist the change to the store
+        self.save(app_handle)?;
         Ok(())
     }
 
@@ -191,5 +386,24 @@ impl AppState {
             }
         }
         None
+    }
+
+    pub fn get_version_state(
+        &self,
+        app_handle: &tauri::AppHandle,
+    ) -> crate::services::version_checker::VersionState {
+        let current_version = app_handle.package_info().version.to_string();
+        let latest_version = self
+            .latest_version
+            .lock()
+            .expect("failed to lock latest_version")
+            .clone();
+        let has_update = *self.has_update.lock().expect("failed to lock has_update");
+
+        crate::services::version_checker::VersionState {
+            current_version,
+            latest_version,
+            has_update,
+        }
     }
 }

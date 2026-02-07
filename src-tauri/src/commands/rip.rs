@@ -635,7 +635,7 @@ fn find_or_create_job(app_handle: &tauri::AppHandle, disk: &OpticalDiskInfo) -> 
         None => {
             let optical_disk_info = disk.clone();
             let job = background_process_state.new_job(JobType::Ripping, Some(optical_disk_info));
-            background_process_state.emit_jobs_changed(&app_handle);
+            background_process_state.emit_jobs_changed(app_handle);
             job
         }
     }

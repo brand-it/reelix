@@ -56,9 +56,9 @@ pub fn render_options(app_handle: &AppHandle) -> Result<String, super::Error> {
             &None,
             &[JobStatus::Processing],
         )
-        .and_then(|job_arc| {
+        .map(|job_arc| {
             let job_guard = job_arc.read().expect("lock job for read");
-            Some(job_guard.clone())
+            job_guard.clone()
         });
 
     let disks_options = DisksOptions {

@@ -26,6 +26,7 @@ pub mod search;
 pub mod seasons;
 pub mod the_movie_db;
 pub mod tvs;
+pub mod update_indicator;
 
 // Common DOM IDs
 // To help organize the targets for turbo stream updates I have defined
@@ -123,7 +124,7 @@ pub fn render_error(message: &str) -> Result<String, Error> {
 /// This is useful for linking UI selections or previous state to the correct TitleVideo entry.
 ///
 /// Example usage:
-/// ```rust,ignore
+/// ```text
 /// if let Some(id) = find_previous_value(&episode, &part, &job) {
 ///     // Found the associated TitleVideo for this episode/part
 /// }
