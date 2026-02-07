@@ -138,7 +138,7 @@ impl AppState {
                         }
                         _ => debug!("Unknown key in store: {key}"),
                     }
-                    debug!("Loaded {key} from store: {value_str}");
+                    debug!("Loaded key from store: {key}");
                 }
             }
         }
