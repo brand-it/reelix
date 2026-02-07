@@ -1,14 +1,15 @@
 use crate::models::optical_disk_info::OpticalDiskInfo;
 use crate::services::auto_complete;
+use crate::services::version_checker::spawn_version_checker;
 use crate::state::background_process_state::BackgroundProcessState;
 use crate::state::uploaded_state::UploadedState;
 use state::AppState;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{App, Manager, WebviewUrl, WebviewWindowBuilder};
-use tauri_plugin_log::log::debug;
+use tauri_plugin_log::log::{debug, error};
 use tauri_plugin_log::{Target, TargetKind};
-use tauri_plugin_store::StoreExt;
+use tauri_plugin_opener::OpenerExt;
 use tokio::sync::broadcast;
 
 mod commands;
@@ -42,18 +43,9 @@ fn spawn_disk_listener(app: &mut App) {
 fn setup_store(app: &mut App) {
     let app_handle = app.handle();
     let state = app_handle.state::<AppState>();
-    let store = app.store("store.json").unwrap();
-    store.keys().iter().for_each(|key| {
-        if let Some(value) = store.get(key) {
-            if let Some(value_str) = value.as_str() {
-                match state.update(key, Some(value_str.to_string())) {
-                    Ok(_n) => debug!("set {key} to {value_str}"),
-                    Err(e) => debug!("setup store failure: {e}"),
-                };
-            }
-        }
-    });
-    store.close_resource();
+    if let Err(e) = state.load_from_store(app_handle) {
+        error!("Failed to load state from store: {e}");
+    }
 }
 
 fn setup_uploaded_state(app: &mut App) {
@@ -88,12 +80,12 @@ fn setup_uploaded_state(app: &mut App) {
 // }
 fn setup_tray_icon(app: &mut App) {
     let version_label = format!("Version {}", app.package_info().version);
-    let version_i = MenuItem::with_id(app, "version", version_label, false, None::<&str>)
+    let version_i = MenuItem::with_id(app, "version", version_label, true, None::<&str>)
         .expect("failed to create version item");
     let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)
         .expect("failed to create quit item");
     let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)
-        .expect("failed to create quit item");
+        .expect("failed to create show item");
     let menu = Menu::with_items(app, &[&show_i, &version_i, &quit_i])
         .expect("Failed to define menu with items");
     let tray_icon = tauri::image::Image::from_bytes(ICON_BYTES).expect("failure to load tray icon");
@@ -117,6 +109,14 @@ fn setup_tray_icon(app: &mut App) {
                         debug!("Failed to show window");
                     }
                 };
+            }
+            "version" => {
+                let app_handle: &tauri::AppHandle = app.app_handle();
+                app_handle
+                    .opener()
+                    .open_url("https://brand-it.github.io/reelix/", None::<&str>)
+                    .map_err(|e| error!("Failed to open URL: {e}"))
+                    .ok();
             }
             _ => {
                 debug!("menu item {:?} not handled", event.id);
@@ -193,6 +193,7 @@ pub fn run() {
         .setup(|app| {
             setup_store(app);
             spawn_disk_listener(app);
+            spawn_version_checker(app);
             setup_tray_icon(app);
             setup_view_window(app);
             setup_uploaded_state(app);

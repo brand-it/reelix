@@ -335,7 +335,7 @@ fn new_tracker() -> progress_tracker::Base {
 /// 5. Cleanly close the FTP connection.
 ///
 /// # Example
-/// ```rust,ignore
+/// ```text
 /// // Upload a movie file to the FTP server
 /// let result = upload(app_handle, Path::new("/local/path/Movies/Inception (2010)/Inception (2010).mkv")).await;
 /// if let Err(e) = result {

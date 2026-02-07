@@ -6,7 +6,7 @@ applyTo: "**"
 
 This document outlines the standard development workflow for building, testing, and deploying the Reelix application using Tauri and Cargo.
 
-**Agent rule:** After making code changes in this repository, always run `cargo tauri build` and report the result before considering the work complete. This is mandatory for every change.
+**Agent rule:** After making code changes in this repository, always run `cargo check`, `cargo test`, and `cargo clippy --manifest-path src-tauri/Cargo.toml` to catch errors quickly. These commands are required for any change you make. Any warnings or errors must be addressed before proceeding. This process ensures code quality and stability in the development workflow.
 
 ## Running the Development Server
 
@@ -34,30 +34,29 @@ cargo tauri dev
 
 ## Building the Application
 
-Before committing changes or creating pull requests, always build the application to catch compilation errors and warnings early.
+Before committing changes or creating pull requests, always check and test the application to catch compilation errors and warnings early.
 
-### Build Command
+### Quick Check Command
 
-```bash
-cargo tauri build
-```
-
-### Build in Release Mode (Optional for Performance Testing)
+For a fast syntax and type check without full compilation:
 
 ```bash
-cargo tauri build --release
+cargo check
 ```
+
 
 ## Code Quality Standards
 
 When making changes to the Rust codebase, follow this process:
 
 1. **Make your changes** to the source code
-2. **Run cargo build** to compile the project
-3. **Review all compiler warnings** and address them in your solution
-4. **Resolve any compilation errors** before proceeding
-5. **Test your changes** using the development server for your OS
-6. **Only then** commit your changes and land your solution
+2. **Run `cargo check`** to quickly verify syntax and types
+3. **Run `cargo test`** to test the project
+4. **Run `cargo clippy`** to check for code quality issues and best practices
+5. **Review all compiler warnings** and address them in your solution
+6. **Resolve any compilation errors** before proceeding
+7. **Test your changes** using the development server for your OS
+8. **Only then** commit your changes and land your solution
 
 ### Handling Compiler Warnings
 
@@ -75,11 +74,11 @@ Address each warning by either:
 
 ### Testing Your Changes
 
-After building successfully:
+After check successfully:
 
 1. Run the dev server for your operating system
 2. Test the specific features you modified
-3. Verify that no new warnings appear in the build output
+3. Verify that no new warnings appear in the check output
 4. Check for runtime errors in both the console and application logs
 
 ## Working with Askama Templates
@@ -145,12 +144,12 @@ struct MyTemplate {
 
 ### Template Compilation
 
-Askama templates are compiled during the `cargo build` step. If there are template syntax errors or type mismatches:
+Askama templates are compiled during the `cargo check` step. If there are template syntax errors or type mismatches:
 
 1. The build will fail with a clear error message
 2. The error will indicate the template file and line number
 3. Fix the template according to the error message
-4. Run `cargo build` again to verify the fix
+4. Run `cargo check` again to verify the fix
 
 ### Common Askama Issues
 
@@ -169,7 +168,7 @@ When modifying templates:
 
 1. Make your template changes
 2. Update the corresponding Rust struct if needed
-3. Run `cargo build`
+3. Run `cargo check` to verify the template compiles successfully
 4. Address any template compilation errors
 5. Test the changes in the dev server
 6. Verify the rendered output matches expectations
@@ -192,7 +191,7 @@ Check the template file syntax in `src-tauri/templates/` and ensure all variable
 
 Verify that:
 
-1. All dependencies are installed (`cargo build` completes successfully)
+1. All dependencies are installed (`cargo check` completes successfully)
 2. You're using the correct config file for your OS
 3. No other instance of the application is running on the same ports
 

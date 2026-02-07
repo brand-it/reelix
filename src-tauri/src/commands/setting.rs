@@ -1,9 +1,7 @@
 use crate::services::plex::search_multi;
 use crate::state::AppState;
 use crate::templates::{ftp_settings, render_error, search, Error};
-use serde_json::json;
 use tauri::State;
-use tauri_plugin_store::StoreExt;
 
 #[tauri::command]
 pub fn ftp_settings(state: State<'_, AppState>) -> Result<String, Error> {
@@ -19,21 +17,21 @@ pub fn update_ftp_settings(
     state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, Error> {
-    let store = app_handle
-        .store("store.json")
-        .expect("Failed to load store.json for persistence in the_movie_db command");
-    store.set("ftp_host", json!(ftp_host));
-    store.set("ftp_pass", json!(ftp_pass));
-    store.set("ftp_user", json!(ftp_user));
-    store.set("ftp_movie_upload_path", json!(ftp_movie_upload_path));
-    store
-        .save()
-        .expect("Failed to save store.json in the_movie_db command");
-    state.update("ftp_host", Some(ftp_host)).unwrap();
-    state.update("ftp_pass", Some(ftp_pass)).unwrap();
-    state.update("ftp_user", Some(ftp_user)).unwrap();
     state
-        .update("ftp_movie_upload_path", Some(ftp_movie_upload_path))
+        .update(&app_handle, "ftp_host", Some(ftp_host))
+        .unwrap();
+    state
+        .update(&app_handle, "ftp_pass", Some(ftp_pass))
+        .unwrap();
+    state
+        .update(&app_handle, "ftp_user", Some(ftp_user))
+        .unwrap();
+    state
+        .update(
+            &app_handle,
+            "ftp_movie_upload_path",
+            Some(ftp_movie_upload_path),
+        )
         .unwrap();
 
     ftp_settings::render_show(&state)
@@ -46,19 +44,12 @@ pub fn the_movie_db(
     app_handle: tauri::AppHandle,
 ) -> Result<String, Error> {
     state
-        .update("the_movie_db_key", Some(key.to_string()))
+        .update(&app_handle, "the_movie_db_key", Some(key.to_string()))
         .unwrap();
     let response = search_multi(&state, "Avengers");
     match response {
         Ok(resp) => resp,
         Err(e) => return render_error(&e.message),
     };
-    let store = app_handle
-        .store("store.json")
-        .expect("Failed to load store.json for persistence in the_movie_db command");
-    store.set("the_movie_db_key", json!(key));
-    store
-        .save()
-        .expect("Failed to save store.json in the_movie_db command");
     search::render_index(&app_handle)
 }

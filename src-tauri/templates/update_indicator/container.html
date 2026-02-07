@@ -1,0 +1,28 @@
+<div id="{{ self.dom_id() }}" class="d-flex align-items-center gap-2 ms-auto"
+  style="flex-shrink: 0;">
+  {% if self.version_state.has_update %}
+  <a href="{{ self.download_url() }}"
+    class="btn btn-outline-secondary btn-sm p-1"
+    tooltip="Update available"
+    style="border-radius: 999px;"
+    target="_blank" rel="noopener noreferrer">
+    <i class="fal fa-download fa-lg"
+      style="margin: 0.3em; color: #ffc107;"></i>
+  </a>
+  <div
+    style="display: inline-flex; flex-direction: column; line-height: 1.1; white-space: nowrap;">
+    <span style="font-size: 0.75em; color: #adb5bd;">v{{
+      self.version_state.current_version }}</span>
+    <span style="font-size: 0.85em; color: #ffc107; font-weight: 600;">Update
+      available</span>
+  </div>
+  {% else %}
+  <i class="fal fa-check-circle" style="color: #28a745;"></i>
+  <div
+    style="display: inline-flex; flex-direction: column; line-height: 1.1; white-space: nowrap;">
+    <span style="font-size: 0.75em; color: #adb5bd;">v{{
+      self.version_state.current_version }}</span>
+    <span style="font-size: 0.85em; color: #cbd3da;">Up to date</span>
+  </div>
+  {% endif %}
+</div>

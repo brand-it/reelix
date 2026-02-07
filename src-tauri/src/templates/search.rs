@@ -9,7 +9,9 @@ use crate::templates::jobs::{
     JobsCompletedItem, JobsCompletedSection, JobsContainer, JobsItem, JobsItemDetails,
     JobsItemSummary,
 };
-use crate::templates::{the_movie_db, GenericError, InlineTemplate};
+use crate::templates::{
+    the_movie_db, update_indicator::UpdateIndicator, GenericError, InlineTemplate,
+};
 use crate::the_movie_db::SearchResponse;
 use askama::Template;
 use tauri::Manager;
@@ -71,6 +73,7 @@ pub struct SearchSuggestionTurbo<'a> {
 pub struct SearchResults<'a> {
     pub query: &'a str,
     pub search: &'a SearchResponse,
+    pub update_indicator: &'a UpdateIndicator<'a>,
 }
 impl SearchResults<'_> {
     pub fn dom_id(&self) -> &'static str {
@@ -181,6 +184,11 @@ pub fn render_index(app_handle: &tauri::AppHandle) -> Result<String, super::Erro
         failure_count,
     };
 
+    let version_state = app_state.get_version_state(app_handle);
+    let update_indicator = UpdateIndicator {
+        version_state: &version_state,
+    };
+
     let template = SearchIndexTurbo {
         search_index: &SearchIndex {
             disks_options: &disks_options,
@@ -192,6 +200,7 @@ pub fn render_index(app_handle: &tauri::AppHandle) -> Result<String, super::Erro
             search_results: &SearchResults {
                 query: &query,
                 search: &search,
+                update_indicator: &update_indicator,
             },
             generic_error: &GenericError { message: "" },
             disks_toast_progress: &JobsContainer {
@@ -203,9 +212,22 @@ pub fn render_index(app_handle: &tauri::AppHandle) -> Result<String, super::Erro
     super::render(template)
 }
 
-pub fn render_results(query: &str, search: &SearchResponse) -> Result<String, super::Error> {
+pub fn render_results(
+    app_handle: &tauri::AppHandle,
+    query: &str,
+    search: &SearchResponse,
+) -> Result<String, super::Error> {
+    let app_state = app_handle.state::<AppState>();
+    let version_state = app_state.get_version_state(app_handle);
+    let update_indicator = UpdateIndicator {
+        version_state: &version_state,
+    };
     let template = SearchResultsTurbo {
-        search_results: &SearchResults { query, search },
+        search_results: &SearchResults {
+            query,
+            search,
+            update_indicator: &update_indicator,
+        },
     };
     super::render(template)
 }

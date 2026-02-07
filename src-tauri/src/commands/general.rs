@@ -92,7 +92,11 @@ pub fn season(
 }
 
 #[tauri::command]
-pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, templates::Error> {
+pub fn search(
+    search: &str,
+    state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<String, templates::Error> {
     state.save_query(search);
 
     let api_key = &state.lock_the_movie_db_key();
@@ -103,7 +107,7 @@ pub fn search(search: &str, state: State<'_, AppState>) -> Result<String, templa
         Err(e) => return templates::the_movie_db::render_index(&state, &e.message),
     };
 
-    templates::search::render_results(search, &response)
+    templates::search::render_results(&app_handle, search, &response)
 }
 
 #[tauri::command]
