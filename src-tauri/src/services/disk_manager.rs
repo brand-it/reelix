@@ -114,9 +114,10 @@ fn get_device_from_mount(mount_point: &Path) -> Option<String> {
     let mount_str = mount_point.to_string_lossy();
 
     if let Ok(mounts) = fs::read_to_string("/proc/mounts") {
+        let mount_str_ref: &str = mount_str.as_ref();
         for line in mounts.lines() {
             let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() >= 2 && parts[1] == mount_str.as_ref() {
+            if parts.len() >= 2 && parts[1] == mount_str_ref {
                 return Some(parts[0].to_string());
             }
         }

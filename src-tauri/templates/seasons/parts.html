@@ -57,21 +57,21 @@
   {% if disk.any_titles() %}
   {% if let Some(job) = job %}
   {% if let Some(resolved_episode) = self.resolve_episode_from_job() %}
-  {% call episode_part_selector(&resolved_episode, 1, disk, job) %}
-  {% call episode_part_selector(&resolved_episode, 2, disk, job) %}
-  {% call episode_part_selector(&resolved_episode, 3, disk, job) %}
-  {% call episode_part_selector(&resolved_episode, 4, disk, job) %}
+  {% call episode_part_selector(&resolved_episode, 1, disk, job) %}{% endcall %}
+  {% call episode_part_selector(&resolved_episode, 2, disk, job) %}{% endcall %}
+  {% call episode_part_selector(&resolved_episode, 3, disk, job) %}{% endcall %}
+  {% call episode_part_selector(&resolved_episode, 4, disk, job) %}{% endcall %}
   {% else %}
-  {% call part_selector(1, disk) %}
-  {% call part_selector(2, disk) %}
-  {% call part_selector(3, disk) %}
-  {% call part_selector(4, disk) %}
+  {% call part_selector(1, disk) %}{% endcall %}
+  {% call part_selector(2, disk) %}{% endcall %}
+  {% call part_selector(3, disk) %}{% endcall %}
+  {% call part_selector(4, disk) %}{% endcall %}
   {% endif %}
   {% else %}
-  {% call part_selector(1, disk) %}
-  {% call part_selector(2, disk) %}
-  {% call part_selector(3, disk) %}
-  {% call part_selector(4, disk) %}
+  {% call part_selector(1, disk) %}{% endcall %}
+  {% call part_selector(2, disk) %}{% endcall %}
+  {% call part_selector(3, disk) %}{% endcall %}
+  {% call part_selector(4, disk) %}{% endcall %}
   {% endif %}
   <small class="text-muted d-block mt-1">
     * Part 1 is required; additional parts are optional.

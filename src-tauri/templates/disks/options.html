@@ -1,92 +1,98 @@
 {% macro disk_item(selected, disk) %}
-  {% if selected && disk.is_some() %}
-    {% let disc = disk.as_ref().unwrap() %}
-    <div class="dropdown-item dropdown-selected" data-disk-select-target="item" data-value="{{ disc.id }}" type="button">
-      <span class="icon-column">
-        {% if job.is_some() %}
-          <i class="fad fa-spinner fa-pulse"></i>
-        {% elif disc.any_titles() %}
-          <i class="fad fa-check-square text-success"></i>
-        {% else %}
-          <i class="fad fa-exclamation-square text-danger"></i>
-        {% endif %}
-      </span>
-      <span class="text-column">
-        {{ disc.name }}
-        {% if let Some(job) = job %}
-          {% if job.is_processing() %}
-            {% if job.is_loading() %}
-              <span class="ripping-title">Loading Disk...</span>
-            {% elif job.is_ripping() %}
-              <span class="ripping-title">Ripping...</span>
-            {% endif %}
-          {% endif %}
-        {% endif %}
-      </span>
-    </div>
-  {% elif disk.is_some() %}
-    {% let disc = disk.as_ref().unwrap() %}
-    <div class="dropdown-item" data-value="{{ disc.id }}" data-disk-select-target="item" type="button"
-      data-action="click->disk-select#selected">
-      <span class="icon-column">
-        {% if job.is_some() %}
-          <i class="fad fa-spinner fa-pulse"></i>
-        {% elif disc.any_titles() %}
-          <i class="fad fa-check-square text-success"></i>
-        {% else %}
-          <i class="fad fa-exclamation-square text-danger"></i>
-        {% endif %}
-      </span>
-      <span class="text-column">
-        {{ disc.name }}
-        {% if let Some(some_job) = job %}
-          {% if let Some(title_name) = some_job.title %}
-            <span class="ripping-title">{{ title_name }}</span>
-          {% endif %}
-        {% endif %}
-      </span>
-    </div>
-  {% elif selected %}
-    <div class="dropdown-item dropdown-selected" data-disk-select-target="item" type="button">
-      <span class="icon-column"></span>
-      <span class="text-column">
-        No Optical Drive Detected
-      </span>
-    </div>
-  {% else %}
-    <div class="dropdown-item" data-disk-select-target="item" type="button" data-action="disk-select#selected">
-      <span class="icon-column"></span>
-      <span class="text-column">No Optical Drive Detected</span>
-    </div>
-  {% endif %}
+{% if selected && disk.is_some() %}
+{% let disc = disk.as_ref().unwrap() %}
+<div class="dropdown-item dropdown-selected" data-disk-select-target="item"
+  data-value="{{ disc.id }}" type="button">
+  <span class="icon-column">
+    {% if job.is_some() %}
+    <i class="fad fa-spinner fa-pulse"></i>
+    {% elif disc.any_titles() %}
+    <i class="fad fa-check-square text-success"></i>
+    {% else %}
+    <i class="fad fa-exclamation-square text-danger"></i>
+    {% endif %}
+  </span>
+  <span class="text-column">
+    {{ disc.name }}
+    {% if let Some(job) = job %}
+    {% if job.is_processing() %}
+    {% if job.is_loading() %}
+    <span class="ripping-title">Loading Disk...</span>
+    {% elif job.is_ripping() %}
+    <span class="ripping-title">Ripping...</span>
+    {% endif %}
+    {% endif %}
+    {% endif %}
+  </span>
+</div>
+{% elif disk.is_some() %}
+{% let disc = disk.as_ref().unwrap() %}
+<div class="dropdown-item" data-value="{{ disc.id }}"
+  data-disk-select-target="item" type="button"
+  data-action="click->disk-select#selected">
+  <span class="icon-column">
+    {% if job.is_some() %}
+    <i class="fad fa-spinner fa-pulse"></i>
+    {% elif disc.any_titles() %}
+    <i class="fad fa-check-square text-success"></i>
+    {% else %}
+    <i class="fad fa-exclamation-square text-danger"></i>
+    {% endif %}
+  </span>
+  <span class="text-column">
+    {{ disc.name }}
+    {% if let Some(some_job) = job %}
+    {% if let Some(title_name) = some_job.title %}
+    <span class="ripping-title">{{ title_name }}</span>
+    {% endif %}
+    {% endif %}
+  </span>
+</div>
+{% elif selected %}
+<div class="dropdown-item dropdown-selected" data-disk-select-target="item"
+  type="button">
+  <span class="icon-column"></span>
+  <span class="text-column">
+    No Optical Drive Detected
+  </span>
+</div>
+{% else %}
+<div class="dropdown-item" data-disk-select-target="item" type="button"
+  data-action="disk-select#selected">
+  <span class="icon-column"></span>
+  <span class="text-column">No Optical Drive Detected</span>
+</div>
+{% endif %}
 {% endmacro disk_item %}
 
-<div class="input-group input-group-lg" id="disk-selector" data-controller="disk-select">
+<div class="input-group input-group-lg" id="disk-selector"
+  data-controller="disk-select">
 
   <a class="btn btn-primary" type="button" href="eject_disk">
     <i class="fal fa-eject fa-lg"></i>
   </a>
 
   <div class="dropdown p-0 form-control me-2">
-    <div class="btn dropdown-toggle dropdown-item w-100 text-start rounded-end" type="button" data-bs-toggle="dropdown"
+    <div class="btn dropdown-toggle dropdown-item w-100 text-start rounded-end"
+      type="button" data-bs-toggle="dropdown"
       data-disk-select-target="selectedDropdown">
-        {% call disk_item(
-          selected=true,
-          disk=selected_disk
-        ) %}
+      {% call disk_item(
+      selected=true,
+      disk=selected_disk
+      ) %}{% endcall %}
     </div>
 
     {% if optical_disks.len() > 0 %}
-      <ul class="dropdown-menu w-100 dropdown-menu-dark">
-        {% for optical_disk in optical_disks %}
-          <li>
-            {% call disk_item(
-              selected=optical_disk.is_selected(&selected_disk),
-              disk=Some(optical_disk),
-            ) %}
-          </li>
-        {% endfor %}
-      </ul>
+    <ul class="dropdown-menu w-100 dropdown-menu-dark">
+      {% for optical_disk in optical_disks %}
+      <li>
+        {% call disk_item(
+        selected=optical_disk.is_selected(&selected_disk),
+        disk=Some(optical_disk),
+        ) %}{% endcall %}
+      </li>
+      {% endfor %}
+    </ul>
     {% endif %}
   </div>
 </div>

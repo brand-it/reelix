@@ -31,6 +31,45 @@ Really There is nothing better out there I could find then MakeMKV. The process 
 1. `asdf install`
 2. `cd src-tauri && cargo tauri build` (run after code changes to ensure the Rust side still compiles)
 
+### Code Quality Requirements
+
+After making code changes, you **must** run the following quality checks before committing:
+
+```bash
+cargo check --manifest-path src-tauri/Cargo.toml
+cargo test --manifest-path src-tauri/Cargo.toml
+cargo clippy --manifest-path src-tauri/Cargo.toml
+```
+
+These commands catch compilation errors, run tests, and check for code quality issues. Address any warnings or errors before proceeding.
+
+### Cross-Platform Checks
+
+**Note:** Cross-platform compilation from Linux to macOS/Windows requires specialized toolchains that are complex to set up. Instead, rely on GitHub Actions CI/CD (see the build badge above) which tests on native runners for each platform.
+
+If you have access to native macOS/Windows machines, you can check for specific targets:
+
+```bash
+# Check for macOS (Intel) - requires macOS
+cargo check --manifest-path src-tauri/Cargo.toml --target x86_64-apple-darwin
+
+# Check for macOS (Apple Silicon) - requires macOS
+cargo check --manifest-path src-tauri/Cargo.toml --target aarch64-apple-darwin
+
+# Check for Windows - requires Windows
+cargo check --manifest-path src-tauri/Cargo.toml --target x86_64-pc-windows-msvc
+
+# List installed targets
+rustup target list --installed
+
+# Install a new target if needed (on the appropriate OS)
+rustup target add x86_64-apple-darwin
+rustup target add aarch64-apple-darwin
+rustup target add x86_64-pc-windows-msvc
+```
+
+The CI/CD pipeline will automatically test all platforms when you push changes or create a pull request.
+
 ### Upgrade
 
 Commands to upgrade packages and dependencies
