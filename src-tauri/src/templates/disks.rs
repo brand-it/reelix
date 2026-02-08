@@ -50,7 +50,7 @@ pub fn render_options(app_handle: &AppHandle) -> Result<String, super::Error> {
         }
         None => None,
     };
-    let job = background_process_state
+    let in_progress_job = background_process_state
         .find_job(
             selected_disk.as_ref().map(|d| d.id),
             &None,
@@ -61,14 +61,25 @@ pub fn render_options(app_handle: &AppHandle) -> Result<String, super::Error> {
             job_guard.clone()
         });
 
+    let pending_job = background_process_state
+        .find_job(
+            selected_disk.as_ref().map(|d| d.id),
+            &None,
+            &[JobStatus::Pending],
+        )
+        .map(|job_arc| {
+            let job_guard = job_arc.read().expect("lock job for read");
+            job_guard.clone()
+        });
+
     let disks_options = DisksOptions {
         optical_disks: &optical_disks,
         selected_disk: &selected_disk,
-        job: &job,
+        job: &in_progress_job,
     };
     let seasons_parts = SeasonsParts {
         selected_disk: &selected_disk,
-        job: &job,
+        job: &pending_job,
     };
     let video = match app_state.current_video.lock() {
         Ok(guard) => guard.clone(),
@@ -76,7 +87,8 @@ pub fn render_options(app_handle: &AppHandle) -> Result<String, super::Error> {
     };
     let movies_cards = MoviesCards {
         selected_disk: &selected_disk,
-        job: &job,
+        in_progress_job: &in_progress_job,
+        pending_job: &pending_job,
         video: video.as_ref(),
     };
     let disks_options_turbo = DisksOptionsTurbo {

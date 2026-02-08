@@ -437,7 +437,7 @@ pub async fn rip_title(
     let args = [
         "mkv",
         &args,
-        &title_video.read().unwrap().title.id.to_string(),
+        &title_video.read().unwrap().title.as_ref().unwrap().id.to_string(),
         &tmp_dir.to_string_lossy(),
         "--progress=-same",
         "--robot",

@@ -151,72 +151,100 @@ video_duration_range) %}
 <div class="text-center row" id="movie-cards-selector"
   data-controller="bootstrap-tooltip">
   {% if let Some(disk) = selected_disk %}
-  {% if disk.any_titles() %}
-  {% if let Some(v) = video %}
-  {% for title in disk.titles_sorted(v.runtime_seconds()) %}
-  {% call movie_card_with_title(title=title, disk=disk, job=job,
-  has_video=true, video_duration_range=v.runtime_range())
-  %}{% endcall %}
-  {% endfor %}
-  {% else %}
-  {% for title in disk.clone_titles() %}
-  {% call movie_card_with_title(title=title, disk=disk, job=job,
-  has_video=false, video_duration_range=None) %}{% endcall %}
-  {% endfor %}
-  {% endif %}
-  {% else %}
-  <div class="d-flex justify-content-center align-items-center py-3">
-    <i class="fad fa-spinner fa-pulse"></i>
-    <span class="ms-2">Loading {{ disk.name }} Titles…</span>
-  </div>
-  {% for _ in 0..6 %}
-  <div class="mb-3 col movie-card">
-    <div class="card h-100">
-      <div
-        class="card-header d-flex justify-content-between align-items-center placeholder-glow">
-        <i class="fad fa-film text-muted flex-shrink-0"></i>
-        <span class="placeholder col-6"></span>
-        <span class="placeholder col-2 flex-shrink-0"></span>
+    {% if disk.any_titles() %}
+      {% if let Some(v) = video %}
+        {% for title in disk.titles_sorted(v.runtime_seconds()) %}
+          {% call movie_card_with_title(title=title, disk=disk, job=in_progress_job,
+                  has_video=true, video_duration_range=v.runtime_range())
+          %}{% endcall %}
+        {% endfor %}
+      {% else %}
+        {% for title in disk.clone_titles() %}
+          {% call movie_card_with_title(title=title, disk=disk, job=in_progress_job,
+                  has_video=false, video_duration_range=None) %}{% endcall %}
+        {% endfor %}
+      {% endif %}
+    {% else %}
+      <div class="d-flex justify-content-center py-3">
+        <div class="d-flex align-items-center gap-3 px-3 py-2 rounded-3 border border-secondary-subtle">
+          <span class="d-flex align-items-center gap-2 text-muted small">
+            <i class="fad fa-spinner fa-pulse"></i>
+            Loading {{ disk.name }} Titles…
+          </span>
+          {% if let Some(v) = video %}
+            {% let mvdb_id = v.mvdb_id() %}
+            {% if let Some(j) = pending_job && j.has_incomplete_titles() %}
+              <a
+                href="/set_auto_rip?diskId={{ disk.id }}&enable=false&mvdbId={{ mvdb_id }}"
+                class="btn btn-outline-warning btn-sm"
+                type="button"
+                data-bs-toggle="tooltip"
+                data-bs-placement="top"
+                data-bs-title="Auto-rip when titles finish loading">
+                <i class="fas fa-magic me-2"></i>Disable Auto-Rip
+              </a>
+            {% else %}
+              <a
+                href="/set_auto_rip?diskId={{ disk.id }}&enable=true&mvdbId={{ mvdb_id }}"
+                class="btn btn-outline-success btn-sm"
+                type="button"
+                data-bs-toggle="tooltip"
+                data-bs-placement="top"
+                data-bs-title="Auto-rip when titles finish loading">
+                <i class="fas fa-magic me-2"></i>Auto-Rip
+              </a>
+            {% endif %}
+          {% endif %}
+        </div>
       </div>
-      <div class="progress" style="height: 3px">
-        <div class="progress-bar" style="width: 0%"></div>
-      </div>
-      <div class="card-body placeholder-glow">
-        <div class="row g-2 mb-3">
-          <div class="col-6">
-            <div class="d-flex align-items-center text-muted small">
-              <i class="fas fa-clock me-2"></i>
-              <span class="placeholder col-8"></span>
+      {% for _ in 0..6 %}
+        <div class="mb-3 col movie-card">
+          <div class="card h-100">
+            <div
+              class="card-header d-flex justify-content-between align-items-center placeholder-glow">
+              <i class="fad fa-film text-muted flex-shrink-0"></i>
+              <span class="placeholder col-6"></span>
+              <span class="placeholder col-2 flex-shrink-0"></span>
             </div>
-          </div>
-          <div class="col-6">
-            <div class="d-flex align-items-center text-muted small">
-              <i class="fas fa-database me-2"></i>
-              <span class="placeholder col-7"></span>
+            <div class="progress" style="height: 3px">
+              <div class="progress-bar" style="width: 0%"></div>
             </div>
-          </div>
-          <div class="col-6">
-            <div class="d-flex align-items-center text-muted small">
-              <i class="fas fa-language me-2"></i>
-              <span class="placeholder col-5"></span>
-            </div>
-          </div>
-          <div class="col-6">
-            <div class="d-flex align-items-center text-muted small">
-              <i class="fas fa-stream me-2"></i>
-              <span class="placeholder col-9"></span>
+            <div class="card-body placeholder-glow">
+              <div class="row g-2 mb-3">
+                <div class="col-6">
+                  <div class="d-flex align-items-center text-muted small">
+                    <i class="fas fa-clock me-2"></i>
+                    <span class="placeholder col-8"></span>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="d-flex align-items-center text-muted small">
+                    <i class="fas fa-database me-2"></i>
+                    <span class="placeholder col-7"></span>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="d-flex align-items-center text-muted small">
+                    <i class="fas fa-language me-2"></i>
+                    <span class="placeholder col-5"></span>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="d-flex align-items-center text-muted small">
+                    <i class="fas fa-stream me-2"></i>
+                    <span class="placeholder col-9"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="d-grid">
+                <button class="btn btn-outline-secondary btn-sm" disabled>
+                  <span class="placeholder col-12"></span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
-        <div class="d-grid">
-          <button class="btn btn-outline-secondary btn-sm" disabled>
-            <span class="placeholder col-12"></span>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-  {% endfor %}
-  {% endif %}
+      {% endfor %}
+    {% endif %}
   {% endif %}
 </div>

@@ -5,15 +5,29 @@ function splitPath(location) {
   return location.pathname.split("/").filter((element) => element !== "");
 }
 
+function parseCommandArgs(args) {
+  if (!args) return args;
+  const parsed = {};
+  for (const [key, value] of Object.entries(args)) {
+    if (value === "true") {
+      parsed[key] = true;
+    } else if (value === "false") {
+      parsed[key] = false;
+    } else {
+      parsed[key] = value;
+    }
+  }
+  return parsed;
+}
+
 window.turboInvoke = async function turboInvoke(command, commandArgs) {
   try {
+    const parsedArgs = parseCommandArgs(commandArgs);
     const tauriResponse = await window.__TAURI__.core.invoke(
       command,
-      commandArgs,
+      parsedArgs,
     );
-    trace(
-      `turboInvoke: command=${command} args=${JSON.stringify(commandArgs)}`,
-    );
+    trace(`turboInvoke: command=${command} args=${JSON.stringify(parsedArgs)}`);
     window.processTurboResponse(tauriResponse);
     return new Response(tauriResponse, { status: 200 });
   } catch (e) {

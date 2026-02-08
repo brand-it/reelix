@@ -163,7 +163,7 @@ pub fn job_contains_episode_for_title(
     job.title_videos.iter().any(|title_video| {
         let title_video = title_video.read().unwrap();
         match &title_video.video {
-            Video::Tv(tv) => tv.episode.id == episode.id && title_video.title.id == title_info.id,
+            Video::Tv(tv) => tv.episode.id == episode.id && title_video.title.as_ref().map(|t| t.id) == Some(title_info.id),
             Video::Movie(_) => false,
         }
     })
@@ -199,9 +199,8 @@ pub fn is_selected_title(
             Video::Tv(tv) => {
                 tv.part == Some(*part)
                     && tv.episode.id == episode.id
-                    && title_video.title.id == title_info.id
+                    && title_video.title.as_ref().map(|t| t.id) == Some(title_info.id)
             }
-            // Movies are never selected—they are always ripped directly, so this is always false.
             Video::Movie(_) => false,
         }
     })

@@ -3,6 +3,7 @@ use crate::services::drive_info::opticals;
 use crate::services::makemkvcon;
 use crate::state::background_process_state::BackgroundProcessState;
 use crate::state::job_state::{Job, JobStatus, JobType};
+use crate::state::title_video::Video;
 use crate::state::AppState;
 use crate::templates;
 use log::debug;
@@ -101,6 +102,10 @@ fn contains(
 
 async fn load_titles(app_handle: &AppHandle, job: &Arc<RwLock<Job>>) {
     let state: tauri::State<'_, AppState> = app_handle.state::<AppState>();
+    let background_process_state: tauri::State<
+        '_,
+        crate::state::background_process_state::BackgroundProcessState,
+    > = app_handle.state();
     job.write()
         .expect("failed to lock job for write")
         .update_status(JobStatus::Processing);
@@ -132,9 +137,6 @@ async fn load_titles(app_handle: &AppHandle, job: &Arc<RwLock<Job>>) {
         .expect("There should of been a disk")
         .id;
 
-    // extend or append the title info data to the optical disk
-    // This then makes it possible later use that title info
-    // without holding a lock on the memory
     match state.find_optical_disk_by_id(&disk_id) {
         Some(disk) => {
             let locked_disk = disk.write().expect("Failed to grab disk");
@@ -153,6 +155,75 @@ async fn load_titles(app_handle: &AppHandle, job: &Arc<RwLock<Job>>) {
         .expect("failed to lock job for read")
         .emit_progress_change(app_handle);
     templates::disks::emit_disk_change(app_handle);
+
+    if let Some(auto_rip_job) = background_process_state.find_job(
+        Some(disk_id),
+        &Some(JobType::Ripping),
+        &[JobStatus::Pending],
+    ) {
+        auto_rip_if_ready(app_handle, &state, disk_id, auto_rip_job);
+    }
+}
+
+fn auto_rip_if_ready(
+    app_handle: &AppHandle,
+    state: &tauri::State<'_, AppState>,
+    disk_id: crate::models::optical_disk_info::DiskId,
+    auto_rip_job: Arc<RwLock<Job>>,
+) {
+    debug!("auto_rip_if_ready: checking disk {disk_id}");
+    let job_ref = auto_rip_job.read().expect("Failed to lock job for read");
+
+    if !job_ref.has_incomplete_titles() {
+        debug!(
+            "auto_rip_if_ready: no incomplete titles on job {job_id}",
+            job_id = job_ref.id
+        );
+        return;
+    }
+
+    drop(job_ref);
+
+    if let Some(disk) = state.find_optical_disk_by_id(&disk_id) {
+        let disk_lock = disk.read().expect("Failed to lock disk for read");
+        let titles = disk_lock.titles.lock().expect("Failed to lock titles");
+        debug!(
+            "auto_rip_if_ready: found {count} titles for disk {disk_id}",
+            count = titles.len()
+        );
+        let job_write = auto_rip_job.write().expect("Failed to lock job for write");
+        let mut matched = 0usize;
+
+        for title_video in &job_write.title_videos {
+            let mut tv = title_video.write().expect("Failed to lock title_video");
+            if tv.title.is_none() {
+                if let Video::Movie(movie_edition) = &tv.video {
+                    let runtime_range = movie_edition.runtime_range();
+                    let movie_title = movie_edition.movie.title.clone();
+                    let best_match = titles.iter().find(|title| {
+                        title.within_range(&Some(runtime_range.clone())) && title.has_chapters()
+                    });
+
+                    if let Some(matched_title) = best_match {
+                        tv.title = Some(matched_title.clone());
+                        matched += 1;
+                        debug!(
+                            "auto_rip_if_ready: matched title_id={title_id} for movie {movie_title}",
+                            title_id = matched_title.id
+                        );
+                    } else {
+                        debug!(
+                            "auto_rip_if_ready: no match found for movie {movie_title}"
+                        );
+                    }
+                }
+            }
+        }
+
+        debug!("auto_rip_if_ready: matched {matched} titles, starting rip");
+    }
+
+    crate::commands::rip::spawn_rip(app_handle.clone(), auto_rip_job);
 }
 
 fn add_optical_disk(app_handle: &AppHandle, disk: &OpticalDiskInfo) {
@@ -243,7 +314,7 @@ pub async fn handle_changes(
                                 let background_process_state =
                                     app_handle_clone.state::<BackgroundProcessState>();
                                 let job = background_process_state
-                                    .new_job(JobType::Loading, Some(disk.clone()));
+                                    .new_job(JobType::Loading, JobStatus::Pending, Some(disk.clone()));
                                 background_process_state.emit_jobs_changed(&app_handle_clone);
                                 job.write().expect("failed to lock job for write").title =
                                     Some(format!("Loading Titles for {}", disk.name));
