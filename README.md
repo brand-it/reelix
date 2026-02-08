@@ -49,7 +49,7 @@ cargo update --manifest-path src-tauri/Cargo.toml
 
 ### Bumping the Version
 
-When releasing a new version, update the version number in all 4 locations:
+When releasing a new version, update the version number in all 3 locations:
 
 ```bash
 # 1. Update package.json
@@ -60,12 +60,9 @@ When releasing a new version, update the version number in all 4 locations:
 
 # 3. Update src-tauri/tauri.conf.json
 # Change "version": "0.31.0" to "version": "0.32.0"
-
-# 4. Update src-tauri/Cargo.lock
-# Change version = "0.31.0" to version = "0.32.0"
 ```
 
-All four files must have matching version numbers for builds to work correctly across all platforms (macOS, Linux, Windows).
+All three files must have matching version numbers for builds to work correctly across all platforms (macOS, Linux, Windows).
 
 ### Using Node
 
