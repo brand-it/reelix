@@ -25,12 +25,15 @@
         {% if is_non_clickable %}
         <div class="img-poster p-0 mb-2 m-0">
           {% call macros::poster(poster_path=result.poster_path) %}
+          {% endcall %}
         </div>
-        {% else %}
+        {% endif %}
+        {% if !is_non_clickable %}
         <a class="btn img-poster-btn p-0 mb-2 m-0"
           href="/{{ result.media_type }}/{{ result.id }}"
           tabindex="0">
           {% call macros::poster(poster_path=result.poster_path) %}
+          {% endcall %}
         </a>
         {% endif %}
         <h6 class="card-title overflow-hidden text-start height-60">

@@ -156,12 +156,12 @@ video_duration_range) %}
   {% for title in disk.titles_sorted(v.runtime_seconds()) %}
   {% call movie_card_with_title(title=title, disk=disk, job=job,
   has_video=true, video_duration_range=v.runtime_range())
-  %}
+  %}{% endcall %}
   {% endfor %}
   {% else %}
   {% for title in disk.clone_titles() %}
   {% call movie_card_with_title(title=title, disk=disk, job=job,
-  has_video=false, video_duration_range=None) %}
+  has_video=false, video_duration_range=None) %}{% endcall %}
   {% endfor %}
   {% endif %}
   {% else %}

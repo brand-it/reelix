@@ -3,13 +3,13 @@
 <div id="{{ self.dom_id() }}">
   <!-- Floating Action Button (FAB) anchored above the footer progress bar -->
   <div id="season-fab"
-       class="position-fixed"
-       style="right: 1rem; bottom: calc(var(--progress-footer-height, 56px) + 1rem); z-index: 1045;">
+    class="position-fixed"
+    style="right: 1rem; bottom: calc(var(--progress-footer-height, 56px) + 1rem); z-index: 1045;">
     <a class="btn btn-success btn-lg rounded-circle shadow"
-       href="/rip_season"
-       data-bs-toggle="tooltip"
-       title="Create MKV From Title"
-       style="width: 3.25rem; height: 3.25rem; display: inline-flex; align-items: center; justify-content: center;">
+      href="/rip_season"
+      data-bs-toggle="tooltip"
+      title="Create MKV From Title"
+      style="width: 3.25rem; height: 3.25rem; display: inline-flex; align-items: center; justify-content: center;">
       <i class="fad fa-compact-disc"></i>
     </a>
   </div>
@@ -18,16 +18,18 @@
     <div class="col show-img-posters">
       <a class="btn img-poster-btn p-0 mb-2 m-0" href="/tv/{{ tv.id }}">
         {% call macros::poster_stack(
-          season.poster_path,
-          tv.poster_path
-        ) %}
+        season.poster_path,
+        tv.poster_path
+        ) %}{% endcall %}
       </a>
     </div>
 
     <div class="col" style="width: 75%;">
       <h3 class="tv-name">
         <i class="fa fa-film"></i>
-        <a class="link-light link-opacity-50-hover link-underline-opacity-25 pb-1" href="/tv/{{ tv.id }}">
+        <a
+          class="link-light link-opacity-50-hover link-underline-opacity-25 pb-1"
+          href="/tv/{{ tv.id }}">
           {{ tv.title_year() }}
         </a>
         <small class="text-body-secondary">{{ season.name }}</small>
@@ -35,10 +37,11 @@
 
       <div class="tv-facts">
         {% if let Some(first_air_date) = tv.first_air_date %}
-          <span>{{ first_air_date }}</span>
+        <span>{{ first_air_date }}</span>
         {% endif %}
         {% for genre in tv.genres %}
-          <span class="badge rounded-pill text-bg-secondary">{{ genre.name }}</span>
+        <span class="badge rounded-pill text-bg-secondary">{{ genre.name
+          }}</span>
         {% endfor %}
       </div>
 

@@ -2,7 +2,7 @@
 
 <div class="row" id="{{ self.dom_id() }}">
   <div class="col show-img-posters">
-    {% call macros::poster(poster_path=tv.poster_path) %}
+    {% call macros::poster(poster_path=tv.poster_path) %}{% endcall %}
   </div>
   <div class="col" style="width: 75%;">
     <h3 class="tv-name">
@@ -34,7 +34,7 @@
       <div class="width-200 m-1 text-center">
         <a class="btn img-poster-btn p-0 mb-2 m-0"
           href="/season?tvId={{ tv.id }}&seasonNumber={{ season.season_number }}">
-          {% call macros::poster(poster_path=season.poster_path) %}
+          {% call macros::poster(poster_path=season.poster_path) %}{% endcall %}
         </a>
         <p class="card-title overflow-hidden text-start height-60 mt-2 mb-0">
           {{ season.name }}

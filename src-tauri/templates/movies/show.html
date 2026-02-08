@@ -1,35 +1,37 @@
 {%- import "_poster.html" as macros -%}
 <div id="{{ self.dom_id() }}" class="row" data-controller="bootstrap-tooltip">
   <div class="col" style="width: 225px; max-width: 225px;">
-    {% call macros::poster(poster_path=movie.poster_path) %}
+    {% call macros::poster(poster_path=movie.poster_path) %}{% endcall %}
   </div>
   <div class="col" style="width: 75%;">
     <h3 class="movie-title">
       {% if ripped %}
-        <i
+      <i
         data-bs-toggle="tooltip" data-bs-placement="top"
-        data-bs-title="Found MKV Files for this movie on FTP Server" class="fad fa-check-square" style="--fa-secondary-color: #00f900;"></i>
+        data-bs-title="Found MKV Files for this movie on FTP Server"
+        class="fad fa-check-square" style="--fa-secondary-color: #00f900;"></i>
       {% else %}
-        <i
+      <i
         data-bs-toggle="tooltip" data-bs-placement="top"
         data-bs-title="No Movie Found on FTP server"
         class="fal fa-info-square" style="color: #63E6BE;"></i>
       {% endif %}
       <i class="fa fa-film" data-prefix="fas" data-icon="film"></i>
       <a class="link-light link-opacity-50-hover link-underline-opacity-25 pb-1"
-        href="https://www.themoviedb.org/movie/{{ movie.id }}" command="open_url">
+        href="https://www.themoviedb.org/movie/{{ movie.id }}"
+        command="open_url">
         {{ movie.title_year() }}
       </a>
     </h3>
     <div class='movie-facts'>
 
       {% if let Some(certification) = certification %}
-        <span class="certification-rating">{{ certification }}</span>
+      <span class="certification-rating">{{ certification }}</span>
       {% endif %}
       <span>{{ movie.human_runtime() }}</span>
       <span>
         {% if let Some(release_date) = movie.release_date %}
-          {{ release_date }}
+        {{ release_date }}
         {% endif %}
       </span>
 
@@ -45,7 +47,8 @@
       </p>
     </div>
     <div data-controller="rip-movie">
-      <input type="hidden" data-rip-movie-target="movieId" value="{{ movie.id }}" />
+      <input type="hidden" data-rip-movie-target="movieId"
+        value="{{ movie.id }}" />
       {# {% include "movies/cards.html" %} #}
       {{ movies_cards.render_html() | safe }}
     </div>
