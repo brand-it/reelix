@@ -1,7 +1,7 @@
 use crate::{
-    the_movie_db::{MovieResponse, SeasonEpisode, SeasonResponse, TvResponse},
     models::title_info::TitleInfo,
     state::AppState,
+    the_movie_db::{MovieResponse, SeasonEpisode, SeasonResponse, TvResponse},
 };
 use serde::Serialize;
 use std::{fs, path::PathBuf};
@@ -28,7 +28,7 @@ impl MoviePartEdition {
 
 #[derive(Serialize, Clone)]
 pub struct TitleVideo {
-    pub title: TitleInfo,
+    pub title: Option<TitleInfo>,
     pub video: Video,
 }
 
@@ -74,7 +74,7 @@ impl TitleVideo {
     /// - Returns a `Result<PathBuf, String>` for error handling in calling code.
     pub fn rename_ripped_file(&self, app_state: &AppState) -> Result<PathBuf, String> {
         let target_path = self.video_path(app_state);
-        let from_path = self.ripped_file_path(app_state);
+        let from_path = self.ripped_file_path(app_state)?;
 
         if !from_path.exists() {
             return Err(format!(
@@ -88,9 +88,16 @@ impl TitleVideo {
         Ok(target_path)
     }
 
-    fn ripped_file_path(&self, app_state: &AppState) -> PathBuf {
-        let title_filename = self.title.filename.as_ref().unwrap();
-        self.create_video_dir(app_state).join(title_filename)
+    fn ripped_file_path(&self, app_state: &AppState) -> Result<PathBuf, String> {
+        let title = self
+            .title
+            .as_ref()
+            .ok_or_else(|| "Title information is missing for this video".to_string())?;
+        let title_filename = title
+            .filename
+            .as_ref()
+            .ok_or_else(|| "Filename is missing from title information".to_string())?;
+        Ok(self.create_video_dir(app_state).join(title_filename))
     }
 
     /// Get the full FTP upload file path for this video (movie or TV episode).
@@ -564,6 +571,13 @@ impl Video {
         match self {
             Video::Movie(movie) => Some(movie.runtime_range()),
             Video::Tv(tv) => Some(tv.episode.runtime_range()),
+        }
+    }
+
+    pub fn mvdb_id(&self) -> u32 {
+        match self {
+            Video::Movie(movie) => movie.movie.id,
+            Video::Tv(tv) => tv.tv.id,
         }
     }
 }

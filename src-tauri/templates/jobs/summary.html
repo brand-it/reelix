@@ -24,6 +24,8 @@
       <i class="fas fa-times-circle text-danger ms-auto"></i>
       {% elif self.job.is_finished() %}
       <i class="fas fa-check-circle text-success ms-auto"></i>
+      {% elif self.job.is_pending() %}
+      <i class="fas fa-hourglass-half text-warning ms-auto"></i>
       {% elif self.job.is_processing() %}
       <i class="fas fa-circle-notch fa-spin text-muted ms-auto"></i>
       {% endif %}

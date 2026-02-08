@@ -179,7 +179,7 @@ fn reconstruct_movie_with_tmdb_blocking(
 
     let video = title_video::Video::Movie(Box::new(movie));
     let title_video = title_video::TitleVideo {
-        title: title_info,
+        title: Some(title_info),
         video,
     };
 
@@ -289,7 +289,7 @@ fn reconstruct_tv_with_tmdb_blocking(
 
     let video = title_video::Video::Tv(Box::new(tv_show));
     let title_video = title_video::TitleVideo {
-        title: title_info,
+        title: Some(title_info),
         video,
     };
 
@@ -485,7 +485,7 @@ fn reconstruct_movie_video(path: &Path) -> Result<Arc<RwLock<TitleVideo>>, Strin
 
     let video = title_video::Video::Movie(Box::new(movie));
     let title_video = title_video::TitleVideo {
-        title: title_info,
+        title: Some(title_info),
         video,
     };
 
@@ -620,7 +620,7 @@ fn reconstruct_tv_video(path: &Path) -> Result<Arc<RwLock<TitleVideo>>, String> 
 
     let video = title_video::Video::Tv(Box::new(tv_show));
     let title_video = title_video::TitleVideo {
-        title: title_info,
+        title: Some(title_info),
         video,
     };
 
@@ -678,7 +678,7 @@ async fn upload_video(
         None,
         &None,
         &JobType::Uploading,
-        &[JobStatus::Pending, JobStatus::Ready],
+        &JobStatus::Pending,
     );
 
     job.write()

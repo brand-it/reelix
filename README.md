@@ -103,6 +103,8 @@ When releasing a new version, update the version number in all 3 locations:
 
 All three files must have matching version numbers for builds to work correctly across all platforms (macOS, Linux, Windows).
 
+Once the version is changed run the full sweet of checks and build command `cargo tauri dev`
+
 ### Using Node
 
 ```

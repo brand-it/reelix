@@ -182,7 +182,7 @@ fn get_job(app_handle: &tauri::AppHandle, selected_disk: &Option<OpticalDiskInfo
                 .find_job(
                     Some(disk_id),
                     &None,
-                    &[JobStatus::Pending, JobStatus::Ready, JobStatus::Processing],
+                    &[JobStatus::Pending, JobStatus::Processing],
                 )
                 .and_then(|j| copy_job_state(&Some(j)))
         }

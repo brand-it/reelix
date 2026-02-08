@@ -7,13 +7,15 @@ use crate::state::title_video::Video;
 use crate::state::{background_process_state, AppState};
 use crate::the_movie_db;
 use askama::Template;
+use log::debug;
 use tauri::{Manager, State};
 
 #[derive(Template)]
 #[template(path = "movies/cards.html")]
 pub struct MoviesCards<'a> {
     pub selected_disk: &'a Option<OpticalDiskInfo>,
-    pub job: &'a Option<Job>,
+    pub in_progress_job: &'a Option<Job>,
+    pub pending_job: &'a Option<Job>,
     pub video: Option<&'a Video>,
 }
 
@@ -64,9 +66,15 @@ pub fn render_show(
         None => None,
     };
 
-    let job = match &selected_disk {
+    let in_progress_job = match &selected_disk {
         Some(disk) => background_process_state
             .find_job(Some(disk.id), &None, &[JobStatus::Processing])
+            .and_then(|job_arc| copy_job_state(&Some(job_arc))),
+        None => None,
+    };
+    let pending_job = match &selected_disk {
+        Some(disk) => background_process_state
+            .find_job(Some(disk.id), &None, &[JobStatus::Pending])
             .and_then(|job_arc| copy_job_state(&Some(job_arc))),
         None => None,
     };
@@ -83,7 +91,8 @@ pub fn render_show(
             ripped: &ripped,
             movies_cards: &MoviesCards {
                 selected_disk: &selected_disk,
-                job: &job,
+                in_progress_job: &in_progress_job,
+                pending_job: &pending_job,
                 video: Some(&video),
             },
         },
@@ -107,17 +116,93 @@ pub fn render_cards(app_handle: &tauri::AppHandle) -> Result<String, super::Erro
         Err(_) => return super::render_error("Failed to lock current video"),
     };
 
-    let job = match &selected_disk {
+    let in_progress_job = match &selected_disk {
         Some(disk) => background_process_state
-            .find_job(Some(disk.id), &None, &[JobStatus::Processing])
+            .find_job(
+                Some(disk.id),
+                &None,
+                &[JobStatus::Processing],
+            )
             .and_then(|job_arc| copy_job_state(&Some(job_arc))),
         None => None,
     };
 
+    let pending_job = match &selected_disk {
+        Some(disk) => background_process_state
+            .find_job(
+                Some(disk.id),
+                &None,
+                &[JobStatus::Pending],
+            )
+            .and_then(|job_arc| copy_job_state(&Some(job_arc))),
+        None => None,
+    };
+
+    let selected_disk_summary = selected_disk.as_ref().map(|disk| {
+        format!(
+            "id={}, name={}, dev={}, mount={}",
+            disk.id,
+            disk.name,
+            disk.dev,
+            disk.mount_point.display()
+        )
+    });
+    let job_summary = in_progress_job.as_ref().map(|job| {
+        format!(
+            "id={}, type={}, status={}, title={}, subtitle={}, videos={}",
+            job.id,
+            job.job_type,
+            job.status,
+            job.title.as_deref().unwrap_or("-"),
+            job.subtitle.as_deref().unwrap_or("-"),
+            job.title_videos.len()
+        )
+    });
+    let pending_job_summary = pending_job.as_ref().map(|job| {
+        format!(
+            "id={}, type={}, status={}, title={}, subtitle={}, videos={}",
+            job.id,
+            job.job_type,
+            job.status,
+            job.title.as_deref().unwrap_or("-"),
+            job.subtitle.as_deref().unwrap_or("-"),
+            job.title_videos.len()
+        )
+    });
+    let video_summary = video.as_ref().map(|video| match video {
+        Video::Movie(movie) => format!(
+            "Movie(id={}, title={}, part={}, edition={})",
+            movie.movie.id,
+            movie.movie.title_year(),
+            movie
+                .part
+                .map(|part| part.to_string())
+                .unwrap_or_else(|| "-".to_string()),
+            movie.edition.as_deref().unwrap_or("-")
+        ),
+        Video::Tv(tv) => format!(
+            "Tv(id={}, title={}, part={})",
+            tv.tv.id,
+            tv.title(),
+            tv.part
+                .map(|part| part.to_string())
+                .unwrap_or_else(|| "-".to_string())
+        ),
+    });
+
+    debug!(
+        "Rendering movies cards selected_disk={}, in_progress_job={}, pending_job={}, video={}",
+        selected_disk_summary.as_deref().unwrap_or("none"),
+        job_summary.as_deref().unwrap_or("none"),
+        pending_job_summary.as_deref().unwrap_or("none"),
+        video_summary.as_deref().unwrap_or("none")
+    );
+
     let template = MoviesCardsTurbo {
         movies_cards: &MoviesCards {
             selected_disk: &selected_disk,
-            job: &job,
+            in_progress_job: &in_progress_job,
+            pending_job: &pending_job,
             video: video.as_ref(),
         },
     };

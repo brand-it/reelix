@@ -7,7 +7,7 @@ use state::AppState;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{App, Manager, WebviewUrl, WebviewWindowBuilder};
-use tauri_plugin_log::log::{debug, error};
+use tauri_plugin_log::log::{debug, error, LevelFilter};
 use tauri_plugin_log::{Target, TargetKind};
 use tauri_plugin_opener::OpenerExt;
 use tokio::sync::broadcast;
@@ -172,7 +172,6 @@ fn setup_view_window(app: &mut App) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
-        .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
@@ -181,6 +180,7 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(
             tauri_plugin_log::Builder::new()
+                .level(LevelFilter::Debug)
                 .targets([
                     Target::new(TargetKind::Stdout),
                     Target::new(TargetKind::LogDir { file_name: None }),

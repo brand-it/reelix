@@ -30,13 +30,26 @@ pub fn render_options(
         Ok(guard) => guard.clone(),
         Err(_) => return super::render_error("Failed to lock current video"),
     };
-    let job = match selected_disk {
+    let in_progress_job = match selected_disk {
         Some(ref disk) => {
             let disk_id = disk.id;
             let job = background_process_state.find_job(
                 Some(disk_id),
                 &Some(JobType::Ripping),
-                &[JobStatus::Pending, JobStatus::Ready],
+                &[JobStatus::Processing],
+            );
+            copy_job_state(&job)
+        }
+        None => None,
+    };
+
+    let pending_job = match selected_disk {
+        Some(ref disk) => {
+            let disk_id = disk.id;
+            let job = background_process_state.find_job(
+                Some(disk_id),
+                &Some(JobType::Ripping),
+                &[JobStatus::Pending],
             );
             copy_job_state(&job)
         }
@@ -46,11 +59,12 @@ pub fn render_options(
     let template = DiskTitlesOptionsTurbo {
         seasons_parts: &SeasonsParts {
             selected_disk: &selected_disk,
-            job: &job,
+            job: &pending_job,
         },
         movies_cards: &MoviesCards {
             selected_disk: &selected_disk,
-            job: &job,
+            in_progress_job: &in_progress_job,
+            pending_job: &pending_job,
             video: video.as_ref(),
         },
     };

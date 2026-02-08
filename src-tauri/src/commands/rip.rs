@@ -57,12 +57,16 @@ pub fn assign_episode_to_title(
     let job = match background_process_state.find_job(
         Some(disk_id),
         &Some(JobType::Ripping),
-        &[JobStatus::Pending, JobStatus::Ready],
+        &[JobStatus::Pending],
     ) {
         Some(job) => job,
         None => {
             let optical_disk_info = optical_disk.read().unwrap().clone();
-            let job = background_process_state.new_job(JobType::Ripping, Some(optical_disk_info));
+            let job = background_process_state.new_job(
+                JobType::Ripping,
+                JobStatus::Pending,
+                Some(optical_disk_info),
+            );
             background_process_state.emit_jobs_changed(&app_handle);
             job
         }
@@ -95,7 +99,7 @@ pub fn assign_episode_to_title(
             };
             let title_video = TitleVideo {
                 video: Video::Tv(Box::new(tv_season_episode)),
-                title: title_info.clone(),
+                title: Some(title_info.clone()),
             };
             job.write()
                 .expect("Failed to lock job for write")
@@ -176,7 +180,7 @@ pub fn rip_season(
         Some(disk_id),
         &Some(optical_disk),
         &JobType::Ripping,
-        &[JobStatus::Pending, JobStatus::Ready],
+        &JobStatus::Pending,
     );
 
     if is_new {
@@ -216,7 +220,7 @@ pub fn rip_movie(
         Some(disk_id),
         &Some(optical_disk),
         &JobType::Ripping,
-        &[JobStatus::Pending, JobStatus::Ready],
+        &JobStatus::Pending,
     );
 
     if is_new {
@@ -249,6 +253,77 @@ pub fn rip_movie(
         .emit_progress_change(&app_handle);
     spawn_rip(app_handle, job);
     Ok("".to_string())
+}
+
+#[tauri::command]
+pub fn set_auto_rip(
+    disk_id: u32,
+    mvdb_id: u32,
+    enable: bool,
+    app_state: State<'_, AppState>,
+    background_process_state: State<'_, background_process_state::BackgroundProcessState>,
+    app_handle: tauri::AppHandle,
+) -> Result<String, templates::Error> {
+    let disk_id = DiskId::from(disk_id);
+
+    if enable {
+        let optical_disk = match app_state.find_optical_disk_by_id(&disk_id) {
+            Some(optical_disk) => optical_disk,
+            None => return render_error("Failed to find Optical Disk"),
+        };
+
+        let (job, is_new) = background_process_state.find_or_create_job(
+            Some(disk_id),
+            &Some(optical_disk),
+            &JobType::Ripping,
+            &JobStatus::Pending,
+        );
+
+        if is_new {
+            debug!("Created new job for auto-rip: {}", job.read().unwrap().id);
+        } else {
+            debug!(
+                "Found existing job for auto-rip: {}",
+                job.read().unwrap().id
+            );
+        }
+
+        let movie = match find_movie(&app_handle, mvdb_id) {
+            Ok(movie) => movie,
+            Err(e) => return render_error(&e.message),
+        };
+
+        let movie_part_edition = crate::state::title_video::MoviePartEdition {
+            movie: movie.clone(),
+            part: None,
+            edition: None,
+        };
+
+        match job
+            .write()
+            .expect("Failed to lock job")
+            .add_incomplete_video(Video::Movie(Box::new(movie_part_edition)))
+        {
+            Ok(_) => {}
+            Err(e) => {
+                return render_error(&e.message);
+            }
+        };
+        background_process_state.emit_jobs_changed(&app_handle);
+    } else if let Some(job) = background_process_state.find_job(
+        Some(disk_id),
+        &Some(JobType::Ripping),
+        &[JobStatus::Pending],
+    ) {
+        let job_id = job.read().expect("Failed to lock job for read").id;
+        background_process_state.delete_job(job_id);
+        debug!("Deleted job {job_id} for auto-rip disable");
+        background_process_state.emit_jobs_changed(&app_handle);
+    } else {
+        debug!("No existing job found for auto-rip disable, nothing to delete");
+    };
+
+    templates::movies::render_cards(&app_handle)
 }
 
 fn emit_render_cards(app_handle: &tauri::AppHandle) {
@@ -370,7 +445,7 @@ fn spawn_upload(app_handle: &tauri::AppHandle, title_video: &Arc<RwLock<TitleVid
             None,
             &None,
             &JobType::Uploading,
-            &[JobStatus::Pending, JobStatus::Ready],
+            &JobStatus::Pending,
         );
 
         if is_new {
@@ -586,7 +661,7 @@ async fn process_titles(app_handle: &tauri::AppHandle, job: Arc<RwLock<Job>>) ->
     success
 }
 
-fn spawn_rip(app_handle: tauri::AppHandle, job: Arc<RwLock<Job>>) {
+pub fn spawn_rip(app_handle: tauri::AppHandle, job: Arc<RwLock<Job>>) {
     tauri::async_runtime::spawn(async move {
         job.write()
             .expect("Failed to get job writer")
@@ -629,12 +704,16 @@ fn find_or_create_job(app_handle: &tauri::AppHandle, disk: &OpticalDiskInfo) -> 
     match background_process_state.find_job(
         Some(disk_id),
         &Some(JobType::Ripping),
-        &[JobStatus::Pending, JobStatus::Ready],
+        &[JobStatus::Pending],
     ) {
         Some(job) => job,
         None => {
             let optical_disk_info = disk.clone();
-            let job = background_process_state.new_job(JobType::Ripping, Some(optical_disk_info));
+            let job = background_process_state.new_job(
+                JobType::Ripping,
+                JobStatus::Pending,
+                Some(optical_disk_info),
+            );
             background_process_state.emit_jobs_changed(app_handle);
             job
         }

@@ -31,10 +31,10 @@ pub struct Job {
 }
 
 impl Job {
-    pub fn new(job_type: JobType, disk: Option<OpticalDiskInfo>) -> Self {
+    pub fn new(job_type: JobType, disk: Option<OpticalDiskInfo>, status: JobStatus) -> Self {
         Job {
             id: JobId::new(),
-            status: JobStatus::Pending,
+            status,
             job_type,
             message: None,
             title: None,
@@ -76,7 +76,7 @@ impl Job {
                     tv_season_episode.tv.id == mvdb_id
                         && tv_season_episode.season.id == season_number
                         && tv_season_episode.episode.id == episode_number
-                        && title_video.title.id == title_id
+                        && title_video.title.as_ref().map(|t| t.id) == Some(title_id)
                         && tv_season_episode.part == part
                 } else {
                     false
@@ -88,15 +88,31 @@ impl Job {
     pub fn matching_title(&self, title: &TitleInfo) -> bool {
         self.title_videos.iter().any(|title_video| {
             let title_video = title_video.read().unwrap();
-            title_video.title.id == title.id
+            title_video.title.as_ref().map(|t| t.id) == Some(title.id)
+        })
+    }
+
+    pub fn has_incomplete_titles(&self) -> bool {
+        self.title_videos.iter().any(|title_video| {
+            let title_video = title_video.read().unwrap();
+            title_video.title.is_none()
         })
     }
 
     pub fn add_title_video(&mut self, title: TitleInfo, video: Video) -> Result<(), StandardError> {
         self.validate_title_video_modifiable("add")?;
-        let title_video = TitleVideo { title, video };
+        let title_video = TitleVideo {
+            title: Some(title),
+            video,
+        };
         self.title_videos.push(Arc::new(RwLock::new(title_video)));
-        self.status = JobStatus::Ready;
+        Ok(())
+    }
+
+    pub fn add_incomplete_video(&mut self, video: Video) -> Result<(), StandardError> {
+        self.validate_title_video_modifiable("add")?;
+        let title_video = TitleVideo { title: None, video };
+        self.title_videos.push(Arc::new(RwLock::new(title_video)));
         Ok(())
     }
 
@@ -232,7 +248,11 @@ impl Job {
     // }
 
     pub fn is_modifiable(&self) -> bool {
-        self.status == JobStatus::Pending || self.status == JobStatus::Ready
+        self.status == JobStatus::Pending
+    }
+
+    pub fn is_pending(&self) -> bool {
+        self.status == JobStatus::Pending
     }
 
     pub fn is_processing(&self) -> bool {
@@ -287,14 +307,13 @@ impl JobProgress {
 }
 
 // Progress state will track the current state of DVD ripping
-// it will go from ready -> ripping -> uploading -> finished
+// it will go from pending -> ripping -> uploading -> finished
 // The state at any point can go to error if something goes wrong
-// defaults to Ready
+// defaults to Pending
 #[derive(Default, Clone, Serialize, PartialEq)]
 pub enum JobStatus {
     #[default]
     Pending,
-    Ready,
     Processing,
     Finished,
     Error,
@@ -304,7 +323,6 @@ impl fmt::Display for JobStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             JobStatus::Pending => write!(f, "Pending"),
-            JobStatus::Ready => write!(f, "Ready"),
             JobStatus::Processing => write!(f, "Processing"),
             JobStatus::Finished => write!(f, "Finished"),
             JobStatus::Error => write!(f, "Error"),
