@@ -1,9 +1,15 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct StandardError {
     pub title: String,
     pub message: String,
+}
+
+impl StandardError {
+    pub fn new(title: String, message: String) -> Self {
+        Self { title, message }
+    }
 }
 
 impl std::fmt::Display for StandardError {
