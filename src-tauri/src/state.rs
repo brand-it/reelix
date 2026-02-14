@@ -25,7 +25,6 @@ pub struct AppState {
     pub tv_shows_dir: Arc<RwLock<PathBuf>>,
     pub current_video: Arc<Mutex<Option<title_video::Video>>>,
     pub latest_version: Arc<Mutex<Option<String>>>,
-    pub has_update: Arc<Mutex<bool>>,
 }
 
 impl AppState {
@@ -46,7 +45,6 @@ impl AppState {
             ftp_tv_upload_path: Arc::new(Mutex::new(None)),
             current_video: Arc::new(Mutex::new(None)),
             latest_version: Arc::new(Mutex::new(None)),
-            has_update: Arc::new(Mutex::new(false)),
         }
     }
 
@@ -128,14 +126,6 @@ impl AppState {
                             let mut lv = self.latest_version.lock().unwrap();
                             *lv = cleaned;
                         }
-                        "has_update" => {
-                            if let Some(val) = cleaned {
-                                if let Ok(hu) = val.parse::<bool>() {
-                                    let mut update_flag = self.has_update.lock().unwrap();
-                                    *update_flag = hu;
-                                }
-                            }
-                        }
                         _ => debug!("Unknown key in store: {key}"),
                     }
                     debug!("Loaded key from store: {key}");
@@ -209,8 +199,6 @@ impl AppState {
         if let Some(version) = latest_version_guard.as_ref() {
             store.set("latest_version", serde_json::json!(version));
         }
-        let has_update = *self.has_update.lock().expect("failed to lock has_update");
-        store.set("has_update", serde_json::json!(has_update.to_string()));
 
         store
             .save()
@@ -335,13 +323,6 @@ impl AppState {
                 let mut lv = self.latest_version.lock().unwrap();
                 *lv = cleaned;
             }
-            "has_update" => {
-                if let Some(val) = cleaned {
-                    let hu = val.parse::<bool>().unwrap_or(false);
-                    let mut update_flag = self.has_update.lock().unwrap();
-                    *update_flag = hu;
-                }
-            }
             _ => return Err(format!("can't update {key}")),
         }
 
@@ -392,18 +373,18 @@ impl AppState {
         &self,
         app_handle: &tauri::AppHandle,
     ) -> crate::services::version_checker::VersionState {
-        let current_version = app_handle.package_info().version.to_string();
+        let current_version_str = app_handle.package_info().version.to_string();
+        let current_version =
+            crate::services::semantic_version::SemanticVersion::parse(&current_version_str)
+                .unwrap_or_else(|_| crate::services::semantic_version::SemanticVersion::none());
         let latest_version = self
             .latest_version
             .lock()
             .expect("failed to lock latest_version")
-            .clone();
-        let has_update = *self.has_update.lock().expect("failed to lock has_update");
+            .clone()
+            .and_then(|v| crate::services::semantic_version::SemanticVersion::parse(&v).ok())
+            .unwrap_or_else(crate::services::semantic_version::SemanticVersion::none);
 
-        crate::services::version_checker::VersionState {
-            current_version,
-            latest_version,
-            has_update,
-        }
+        crate::services::version_checker::VersionState::new(current_version, latest_version)
     }
 }
