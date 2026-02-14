@@ -3,10 +3,53 @@
   <div class="display-flex">
     {% if query.is_empty() %}
     <div class="col-md-12 mt-3">
-      <div class="text-white">
-        <h1 class="display-4">To Getting Started</h1>
-        <p class="lead">Type in the name of the movie or TV show you're looking
-          for into the search bar above.</p>
+      <div class="getting-started-container">
+        <div class="getting-started-header">
+          <div class="getting-started-icon">
+            <i class="fas fa-rocket"></i>
+          </div>
+          <div class="getting-started-content">
+            <h1 class="getting-started-title">Get Started</h1>
+            <p class="getting-started-description">
+              Type in the name of the movie or TV show you're looking for into the search bar above.
+            </p>
+          </div>
+        </div>
+        
+        <div class="getting-started-tips">
+          <div class="getting-started-tip">
+            <div class="tip-icon">
+              <i class="fas fa-search"></i>
+            </div>
+            <div class="tip-content">
+              <h3 class="tip-title">Search by Title</h3>
+              <p class="tip-description">Find movies and TV shows instantly</p>
+            </div>
+          </div>
+          
+          <div class="getting-started-tip">
+            <div class="tip-icon">
+              <i class="fas fa-compact-disc"></i>
+            </div>
+            <div class="tip-content">
+              <h3 class="tip-title">Rip Your Media</h3>
+              <p class="tip-description">Convert optical discs to digital files</p>
+            </div>
+          </div>
+          
+          <div class="getting-started-tip">
+            <div class="tip-icon">
+              <i class="fas fa-folder-open"></i>
+            </div>
+            <div class="tip-content">
+              <h3 class="tip-title">Organize & Upload</h3>
+              <p class="tip-description">Manage and backup your media collection</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="mt-1">
         {{ update_indicator.render_html() | safe }}
       </div>
     </div>
