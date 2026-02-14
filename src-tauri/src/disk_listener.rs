@@ -12,32 +12,6 @@ use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::broadcast;
 use tokio::time::{sleep, Duration};
 
-// pub fn list() {
-//     let disks: Disks = Disks::new_with_refreshed_list();
-
-//     for disk in &disks {
-//         let fs_bytes = disk.file_system();
-//         let fs_str = fs_bytes.to_str().expect("Failed to load fs_bytes");
-//         debug!("#-------------------DISK---------------------#");
-//         // Check if removable + known optical file system
-//         if disk.is_removable() && (fs_str.contains("udf") || fs_str.contains("iso9660")) {
-//             debug!("Likely optical media:");
-//             debug!("  Name: {:?}", disk.name());
-//             debug!("  Mount Point: {:?}", disk.mount_point());
-//             debug!("  Available Space: {}", disk.available_space());
-//             debug!("  Total Space: {}", disk.total_space());
-//             debug!("  Kind: {}", disk.kind());
-//             debug!("  File System: {:?}", disk.file_system());
-//             debug!("  Is Removable: {}", disk.is_removable());
-//             debug!("  Is Read Only: {}", disk.is_read_only());
-//             debug!("  Usage: {:?}", disk.usage());
-//         } else {
-//             debug!("Non-optical or unrecognized: {:?}", disk.name());
-//         }
-//         debug!("#-------------------END DISK-----------------#");
-//     }
-// }
-
 fn changes(
     current_opticals: &[OpticalDiskInfo],
     previous_opticals: &[OpticalDiskInfo],
@@ -212,9 +186,7 @@ fn auto_rip_if_ready(
                             title_id = matched_title.id
                         );
                     } else {
-                        debug!(
-                            "auto_rip_if_ready: no match found for movie {movie_title}"
-                        );
+                        debug!("auto_rip_if_ready: no match found for movie {movie_title}");
                     }
                 }
             }
@@ -313,8 +285,11 @@ pub async fn handle_changes(
                             tokio::spawn(async move {
                                 let background_process_state =
                                     app_handle_clone.state::<BackgroundProcessState>();
-                                let job = background_process_state
-                                    .new_job(JobType::Loading, JobStatus::Pending, Some(disk.clone()));
+                                let job = background_process_state.new_job(
+                                    JobType::Loading,
+                                    JobStatus::Pending,
+                                    Some(disk.clone()),
+                                );
                                 background_process_state.emit_jobs_changed(&app_handle_clone);
                                 job.write().expect("failed to lock job for write").title =
                                     Some(format!("Loading Titles for {}", disk.name));
