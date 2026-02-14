@@ -13,7 +13,7 @@ use tauri_plugin_opener::OpenerExt;
 use tokio::sync::broadcast;
 
 mod commands;
-mod disk;
+mod disk_listener;
 mod models;
 mod progress_tracker;
 mod services;
@@ -31,12 +31,12 @@ const ICON_BYTES: &[u8] = include_bytes!("../icons/menu-icon.png");
 fn spawn_disk_listener(app: &mut App) {
     let (sender, receiver) = broadcast::channel::<Vec<diff::Result<OpticalDiskInfo>>>(16);
     tauri::async_runtime::spawn(async move {
-        disk::watch_for_changes(sender).await;
+        disk_listener::watch_for_changes(sender).await;
     });
 
     let app_handle = app.handle().clone();
     tauri::async_runtime::spawn(async move {
-        disk::handle_changes(receiver, app_handle).await;
+        disk_listener::handle_changes(receiver, app_handle).await;
     });
 }
 
