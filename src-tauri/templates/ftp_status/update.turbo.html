@@ -1,0 +1,12 @@
+<turbo-stream action="replace" method="morph" target="{{ ftp_status.dom_id() }}">
+  <template>
+    {{ ftp_status.render_html() | safe }}
+  </template>
+</turbo-stream>
+
+
+<turbo-stream action="replace" method="morph" target="{{ ftp_settings_status_message.dom_id() }}">
+  <template>
+    {{ ftp_settings_status_message.render_html() | safe }}
+  </template>
+</turbo-stream>

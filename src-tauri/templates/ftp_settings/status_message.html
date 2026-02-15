@@ -1,0 +1,27 @@
+
+<div id="{{ self.dom_id() }}" class="ftp-settings-status-message">
+  {% match self.status %}
+  {% when crate::state::FtpConnectionStatus::Unconfigured %}
+  <div class="status-card status-card--vertical status-card--unconfigured">
+    <div class="status-card__label">Connection Details</div>
+    <div class="status-card__message">FTP is not configured. Please set it up to
+      enable movie uploads.</div>
+  </div>
+  {% when crate::state::FtpConnectionStatus::Checking %}
+  <div class="status-card status-card--vertical status-card--checking">
+    <div class="status-card__label">Connection Details</div>
+    <div class="status-card__message">Checking FTP connection...</div>
+  </div>
+  {% when crate::state::FtpConnectionStatus::Connected %}
+  <div class="status-card status-card--vertical status-card--connected">
+    <div class="status-card__label">Connection Details</div>
+    <div class="status-card__message">FTP connection is healthy.</div>
+  </div>
+  {% when crate::state::FtpConnectionStatus::Failed %}
+  <div class="status-card status-card--vertical status-card--failed">
+    <div class="status-card__label">Connection Details</div>
+    <div class="status-card__message">Failed to connect to FTP. Please check
+      your settings.</div>
+  </div>
+  {% endmatch %}
+</div>

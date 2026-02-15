@@ -40,15 +40,16 @@ pub fn file_exists(relative_mkv_file_path: &String, state: &State<'_, AppState>)
     exists
 }
 
-pub fn validate_ftp_settings(state: &State<'_, AppState>) -> Result<(), String> {
+/// Internal version of validate_ftp_settings that works with AppState directly (not Tauri State wrapper)
+pub fn validate_ftp_settings_internal(state: &AppState) -> Result<(), String> {
     let movie_upload_path = match state.lock_ftp_movie_upload_path().clone() {
         Some(value) => value,
         None => return Err("missing ftp movie upload path".to_string()),
     };
-    let mut ftp_stream =
-        connect_to_ftp(state).map_err(|e| format!("Failed to login and change directory {e}"))?;
+    let mut ftp_stream = connect_to_ftp_internal(state)
+        .map_err(|e| format!("Failed to login and change directory {e}"))?;
 
-    cwd(&mut ftp_stream, &movie_upload_path)?;
+    cwd_internal(&mut ftp_stream, &movie_upload_path)?;
     ftp_stream
         .quit()
         .map_err(|e| format!("Failed to close connection: {e}"))?;
@@ -208,14 +209,6 @@ fn ensure_remote_dir_recursive(ftp_stream: &mut FtpStream, dir: &Path) -> Result
     Ok(())
 }
 
-fn cwd(ftp_stream: &mut FtpStream, path: &PathBuf) -> Result<(), String> {
-    debug!("CWD changing directory to {path:?}");
-    match ftp_stream.cwd(path.to_string_lossy()) {
-        Ok(n) => Ok(n),
-        Err(e) => Err(format!("failed to CWD to {} {}", path.display(), e)),
-    }
-}
-
 /// Extracts the filename from a given file path and returns it as a String.
 ///
 /// Purpose:
@@ -371,4 +364,54 @@ pub async fn upload(
 
     debug!("Upload complete.");
     Ok(())
+}
+
+/// Internal version of connect_to_ftp that works with AppState directly
+#[allow(dead_code)]
+fn connect_to_ftp_internal(state: &AppState) -> Result<FtpStream, FtpError> {
+    let ftp_host = match state.lock_ftp_host().clone() {
+        Some(ftp_host) => ftp_host,
+        None => {
+            return Err(FtpError::ConnectionError(std::io::Error::other(
+                "ftp host missing",
+            )));
+        }
+    };
+    let ftp_pass = match state.lock_ftp_pass().clone() {
+        Some(ftp_pass) => ftp_pass,
+        None => {
+            return Err(FtpError::ConnectionError(std::io::Error::other(
+                "ftp pass missing",
+            )));
+        }
+    };
+    let ftp_user = match state.lock_ftp_user().clone() {
+        Some(ftp_user) => ftp_user,
+        None => {
+            return Err(FtpError::ConnectionError(std::io::Error::other(
+                "ftp user missing",
+            )));
+        }
+    };
+
+    let ftp_addr = if ftp_host.contains(':') {
+        ftp_host.clone()
+    } else {
+        format!("{ftp_host}:21")
+    };
+
+    debug!("Connecting to FTP server at: {ftp_addr}");
+    let mut ftp_stream = FtpStream::connect(&ftp_addr)?;
+    ftp_stream.login(ftp_user, ftp_pass)?;
+    Ok(ftp_stream)
+}
+
+/// Internal version of cwd that works with AppState directly
+#[allow(dead_code)]
+fn cwd_internal(ftp_stream: &mut FtpStream, path: &PathBuf) -> Result<(), String> {
+    debug!("CWD changing directory to {path:?}");
+    match ftp_stream.cwd(path.to_string_lossy()) {
+        Ok(_n) => Ok(()),
+        Err(e) => Err(format!("failed to CWD to {} {}", path.display(), e)),
+    }
 }

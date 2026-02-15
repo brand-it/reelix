@@ -1,5 +1,6 @@
 use crate::models::optical_disk_info::OpticalDiskInfo;
 use crate::services::auto_complete;
+use crate::services::ftp_validator::spawn_ftp_validator;
 use crate::services::version_checker::spawn_version_checker;
 use crate::state::background_process_state::BackgroundProcessState;
 use crate::state::uploaded_state::UploadedState;
@@ -180,7 +181,7 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(
             tauri_plugin_log::Builder::new()
-                .level(LevelFilter::Debug)
+                .level(LevelFilter::Trace)
                 .targets([
                     Target::new(TargetKind::Stdout),
                     Target::new(TargetKind::LogDir { file_name: None }),
@@ -194,6 +195,7 @@ pub fn run() {
             setup_store(app);
             spawn_disk_listener(app);
             spawn_version_checker(app);
+            spawn_ftp_validator(app.handle());
             setup_tray_icon(app);
             setup_view_window(app);
             setup_uploaded_state(app);

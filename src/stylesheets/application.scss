@@ -3,9 +3,29 @@
 @import "checkbox_toggle";
 @import "bg_process";
 @import "movies";
+
+// Asset imports for webpack bundling
+// These CSS rules ensure the image assets are processed by webpack
+// Do not import them in JS as it might classify them as side-effect-free and skip processing
+.asset-help-001 {
+  background-image: url("../images/help-001.jpg");
+}
+.asset-javascript {
+  background-image: url("../images/javascript.svg");
+}
+.asset-placeholder {
+  background-image: url("../images/placeholder.jpg");
+}
+.asset-reelix {
+  background-image: url("../images/reelix.png");
+}
+.asset-tauri {
+  background-image: url("../images/tauri.svg");
+}
 @import "disk_selector";
 @import "inline_autocomplete";
 @import "version_notification";
+@import "status_cards";
 @import "font-awesome/fontawesome";
 @import "font-awesome/brands";
 @import "font-awesome/duotone";
@@ -14,11 +34,11 @@
 @import "font-awesome/solid";
 @import "font-awesome/v4-shims";
 
- :root {
-   /* CSS-only approach: fixed values (tunable) used for layout spacing */
-   --progress-footer-collapsed: 56px; /* height of summary bar */
-   --progress-footer-expanded-max: 30vh; /* max extra height when expanded */
- }
+:root {
+  /* CSS-only approach: fixed values (tunable) used for layout spacing */
+  --progress-footer-collapsed: 56px; /* height of summary bar */
+  --progress-footer-expanded-max: 30vh; /* max extra height when expanded */
+}
 
 body {
   font-family: "Lucida Console", Monaco, monospace;
@@ -30,7 +50,8 @@ body {
 /* When footer details are expanded (Bootstrap adds .show), reserve more space */
 body:has(#progressDetails.show) {
   padding-bottom: calc(
-    var(--progress-footer-collapsed) + var(--progress-footer-expanded-max) + 1rem
+    var(--progress-footer-collapsed) + var(--progress-footer-expanded-max) +
+      1rem
   );
 }
 
@@ -40,7 +61,8 @@ body:has(#progressDetails.show) {
 }
 body:has(#progressDetails.show) #season-fab {
   bottom: calc(
-    var(--progress-footer-collapsed) + var(--progress-footer-expanded-max) + 1rem
+    var(--progress-footer-collapsed) + var(--progress-footer-expanded-max) +
+      1rem
   ) !important;
 }
 

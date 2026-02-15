@@ -11,46 +11,50 @@
           <div class="getting-started-content">
             <h1 class="getting-started-title">Get Started</h1>
             <p class="getting-started-description">
-              Type in the name of the movie or TV show you're looking for into the search bar above.
+              Type in the name of the movie or TV show you're looking for into
+              the search bar above.
             </p>
           </div>
         </div>
-        
+
         <div class="getting-started-tips">
-          <div class="getting-started-tip">
+          <div class="buoy buoy--info buoy--animated">
             <div class="tip-icon">
-              <i class="fas fa-search"></i>
+            <i class="fas fa-search"></i>
             </div>
-            <div class="tip-content">
-              <h3 class="tip-title">Search by Title</h3>
-              <p class="tip-description">Find movies and TV shows instantly</p>
-            </div>
+            <h3 class="tip-title">Search by Title</h3>
+            <p class="tip-description">Find movies and TV shows instantly</p>
           </div>
-          
-          <div class="getting-started-tip">
+
+          <div class="buoy buoy--info buoy--animated">
             <div class="tip-icon">
               <i class="fas fa-compact-disc"></i>
             </div>
-            <div class="tip-content">
-              <h3 class="tip-title">Rip Your Media</h3>
-              <p class="tip-description">Convert optical discs to digital files</p>
-            </div>
+            <h3 class="tip-title">Rip Your Media</h3>
+            <p class="tip-description">Convert optical discs to digital
+              files</p>
           </div>
-          
-          <div class="getting-started-tip">
+
+          <div class="buoy buoy--info buoy--animated">
             <div class="tip-icon">
               <i class="fas fa-folder-open"></i>
             </div>
-            <div class="tip-content">
-              <h3 class="tip-title">Organize & Upload</h3>
-              <p class="tip-description">Manage and backup your media collection</p>
-            </div>
+            <h3 class="tip-title">Organize & Upload</h3>
+            <p class="tip-description">Manage and backup your media
+              collection</p>
           </div>
         </div>
       </div>
-      
-      <div class="mt-1">
-        {{ update_indicator.render_html() | safe }}
+
+      <div class="mt-3">
+        <div class="row align-items-stretch">
+          <div class="col-md-8">
+            {{ update_indicator.render_html() | safe }}
+          </div>
+          <div class="col-md-4">
+            {{ ftp_status.render_html() | safe }}
+          </div>
+        </div>
       </div>
     </div>
     {% elif search.results.len() == 0 %}
