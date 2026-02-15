@@ -20,11 +20,13 @@ impl<T: Template> InlineTemplate for T {}
 pub mod disk_titles;
 pub mod disks;
 pub mod ftp_settings;
+pub mod ftp_status;
 pub mod jobs;
 pub mod movies;
 pub mod search;
 pub mod seasons;
 pub mod the_movie_db;
+pub mod toast;
 pub mod tvs;
 pub mod update_indicator;
 

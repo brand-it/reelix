@@ -51,6 +51,7 @@ window.processTurboResponse = function (turboResponse) {
   const streams = template.content.querySelectorAll("turbo-stream");
 
   trace(`processTurboResponse: received ${streams.length} turbo-stream(s)`);
+
   for (const stream of streams) {
     trace(
       `processTurboResponse: processing turbo-stream action=${stream.getAttribute(
@@ -59,7 +60,6 @@ window.processTurboResponse = function (turboResponse) {
     );
     Turbo.renderStreamMessage(stream.outerHTML);
   }
-  // No need to clear innerHTML; template will be garbage collected
 };
 
 function findClosestRecursively(element, selector) {

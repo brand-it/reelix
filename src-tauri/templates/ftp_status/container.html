@@ -1,0 +1,55 @@
+<div id="{{ self.dom_id() }}" class="ftp-status-container">
+  {% match self.status %}
+  {% when crate::state::FtpConnectionStatus::Unconfigured %}
+  <div class="ftp-status-card status-card--unconfigured"
+    style="flex-direction: row; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem;">
+    <div class="d-flex gap-2 align-items-center">
+      <div class="ftp-status-icon">
+        <i class="{{ self.icon_class() }}"></i>
+      </div>
+      <div>
+        <div class="status-card__label">FTP Status</div>
+        <div class="ftp-status-text">{{ self.status_text() }}</div>
+      </div>
+    </div>
+    <a href="/ftp_settings" class="btn btn-sm btn-outline-secondary"
+      style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">Configure</a>
+  </div>
+  {% when crate::state::FtpConnectionStatus::Checking %}
+  <div class="ftp-status-card status-card--checking">
+    <div class="d-flex gap-2 align-items-center">
+      <div class="ftp-status-icon">
+        <i class="{{ self.icon_class() }}"></i>
+      </div>
+      <div>
+        <div class="status-card__label">FTP Status</div>
+        <div class="ftp-status-text">{{ self.status_text() }}</div>
+      </div>
+    </div>
+  </div>
+  {% when crate::state::FtpConnectionStatus::Connected %}
+  <div class="ftp-status-card status-card--connected">
+    <div class="d-flex gap-2 align-items-center">
+      <div class="ftp-status-icon">
+        <i class="{{ self.icon_class() }}"></i>
+      </div>
+      <div>
+        <div class="status-card__label">FTP Status</div>
+        <div class="ftp-status-text">{{ self.status_text() }}</div>
+      </div>
+    </div>
+  </div>
+  {% when crate::state::FtpConnectionStatus::Failed %}
+  <div class="ftp-status-card status-card--failed">
+    <div class="d-flex gap-2 align-items-center">
+      <div class="ftp-status-icon">
+        <i class="{{ self.icon_class() }}"></i>
+      </div>
+      <div>
+        <div class="status-card__label">FTP Status</div>
+        <div class="ftp-status-text">{{ self.status_text() }}</div>
+      </div>
+    </div>
+  </div>
+  {% endmatch %}
+</div>

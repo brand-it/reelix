@@ -1,0 +1,6 @@
+<turbo-stream action="replace" method="morph"
+  target="{{ status_message.dom_id() }}">
+  <template>
+    {{ status_message.render_html() | safe }}
+  </template>
+</turbo-stream>

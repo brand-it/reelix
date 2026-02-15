@@ -1,0 +1,182 @@
+// Generic card components and color variants
+// Base classes for all card-based UI elements
+// Colors, spacing, and hover states defined here
+// Specific implementations (status-cards, version-cards, etc.) layer on top
+
+// ========================================
+// ANIMATIONS
+// ========================================
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// ========================================
+// BASE CARD CLASS
+// ========================================
+
+// Generic buoy base - minimal layout only
+.buoy {
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+  animation: fadeInUp 0.5s ease-out;
+}
+
+// ========================================
+// ANIMATION VARIANTS
+// ========================================
+
+// Hover lift animation - lifts buoy up on hover
+.buoy--animated {
+  &:hover {
+    transform: translateY(-4px);
+  }
+}
+
+// Float variant - combines flex layout with animation
+// Used for centered content buoys (tips, call-to-action)
+.buoy--float {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+
+  &:hover {
+    transform: translateY(-4px);
+  }
+}
+
+// ========================================
+// COLOR VARIANTS
+// ========================================
+
+// Info variant - subtle white/blue gradient
+.buoy--info {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
+  &:hover {
+    border-color: rgba(100, 150, 255, 0.3);
+    background: linear-gradient(
+      135deg,
+      rgba(100, 150, 255, 0.08) 0%,
+      rgba(150, 100, 255, 0.06) 100%
+    );
+  }
+}
+
+// Success variant - green gradient
+.buoy--success {
+  background: linear-gradient(
+    135deg,
+    rgba(40, 167, 69, 0.08) 0%,
+    rgba(40, 167, 69, 0.02) 100%
+  );
+  border: 1px solid rgba(40, 167, 69, 0.2);
+
+  &:hover {
+    border-color: rgba(40, 167, 69, 0.4);
+    background: linear-gradient(
+      135deg,
+      rgba(40, 167, 69, 0.12) 0%,
+      rgba(40, 167, 69, 0.05) 100%
+    );
+  }
+}
+
+// Danger variant - red gradient
+.buoy--danger {
+  background: linear-gradient(
+    135deg,
+    rgba(220, 53, 69, 0.08) 0%,
+    rgba(220, 53, 69, 0.02) 100%
+  );
+  border: 1px solid rgba(220, 53, 69, 0.2);
+
+  &:hover {
+    border-color: rgba(220, 53, 69, 0.4);
+    background: linear-gradient(
+      135deg,
+      rgba(220, 53, 69, 0.12) 0%,
+      rgba(220, 53, 69, 0.05) 100%
+    );
+  }
+}
+
+// Warning variant - yellow/orange gradient
+.buoy--warning {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 193, 7, 0.08) 0%,
+    rgba(255, 193, 7, 0.02) 100%
+  );
+  border: 1px solid rgba(255, 193, 7, 0.2);
+
+  &:hover {
+    border-color: rgba(255, 193, 7, 0.4);
+    background: linear-gradient(
+      135deg,
+      rgba(255, 193, 7, 0.12) 0%,
+      rgba(255, 193, 7, 0.05) 100%
+    );
+  }
+}
+
+// Secondary variant - gray gradient (unconfigured/neutral state)
+.buoy--secondary {
+  background: linear-gradient(
+    135deg,
+    rgba(108, 117, 125, 0.08) 0%,
+    rgba(108, 117, 125, 0.02) 100%
+  );
+  border: 1px solid rgba(108, 117, 125, 0.3);
+
+  &:hover {
+    border-color: rgba(108, 117, 125, 0.5);
+    background: linear-gradient(
+      135deg,
+      rgba(108, 117, 125, 0.12) 0%,
+      rgba(108, 117, 125, 0.05) 100%
+    );
+  }
+}
+
+// ========================================
+// LEGACY ALIASES (backward compatibility)
+// ========================================
+// These maintain compatibility with existing class names
+// but delegate to the new generic system
+
+.floatilate {
+  @extend .buoy;
+  @extend .buoy--float;
+}
+
+.floatilate--info {
+  @extend .buoy--info;
+}
+
+.floatilate--success {
+  @extend .buoy--success;
+}
+
+.floatilate--danger {
+  @extend .buoy--danger;
+}
+
+.floatilate--warning {
+  @extend .buoy--warning;
+}

@@ -1,7 +1,15 @@
-// Getting Started Section
+// Version notification and getting started section styles
+// Builds on animated-cards.scss for base classes and color variants
+// Adds version-card and getting-started specific typography and layout
+
+@import "animated-cards";
+
+// ========================================
+// GETTING STARTED SECTION
+// ========================================
+
 .getting-started-container {
-  max-width: 700px;
-  margin: 0 auto 2rem;
+  margin-bottom: 2rem;
   animation: slideInDown 0.5s ease-out;
 }
 
@@ -22,14 +30,22 @@
   gap: 2rem;
   padding: 2rem;
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(100, 150, 255, 0.1) 0%, rgba(150, 100, 255, 0.08) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(100, 150, 255, 0.1) 0%,
+    rgba(150, 100, 255, 0.08) 100%
+  );
   border: 1px solid rgba(100, 150, 255, 0.2);
   margin-bottom: 2rem;
   transition: all 0.3s ease;
 
   &:hover {
     border-color: rgba(100, 150, 255, 0.4);
-    background: linear-gradient(135deg, rgba(100, 150, 255, 0.15) 0%, rgba(150, 100, 255, 0.12) 100%);
+    background: linear-gradient(
+      135deg,
+      rgba(100, 150, 255, 0.15) 0%,
+      rgba(150, 100, 255, 0.12) 100%
+    );
   }
 }
 
@@ -41,7 +57,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, rgba(100, 150, 255, 0.2) 0%, rgba(150, 100, 255, 0.2) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(100, 150, 255, 0.2) 0%,
+    rgba(150, 100, 255, 0.2) 100%
+  );
   font-size: 2.5rem;
   color: #6496ff;
 }
@@ -66,7 +86,10 @@
   line-height: 1.5;
 }
 
-// Tips Grid
+// ========================================
+// TIPS GRID
+// ========================================
+
 .getting-started-tips {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -74,23 +97,15 @@
   margin-top: 2rem;
 }
 
+// Getting started tip uses the floatilate base with info color variant
 .getting-started-tip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 1.5rem;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: all 0.3s ease;
-
-  &:hover {
-    border-color: rgba(100, 150, 255, 0.3);
-    background: linear-gradient(135deg, rgba(100, 150, 255, 0.08) 0%, rgba(150, 100, 255, 0.06) 100%);
-    transform: translateY(-4px);
-  }
+  @extend .floatilate;
+  @extend .floatilate--info;
 }
+
+// ========================================
+// TIP CARD TYPOGRAPHY
+// ========================================
 
 .tip-icon {
   width: 60px;
@@ -101,7 +116,11 @@
   justify-content: center;
   font-size: 1.8rem;
   margin-bottom: 1rem;
-  background: linear-gradient(135deg, rgba(100, 150, 255, 0.15), rgba(150, 100, 255, 0.15));
+  background: linear-gradient(
+    135deg,
+    rgba(100, 150, 255, 0.15),
+    rgba(150, 100, 255, 0.15)
+  );
   color: #6496ff;
 }
 
@@ -118,76 +137,47 @@
   margin: 0;
 }
 
-// Responsive adjustments
-@media (max-width: 768px) {
-  .getting-started-header {
-    flex-direction: column;
-    text-align: center;
-    gap: 1.5rem;
-  }
-
-  .getting-started-icon {
-    width: 70px;
-    height: 70px;
-    font-size: 2rem;
-  }
-
-  .getting-started-title {
-    font-size: 1.75rem;
-  }
-
-  .getting-started-description {
-    font-size: 1rem;
-  }
-
-  .getting-started-tips {
-    grid-template-columns: 1fr;
-  }
-}
-
-// Version Notification Styles (existing)
-.version-notification {
-  width: 100%;
-  max-width: 600px;
-  margin: 0 auto;
-}
+// ========================================
+// VERSION CARD
+// ========================================
 
 .version-card {
+  @extend .buoy;
   display: flex;
   align-items: center;
   gap: 1.5rem;
   padding: 1.75rem;
-  border-radius: 12px;
+  flex-direction: row;
+  text-align: left;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
   backdrop-filter: blur(10px);
-  transition: all 0.3s ease;
 
   &:hover {
     border-color: rgba(255, 255, 255, 0.2);
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.08) 0%,
+      rgba(255, 255, 255, 0.03) 100%
+    );
   }
 
   &--current {
-    border-color: rgba(40, 167, 69, 0.3);
-    background: linear-gradient(135deg, rgba(40, 167, 69, 0.08) 0%, rgba(40, 167, 69, 0.02) 100%);
-
-    &:hover {
-      border-color: rgba(40, 167, 69, 0.5);
-      background: linear-gradient(135deg, rgba(40, 167, 69, 0.12) 0%, rgba(40, 167, 69, 0.04) 100%);
-    }
+    @extend .buoy--success;
   }
 
   &--update {
-    border-color: rgba(255, 193, 7, 0.3);
-    background: linear-gradient(135deg, rgba(255, 193, 7, 0.08) 0%, rgba(255, 193, 7, 0.02) 100%);
-
-    &:hover {
-      border-color: rgba(255, 193, 7, 0.5);
-      background: linear-gradient(135deg, rgba(255, 193, 7, 0.12) 0%, rgba(255, 193, 7, 0.04) 100%);
-    }
+    @extend .buoy--warning;
   }
 }
+
+// ========================================
+// VERSION CARD TYPOGRAPHY
+// ========================================
 
 .version-card__icon {
   flex-shrink: 0;
@@ -262,8 +252,35 @@
   }
 }
 
-// Responsive adjustments
+// ========================================
+// RESPONSIVE
+// ========================================
+
 @media (max-width: 768px) {
+  .getting-started-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 1.5rem;
+  }
+
+  .getting-started-icon {
+    width: 70px;
+    height: 70px;
+    font-size: 2rem;
+  }
+
+  .getting-started-title {
+    font-size: 1.75rem;
+  }
+
+  .getting-started-description {
+    font-size: 1rem;
+  }
+
+  .getting-started-tips {
+    grid-template-columns: 1fr;
+  }
+
   .version-card {
     flex-direction: column;
     text-align: center;
@@ -277,9 +294,4 @@
       width: 100%;
     }
   }
-}
-
-// Dark mode adjustments (already in dark theme)
-.version-notification {
-  // Additional dark mode styling if needed
 }

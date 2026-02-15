@@ -1,28 +1,95 @@
-<div class="alert alert-warning" role="alert" {% if message.len() == 0 %}style="display: none;"{% endif %}>
-  {{ message }}
+<div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3"
+  style="z-index: 11;"></div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <form id="ftp-settings-form" action="/update_ftp_settings" method="post"
+      data-controller="submit-on-keyup" class="mb-3"
+      data-submit-on-keyup-target="form">
+      <div class="mb-3">
+        <label for="ftpHost" class="form-label">FTP Host</label>
+        <input type="text" name="ftpHost" class="form-control" id="ftp_host"
+          value="{% match ftp_host %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}"
+          data-submit-on-keyup-target="input">
+      </div>
+      <div class="mb-3">
+        <label for="ftpPass" class="form-label">FTP Password</label>
+        <input type="password" name="ftpPass" class="form-control"
+          data-submit-on-keyup-target="input" id="ftp_pass"
+          value="{% match ftp_pass %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}">
+      </div>
+      <div class="mb-3">
+        <label for="ftpUser" class="form-label">FTP Username</label>
+        <input type="text" name="ftpUser" class="form-control"
+          data-submit-on-keyup-target="input" id="ftp_user"
+          value="{% match ftp_user %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}">
+      </div>
+      <div class="mb-3">
+        <label for="ftpMovieUploadPath" class="form-label">FTP Movie
+          Path</label>
+        <input type="text" name="ftpMovieUploadPath" class="form-control"
+          data-submit-on-keyup-target="input"
+          id="ftp_movie_upload_path"
+          value="{% match ftp_movie_upload_path %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}">
+      </div>
+      <div class="d-flex gap-2">
+        <a class="btn btn-secondary" href="/index">Back</a>
+      </div>
+    </form>
+
+    <!-- FTP Usage Information -->
+    <div class="buoy buoy--info mt-4" style="padding: 1.5rem;">
+      <h5
+        style="color: #ffffff; margin-bottom: 1rem; font-size: 1.1rem; font-weight: 600;">
+        <i class="fas fa-info-circle"
+          style="margin-right: 0.5rem; color: #6495ff;"></i>
+        About FTP Upload
+      </h5>
+
+      <div style="color: #d0d0d0; line-height: 1.6; font-size: 0.9rem;">
+        <p style="margin-bottom: 1rem;">
+          FTP (File Transfer Protocol) allows Reelix to automatically upload
+          your ripped media to a remote server,
+          such as a NAS or media server, immediately after processing completes.
+        </p>
+
+        <div style="margin-bottom: 1rem;">
+          <strong
+            style="color: #6495ff; display: block; margin-bottom: 0.5rem;">✓
+            When to use FTP:</strong>
+          <ul style="margin: 0 0 0 1.5rem; padding: 0;">
+            <li>You have a dedicated media server (Plex, Jellyfin, Emby)</li>
+            <li>You want automatic upload without manual file transfers</li>
+            <li>You're managing a shared media library on a network drive</li>
+            <li>Your storage space on this computer is limited</li>
+          </ul>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+          <strong
+            style="color: #ff9966; display: block; margin-bottom: 0.5rem;">✗
+            When NOT to use FTP:</strong>
+          <ul style="margin: 0 0 0 1.5rem; padding: 0;">
+            <li>You prefer manual control over where files go</li>
+            <li>Your internet connection is slow or unreliable</li>
+            <li>You don't have an FTP server set up</li>
+            <li>You store media locally on this computer</li>
+          </ul>
+        </div>
+
+        <p
+          style="margin: 0; padding: 0.75rem; background: rgba(100, 149, 255, 0.1); border-left: 3px solid #6495ff; border-radius: 4px;">
+          <strong>Note:</strong> Without FTP configured, all ripped media will
+          be stored in your local Movies directory.
+          You can always move files manually later or set up FTP at any time.
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div style="max-height: 300px" class="mb-3">
+      {{ ftp_status.render_html() | safe }}
+    </div>
+    {{ status_message.render_html() | safe }}
+  </div>
 </div>
-<form action="/update_ftp_settings" method="post" data-controller="submit-on-keyup" class="mb-3"
-  data-submit-on-keyup-target="form">
-  <div class="mb-3">
-    <label for="ftpHost" class="form-label">FTP Host</label>
-    <input type="text" name="ftpHost" class="form-control" id="ftp_host"
-      value="{% match ftp_host %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}"
-      data-submit-on-keyup-target="input">
-  </div>
-  <div class="mb-3">
-    <label for="ftpPass" class="form-label">FTP Password</label>
-    <input type="password" name="ftpPass" class="form-control" data-submit-on-keyup-target="input" id="ftp_pass"
-      value="{% match ftp_pass %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}">
-  </div>
-  <div class="mb-3">
-    <label for="ftpUser" class="form-label">FTP Username</label>
-    <input type="text" name="ftpUser" class="form-control" data-submit-on-keyup-target="input" id="ftp_user"
-      value="{% match ftp_user %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}">
-  </div>
-  <div class="mb-3">
-    <label for="ftpMovieUploadPath" class="form-label">FTP Movie Path</label>
-    <input type="text" name="ftpMovieUploadPath" class="form-control" data-submit-on-keyup-target="input"
-      id="ftp_movie_upload_path" value="{% match ftp_movie_upload_path %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}">
-  </div>
-  <a type="submit" class="btn btn-primary" href="/index">Done</a>
-</form>

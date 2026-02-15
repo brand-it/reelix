@@ -10,7 +10,7 @@ use crate::templates::jobs::{
     JobsItemSummary,
 };
 use crate::templates::{
-    the_movie_db, update_indicator::UpdateIndicator, GenericError, InlineTemplate,
+    the_movie_db, ftp_status, update_indicator::UpdateIndicator, GenericError, InlineTemplate,
 };
 use crate::the_movie_db::SearchResponse;
 use askama::Template;
@@ -74,6 +74,7 @@ pub struct SearchResults<'a> {
     pub query: &'a str,
     pub search: &'a SearchResponse,
     pub update_indicator: &'a UpdateIndicator<'a>,
+    pub ftp_status: &'a ftp_status::FtpStatus,
 }
 impl SearchResults<'_> {
     pub fn dom_id(&self) -> &'static str {
@@ -189,6 +190,11 @@ pub fn render_index(app_handle: &tauri::AppHandle) -> Result<String, super::Erro
         version_state: &version_state,
     };
 
+    let ftp_status_value = *app_state.lock_ftp_connection_status();
+    let ftp_status_display = ftp_status::FtpStatus {
+        status: ftp_status_value,
+    };
+
     let template = SearchIndexTurbo {
         search_index: &SearchIndex {
             disks_options: &disks_options,
@@ -201,6 +207,7 @@ pub fn render_index(app_handle: &tauri::AppHandle) -> Result<String, super::Erro
                 query: &query,
                 search: &search,
                 update_indicator: &update_indicator,
+                ftp_status: &ftp_status_display,
             },
             generic_error: &GenericError { message: "" },
             disks_toast_progress: &JobsContainer {
@@ -222,11 +229,18 @@ pub fn render_results(
     let update_indicator = UpdateIndicator {
         version_state: &version_state,
     };
+
+    let ftp_status_value = *app_state.lock_ftp_connection_status();
+    let ftp_status_display = ftp_status::FtpStatus {
+        status: ftp_status_value,
+    };
+
     let template = SearchResultsTurbo {
         search_results: &SearchResults {
             query,
             search,
             update_indicator: &update_indicator,
+            ftp_status: &ftp_status_display,
         },
     };
     super::render(template)

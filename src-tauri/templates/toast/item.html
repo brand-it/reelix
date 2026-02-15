@@ -1,0 +1,22 @@
+<div id="{{ toast.id() }}"
+  class="toast show {{ toast.variant.bg_class() }} {{ toast.variant.text_class() }}"
+  role="alert" aria-live="assertive" aria-atomic="true"
+  data-controller="toast"
+  {% if toast.auto_hide_ms> 0 %}
+  data-bs-autohide="true"
+  data-bs-delay="{{ toast.auto_hide_ms }}"
+  {% else %}
+  data-bs-autohide="false"
+  {% endif %}>
+  <div
+    class="toast-header {{ toast.variant.bg_class() }} {{ toast.variant.text_class() }}">
+    <i class="{{ toast.variant.icon() }} me-2"></i>
+    <strong class="me-auto">{{ toast.title }}</strong>
+    <button type="button" class="btn-close btn-close-white"
+      data-bs-dismiss="toast" aria-label="Close"></button>
+  </div>
+  <div
+    class="toast-body {{ toast.variant.bg_class() }} {{ toast.variant.text_class() }}">
+    {{ toast.message }}
+  </div>
+</div>

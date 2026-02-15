@@ -10,6 +10,15 @@ pub mod title_video;
 pub mod upload_state;
 pub mod uploaded_state;
 
+#[allow(dead_code)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq)]
+pub enum FtpConnectionStatus {
+    Unconfigured,
+    Checking,
+    Connected,
+    Failed,
+}
+
 // Structure to hold shared state, thread safe version
 pub struct AppState {
     pub ftp_host: Arc<Mutex<Option<String>>>,
@@ -17,6 +26,7 @@ pub struct AppState {
     pub ftp_tv_upload_path: Arc<Mutex<Option<PathBuf>>>,
     pub ftp_pass: Arc<Mutex<Option<String>>>,
     pub ftp_user: Arc<Mutex<Option<String>>>,
+    pub ftp_connection_status: Arc<Mutex<FtpConnectionStatus>>,
     pub optical_disks: Arc<RwLock<Vec<Arc<RwLock<OpticalDiskInfo>>>>>,
     pub query: Arc<Mutex<String>>,
     pub selected_optical_disk_id: Arc<RwLock<Option<DiskId>>>,
@@ -36,6 +46,7 @@ impl AppState {
             ftp_movie_upload_path: Arc::new(Mutex::new(None)),
             ftp_pass: Arc::new(Mutex::new(None)),
             ftp_user: Arc::new(Mutex::new(None)),
+            ftp_connection_status: Arc::new(Mutex::new(FtpConnectionStatus::Unconfigured)),
             optical_disks: Arc::new(RwLock::new(Vec::<Arc<RwLock<OpticalDiskInfo>>>::new())),
             query: Arc::new(Mutex::new(String::new())),
             selected_optical_disk_id: Arc::new(RwLock::new(None)),
@@ -147,17 +158,25 @@ impl AppState {
         // Save FTP settings
         if let Some(ref host) = *self.lock_ftp_host() {
             store.set("ftp_host", serde_json::json!(host));
+        } else {
+            store.delete("ftp_host");
         }
         if let Some(ref user) = *self.lock_ftp_user() {
             store.set("ftp_user", serde_json::json!(user));
+        } else {
+            store.delete("ftp_user");
         }
         if let Some(ref pass) = *self.lock_ftp_pass() {
             store.set("ftp_pass", serde_json::json!(pass));
+        } else {
+            store.delete("ftp_pass");
         }
         if let Some(ref path) = *self.lock_ftp_movie_upload_path() {
             if let Some(path_str) = path.to_str() {
                 store.set("ftp_movie_upload_path", serde_json::json!(path_str));
             }
+        } else {
+            store.delete("ftp_movie_upload_path");
         }
         if let Some(ref path) = *self
             .ftp_tv_upload_path
@@ -167,6 +186,8 @@ impl AppState {
             if let Some(path_str) = path.to_str() {
                 store.set("ftp_tv_upload_path", serde_json::json!(path_str));
             }
+        } else {
+            store.delete("ftp_tv_upload_path");
         }
 
         // Save The Movie DB key
@@ -247,6 +268,12 @@ impl AppState {
 
     pub fn lock_ftp_pass(&self) -> MutexGuard<'_, Option<String>> {
         self.ftp_pass.lock().expect("failed to lock ftp_pass")
+    }
+
+    pub fn lock_ftp_connection_status(&self) -> MutexGuard<'_, FtpConnectionStatus> {
+        self.ftp_connection_status
+            .lock()
+            .expect("failed to lock ftp_connection_status")
     }
 
     pub fn lock_ftp_movie_upload_path(&self) -> MutexGuard<'_, Option<PathBuf>> {
@@ -386,5 +413,156 @@ impl AppState {
             .unwrap_or_else(crate::services::semantic_version::SemanticVersion::none);
 
         crate::services::version_checker::VersionState::new(current_version, latest_version)
+    }
+
+    // Helper method for tests to update FTP settings without needing app_handle
+    #[cfg(test)]
+    pub fn test_update_ftp_setting(&self, key: &str, value: Option<String>) {
+        let cleaned: Option<String> = value.and_then(|s| {
+            let trimmed = s.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        });
+
+        match key {
+            "ftp_host" => {
+                let mut ftp_host = self.lock_ftp_host();
+                *ftp_host = cleaned;
+            }
+            "ftp_user" => {
+                let mut ftp_user = self.lock_ftp_user();
+                *ftp_user = cleaned;
+            }
+            "ftp_pass" => {
+                let mut ftp_pass = self.lock_ftp_pass();
+                *ftp_pass = cleaned;
+            }
+            "ftp_movie_upload_path" => {
+                let mut ftp_movie_upload_path = self.lock_ftp_movie_upload_path();
+                *ftp_movie_upload_path = cleaned.map(PathBuf::from);
+            }
+            _ => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_update_converts_empty_string_to_none() {
+        let state = AppState::new();
+
+        // Set initial value
+        state.test_update_ftp_setting("ftp_host", Some("example.com".to_string()));
+        assert_eq!(*state.lock_ftp_host(), Some("example.com".to_string()));
+
+        // Update to empty string
+        state.test_update_ftp_setting("ftp_host", Some("".to_string()));
+        assert_eq!(*state.lock_ftp_host(), None);
+    }
+
+    #[test]
+    fn test_update_trims_whitespace() {
+        let state = AppState::new();
+
+        // Update with whitespace-only string
+        state.test_update_ftp_setting("ftp_host", Some("   ".to_string()));
+        assert_eq!(*state.lock_ftp_host(), None);
+    }
+
+    #[test]
+    fn test_update_preserves_valid_values() {
+        let state = AppState::new();
+
+        // Test FTP host
+        state.test_update_ftp_setting("ftp_host", Some("ftp.example.com".to_string()));
+        assert_eq!(*state.lock_ftp_host(), Some("ftp.example.com".to_string()));
+
+        // Test FTP user
+        state.test_update_ftp_setting("ftp_user", Some("testuser".to_string()));
+        assert_eq!(*state.lock_ftp_user(), Some("testuser".to_string()));
+
+        // Test FTP pass
+        state.test_update_ftp_setting("ftp_pass", Some("password123".to_string()));
+        assert_eq!(*state.lock_ftp_pass(), Some("password123".to_string()));
+    }
+
+    #[test]
+    fn test_update_all_ftp_fields() {
+        let state = AppState::new();
+
+        // Update all FTP fields
+        state.test_update_ftp_setting("ftp_host", Some("ftp.example.com".to_string()));
+        state.test_update_ftp_setting("ftp_user", Some("user".to_string()));
+        state.test_update_ftp_setting("ftp_pass", Some("pass".to_string()));
+        state.test_update_ftp_setting("ftp_movie_upload_path", Some("/movies".to_string()));
+
+        assert_eq!(*state.lock_ftp_host(), Some("ftp.example.com".to_string()));
+        assert_eq!(*state.lock_ftp_user(), Some("user".to_string()));
+        assert_eq!(*state.lock_ftp_pass(), Some("pass".to_string()));
+        assert_eq!(
+            *state.lock_ftp_movie_upload_path(),
+            Some(PathBuf::from("/movies"))
+        );
+    }
+
+    #[test]
+    fn test_update_then_clear_ftp_host() {
+        let state = AppState::new();
+
+        // Set a value
+        state.test_update_ftp_setting("ftp_host", Some("ftp.example.com".to_string()));
+        assert_eq!(*state.lock_ftp_host(), Some("ftp.example.com".to_string()));
+
+        // Clear it
+        state.test_update_ftp_setting("ftp_host", Some("".to_string()));
+        assert_eq!(*state.lock_ftp_host(), None);
+    }
+
+    #[test]
+    fn test_multiple_clear_and_set_cycles() {
+        let state = AppState::new();
+
+        // Cycle 1: Set, then clear
+        state.test_update_ftp_setting("ftp_host", Some("host1.com".to_string()));
+        assert_eq!(*state.lock_ftp_host(), Some("host1.com".to_string()));
+        state.test_update_ftp_setting("ftp_host", Some("".to_string()));
+        assert_eq!(*state.lock_ftp_host(), None);
+
+        // Cycle 2: Set different value, then clear
+        state.test_update_ftp_setting("ftp_host", Some("host2.com".to_string()));
+        assert_eq!(*state.lock_ftp_host(), Some("host2.com".to_string()));
+        state.test_update_ftp_setting("ftp_host", Some("".to_string()));
+        assert_eq!(*state.lock_ftp_host(), None);
+    }
+
+    #[test]
+    fn test_update_with_tabs_and_newlines() {
+        let state = AppState::new();
+
+        // Test with tabs and newlines
+        state.test_update_ftp_setting("ftp_host", Some("\t\n  \r\n".to_string()));
+        assert_eq!(*state.lock_ftp_host(), None);
+    }
+
+    #[test]
+    fn test_update_path_field() {
+        let state = AppState::new();
+
+        // Set path
+        state.test_update_ftp_setting("ftp_movie_upload_path", Some("/mnt/movies".to_string()));
+        assert_eq!(
+            *state.lock_ftp_movie_upload_path(),
+            Some(PathBuf::from("/mnt/movies"))
+        );
+
+        // Clear path
+        state.test_update_ftp_setting("ftp_movie_upload_path", Some("".to_string()));
+        assert_eq!(*state.lock_ftp_movie_upload_path(), None);
     }
 }

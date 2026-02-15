@@ -1,10 +1,15 @@
+use crate::services::ftp_validator;
 use crate::services::plex::search_multi;
 use crate::state::AppState;
 use crate::templates::{ftp_settings, render_error, search, Error};
 use tauri::State;
 
 #[tauri::command]
-pub fn ftp_settings(state: State<'_, AppState>) -> Result<String, Error> {
+pub fn ftp_settings(
+    state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<String, Error> {
+    ftp_validator::spawn_ftp_validator(&app_handle);
     ftp_settings::render_show(&state)
 }
 
@@ -17,24 +22,28 @@ pub fn update_ftp_settings(
     state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, Error> {
-    state
-        .update(&app_handle, "ftp_host", Some(ftp_host))
-        .unwrap();
-    state
-        .update(&app_handle, "ftp_pass", Some(ftp_pass))
-        .unwrap();
-    state
-        .update(&app_handle, "ftp_user", Some(ftp_user))
-        .unwrap();
-    state
-        .update(
-            &app_handle,
-            "ftp_movie_upload_path",
-            Some(ftp_movie_upload_path),
-        )
-        .unwrap();
+    if let Err(message) = state.update(&app_handle, "ftp_host", Some(ftp_host)) {
+        return render_error(&message);
+    }
+    if let Err(message) = state.update(&app_handle, "ftp_pass", Some(ftp_pass)) {
+        return render_error(&message);
+    }
+    if let Err(message) = state.update(&app_handle, "ftp_user", Some(ftp_user)) {
+        return render_error(&message);
+    }
+    if let Err(message) = state.update(
+        &app_handle,
+        "ftp_movie_upload_path",
+        Some(ftp_movie_upload_path),
+    ) {
+        return render_error(&message);
+    }
+    if let Err(message) = state.save(&app_handle) {
+        return render_error(&message);
+    }
 
-    ftp_settings::render_show(&state)
+    ftp_validator::trigger_ftp_check(&app_handle);
+    Ok("FTP settings updated successfully".to_string())
 }
 
 #[tauri::command]

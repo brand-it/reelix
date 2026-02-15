@@ -1,0 +1,150 @@
+// Status card component styles
+// Builds on animated-cards.scss for base classes and color variants
+// Adds status-card specific layout, typography, and messaging
+
+@import "animated-cards";
+
+// ========================================
+// STATUS CARD BASE
+// ========================================
+
+.status-card {
+  @extend .buoy;
+  border-radius: 12px;
+  padding: 1.5rem;
+  width: 100%;
+  display: flex;
+  align-items: center;
+
+  &.status-card--lg {
+    padding: 1.75rem;
+  }
+
+  // Vertical stacking variant (used in status_message.html)
+  &.status-card--vertical {
+    flex-direction: column;
+    padding: 1.5rem;
+  }
+}
+
+// ========================================
+// COLOR VARIANT MAPPINGS
+// ========================================
+// Map status-specific classes to generic card color variants
+
+.status-card--unconfigured {
+  @extend .buoy--secondary;
+}
+
+.status-card--checking {
+  @extend .buoy--warning;
+}
+
+.status-card--connected {
+  @extend .buoy--success;
+}
+
+.status-card--failed {
+  @extend .buoy--danger;
+}
+
+// ========================================
+// STATUS CARD TYPOGRAPHY
+// ========================================
+
+.status-card__label {
+  color: #adb5bd;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-card__message {
+  color: #ffffff;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  margin-top: 0.5rem;
+}
+
+// Status-specific text colors
+.status-card--connected .status-card__message {
+  color: #28a745;
+}
+
+.status-card--failed .status-card__message {
+  color: #dc3545;
+}
+
+// ========================================
+// FTP STATUS CARD SPECIFIC
+// ========================================
+
+.ftp-status-card {
+  @extend .buoy;
+  padding: 1.75rem;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.ftp-status-container {
+  height: 100%;
+  display: flex;
+}
+
+.ftp-status-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.ftp-status-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+// Status-specific icon colors
+.status-card--unconfigured .ftp-status-icon {
+  color: #6c757d;
+}
+
+.status-card--checking .ftp-status-icon {
+  color: #ffc107;
+}
+
+.status-card--connected .ftp-status-icon {
+  color: #28a745;
+}
+
+.status-card--failed .ftp-status-icon {
+  color: #dc3545;
+}
+
+// Status-specific text colors for FTP status
+.status-card--connected .ftp-status-text {
+  color: #28a745;
+}
+
+.status-card--failed .ftp-status-text {
+  color: #dc3545;
+}
+
+// ========================================
+// RESPONSIVE
+// ========================================
+
+@media (max-width: 768px) {
+  .status-card {
+    &__label {
+      font-size: 0.7rem;
+    }
+
+    &__message {
+      font-size: 0.9rem;
+    }
+  }
+
+  .ftp-status-text {
+    font-size: 1rem;
+  }
+}

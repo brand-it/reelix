@@ -23,3 +23,6 @@ application.register("keyboard-shortcuts", KeyboardShortcutsController);
 
 import InlineAutocompleteController from "./inline_autocomplete_controller.js";
 application.register("inline-autocomplete", InlineAutocompleteController);
+
+import ToastController from "./toast_controller.js";
+application.register("toast", ToastController);
