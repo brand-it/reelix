@@ -1,18 +1,7 @@
 {% import "_poster.html" as macros %}
 
 <div id="{{ self.dom_id() }}">
-  <!-- Floating Action Button (FAB) anchored above the footer progress bar -->
-  <div id="season-fab"
-    class="position-fixed"
-    style="right: 1rem; bottom: calc(var(--progress-footer-height, 56px) + 1rem); z-index: 1045;">
-    <a class="btn btn-success btn-lg rounded-circle shadow"
-      href="/rip_season"
-      data-bs-toggle="tooltip"
-      title="Create MKV From Title"
-      style="width: 3.25rem; height: 3.25rem; display: inline-flex; align-items: center; justify-content: center;">
-      <i class="fad fa-compact-disc"></i>
-    </a>
-  </div>
+  {{ seasons_fab.render_html() | safe }}
 
   <div class="row">
     <div class="col show-img-posters">

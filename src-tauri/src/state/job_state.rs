@@ -27,6 +27,7 @@ pub struct Job {
     pub progress: JobProgress,
     pub disk: Option<OpticalDiskInfo>,
     pub title_videos: Vec<Arc<RwLock<TitleVideo>>>,
+    pub current_title_video_id: Option<crate::state::title_video::TitleVideoId>,
     pub last_emit: SystemTime,
 }
 
@@ -45,8 +46,63 @@ impl Job {
             },
             disk,
             title_videos: Vec::new(),
+            current_title_video_id: None,
             last_emit: SystemTime::now(),
         }
+    }
+
+    /// Builder method to add title_videos to a Job (useful for testing)
+    #[cfg(test)]
+    pub fn with_title_videos(mut self, title_videos: Vec<Arc<RwLock<TitleVideo>>>) -> Self {
+        self.title_videos = title_videos;
+        self
+    }
+
+    /// Returns all TV `TitleVideo` entries that belong to the same show/season/episode.
+    ///
+    /// Matching rules:
+    /// - only `Video::Tv` entries are considered
+    /// - `tv.id`, `season.id`, and `episode.id` must all match the provided values
+    /// - entries whose lock cannot be read are skipped
+    ///
+    /// This is primarily used for multipart episodes, where multiple files share the
+    /// same episode identity but differ by `part` (e.g. `pt1`, `pt2`).
+    fn select_tv_title_video_parts(
+        &self,
+        mvdb_id: u32,
+        season_number: u32,
+        episode_number: u32,
+    ) -> Vec<Arc<RwLock<TitleVideo>>> {
+        let parts = self.title_videos.iter().filter(|tv| {
+            if let Ok(guard) = tv.read() {
+                if let Video::Tv(tv_ep) = &guard.video {
+                    return tv_ep.tv.id == mvdb_id
+                        && tv_ep.season.id == season_number
+                        && tv_ep.episode.id == episode_number;
+                }
+            }
+            false
+        });
+        parts.cloned().collect()
+    }
+
+    /// Returns true when more than one title entry is assigned to the same
+    /// TV show/season/episode in this job.
+    ///
+    /// This lets us keep `part` metadata (e.g. `part=1`) on the assigned video
+    /// while deciding at rip time whether `-pt1` is actually needed in filenames.
+    pub fn has_multiple_parts(&self, title_video: &TitleVideo) -> bool {
+        let (mvdb_id, season_number, episode_number) = match &title_video.video {
+            Video::Tv(tv_season_episode) => (
+                tv_season_episode.tv.id,
+                tv_season_episode.season.id,
+                tv_season_episode.episode.id,
+            ),
+            _ => return false,
+        };
+        self.select_tv_title_video_parts(mvdb_id, season_number, episode_number)
+            .len()
+            > 1
     }
 
     /// Finds a TitleVideo in the job that matches the given TV episode, season, title, and part.
@@ -102,6 +158,7 @@ impl Job {
     pub fn add_title_video(&mut self, title: TitleInfo, video: Video) -> Result<(), StandardError> {
         self.validate_title_video_modifiable("add")?;
         let title_video = TitleVideo {
+            id: crate::state::title_video::TitleVideoId::new(),
             title: Some(title),
             video,
         };
@@ -111,7 +168,11 @@ impl Job {
 
     pub fn add_incomplete_video(&mut self, video: Video) -> Result<(), StandardError> {
         self.validate_title_video_modifiable("add")?;
-        let title_video = TitleVideo { title: None, video };
+        let title_video = TitleVideo {
+            id: crate::state::title_video::TitleVideoId::new(),
+            title: None,
+            video,
+        };
         self.title_videos.push(Arc::new(RwLock::new(title_video)));
         Ok(())
     }
@@ -271,6 +332,67 @@ impl Job {
         self.status == JobStatus::Finished || self.status == JobStatus::Error
     }
 
+    pub fn total_titles_count(&self) -> usize {
+        self.title_videos.len()
+    }
+
+    pub fn current_title_position(&self) -> Option<usize> {
+        let current_id = self.current_title_video_id?;
+        self.title_videos
+            .iter()
+            .position(|title_video| title_video.read().map(|tv| tv.id == current_id).unwrap_or(false))
+            .map(|index| index + 1)
+    }
+
+    pub fn completed_titles_count(&self) -> usize {
+        let total = self.total_titles_count();
+        if total == 0 {
+            return 0;
+        }
+
+        if self.is_finished() {
+            return total;
+        }
+
+        self.current_title_position().map_or(0, |position| position.saturating_sub(1))
+    }
+
+    pub fn remaining_titles_count(&self) -> usize {
+        self.total_titles_count()
+            .saturating_sub(self.completed_titles_count())
+    }
+
+    pub fn overall_progress_percent(&self) -> f64 {
+        let total = self.total_titles_count();
+        if total == 0 {
+            return 0.0;
+        }
+
+        if self.is_finished() {
+            return 100.0;
+        }
+
+        let completed = self.completed_titles_count() as f64;
+        let current_fraction = if self.is_processing() {
+            ((self.progress.percent as f64) / 100.0).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+
+        let overall = (((completed + current_fraction) / total as f64) * 100.0).clamp(0.0, 100.0);
+
+        // When actively processing with no progress yet, show at least 1% to indicate work in progress
+        if self.is_processing() && overall < 1.0 {
+            1.0
+        } else {
+            overall
+        }
+    }
+
+    pub fn overall_progress_formatted_percentage(&self) -> String {
+        format!("{}%", self.overall_progress_percent().round() as u8)
+    }
+
     // Human-friendly label for finished states, used by templates
     // pub fn finished_label(&self) -> Option<&'static str> {
     //     if self.is_finished() {
@@ -373,5 +495,212 @@ pub fn emit_progress(app_handle: &AppHandle, job: &Arc<RwLock<Job>>, now: bool) 
         job.write()
             .expect("failed to lock job for write")
             .rate_limited_emit_progress_change(app_handle);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::title_video::{MoviePartEdition, TitleVideoId, TvSeasonEpisode};
+    use crate::the_movie_db::{MovieResponse, SeasonEpisode, SeasonResponse, TvResponse};
+
+    fn create_mock_tv(show_id: u32, name: &str) -> TvResponse {
+        TvResponse {
+            adult: false,
+            backdrop_path: None,
+            created_by: vec![],
+            episode_run_time: vec![45],
+            first_air_date: Some("2020-01-01".to_string()),
+            genres: vec![],
+            homepage: None,
+            id: show_id,
+            in_production: false,
+            languages: vec!["en".to_string()],
+            last_air_date: None,
+            last_episode_to_air: None,
+            name: name.to_string(),
+            networks: vec![],
+            next_episode_to_air: None,
+            number_of_episodes: 10,
+            number_of_seasons: 1,
+            origin_country: vec!["US".to_string()],
+            original_language: "en".to_string(),
+            original_name: name.to_string(),
+            overview: "Test show".to_string(),
+            popularity: 1.0,
+            poster_path: None,
+            production_companies: vec![],
+            production_countries: vec![],
+            seasons: vec![],
+            spoken_languages: vec![],
+            status: "Ended".to_string(),
+            tagline: "".to_string(),
+            type_: "Scripted".to_string(),
+            vote_average: 8.0,
+            vote_count: 100,
+        }
+    }
+
+    fn create_mock_episode(show_id: u32, season_number: u32, episode_number: u32) -> SeasonEpisode {
+        SeasonEpisode {
+            air_date: Some("2020-01-01".to_string()),
+            episode_number,
+            episode_type: "standard".to_string(),
+            id: episode_number,
+            name: format!("Episode {episode_number}"),
+            overview: "Test episode".to_string(),
+            production_code: None,
+            runtime: Some(45),
+            season_number,
+            show_id,
+            still_path: None,
+            vote_average: 7.0,
+            vote_count: 10,
+            crew: vec![],
+            guest_stars: vec![],
+        }
+    }
+
+    fn create_mock_season(
+        season_id: u32,
+        season_number: u32,
+        episodes: Vec<SeasonEpisode>,
+    ) -> SeasonResponse {
+        SeasonResponse {
+            _id: format!("season-{season_id}"),
+            air_date: Some("2020-01-01".to_string()),
+            episodes,
+            name: format!("Season {season_number}"),
+            overview: "Test season".to_string(),
+            id: season_id,
+            poster_path: None,
+            season_number,
+            vote_average: 8.0,
+        }
+    }
+
+    fn create_tv_title_video(
+        show_id: u32,
+        season_id: u32,
+        season_number: u32,
+        episode_number: u32,
+        part: Option<u16>,
+    ) -> Arc<RwLock<TitleVideo>> {
+        let episode = create_mock_episode(show_id, season_number, episode_number);
+        let season = create_mock_season(season_id, season_number, vec![episode.clone()]);
+        let tv = create_mock_tv(show_id, "Test Show");
+
+        Arc::new(RwLock::new(TitleVideo {
+            id: TitleVideoId::new(),
+            title: None,
+            video: Video::Tv(Box::new(TvSeasonEpisode {
+                episode,
+                season,
+                tv,
+                part,
+            })),
+        }))
+    }
+
+    fn create_movie_title_video(movie_id: u32) -> Arc<RwLock<TitleVideo>> {
+        Arc::new(RwLock::new(TitleVideo {
+            id: TitleVideoId::new(),
+            title: None,
+            video: Video::Movie(Box::new(MoviePartEdition {
+                movie: MovieResponse {
+                    adult: false,
+                    backdrop_path: None,
+                    genres: vec![],
+                    homepage: String::new(),
+                    id: movie_id,
+                    imdb_id: String::new(),
+                    origin_country: vec![],
+                    original_language: String::new(),
+                    original_title: "Test Movie".to_string(),
+                    overview: String::new(),
+                    popularity: 0.0,
+                    poster_path: None,
+                    release_date: Some("2020-01-01".to_string()),
+                    revenue: 0,
+                    runtime: 90,
+                    title: "Test Movie".to_string(),
+                },
+                part: None,
+                edition: None,
+            })),
+        }))
+    }
+
+    #[test]
+    fn select_tv_title_video_parts_returns_all_parts_for_matching_episode() {
+        let match_part_1 = create_tv_title_video(100, 1, 1, 1, Some(1));
+        let match_part_2 = create_tv_title_video(100, 1, 1, 1, Some(2));
+        let different_episode = create_tv_title_video(100, 1, 1, 2, None);
+
+        let job = Job::new(JobType::Ripping, None, JobStatus::Pending).with_title_videos(vec![
+            match_part_1.clone(),
+            match_part_2.clone(),
+            different_episode,
+        ]);
+
+        let parts = job.select_tv_title_video_parts(100, 1, 1);
+
+        assert_eq!(parts.len(), 2);
+        assert!(parts.iter().any(|p| Arc::ptr_eq(p, &match_part_1)));
+        assert!(parts.iter().any(|p| Arc::ptr_eq(p, &match_part_2)));
+    }
+
+    #[test]
+    fn select_tv_title_video_parts_ignores_non_matching_and_movie_entries() {
+        let matching_tv = create_tv_title_video(100, 1, 1, 1, None);
+        let different_show = create_tv_title_video(101, 1, 1, 1, None);
+        let different_season = create_tv_title_video(100, 2, 2, 1, None);
+        let different_episode = create_tv_title_video(100, 1, 1, 2, None);
+        let movie = create_movie_title_video(999);
+
+        let job = Job::new(JobType::Ripping, None, JobStatus::Pending).with_title_videos(vec![
+            matching_tv.clone(),
+            different_show,
+            different_season,
+            different_episode,
+            movie,
+        ]);
+
+        let parts = job.select_tv_title_video_parts(100, 1, 1);
+
+        assert_eq!(parts.len(), 1);
+        assert!(Arc::ptr_eq(&parts[0], &matching_tv));
+    }
+
+    #[test]
+    fn select_tv_title_video_parts_returns_empty_when_no_matches_exist() {
+        let job = Job::new(JobType::Ripping, None, JobStatus::Pending).with_title_videos(vec![]);
+
+        let parts = job.select_tv_title_video_parts(100, 1, 1);
+
+        assert!(parts.is_empty());
+    }
+
+    #[test]
+    fn has_multiple_parts_returns_true_when_episode_has_multiple_parts() {
+        let part1 = create_tv_title_video(100, 1, 1, 1, Some(1));
+        let part2 = create_tv_title_video(100, 1, 1, 1, Some(2));
+
+        let job = Job::new(JobType::Ripping, None, JobStatus::Pending)
+            .with_title_videos(vec![part1.clone(), part2.clone()]);
+
+        assert!(job.has_multiple_parts(&part1.read().unwrap()));
+    }
+
+    #[test]
+    fn has_multiple_parts_returns_false_for_single_or_missing_matches() {
+        let single = create_tv_title_video(100, 1, 1, 1, Some(1));
+        let different_episode = create_tv_title_video(100, 9, 9, 9, Some(1));
+
+        let job = Job::new(JobType::Ripping, None, JobStatus::Pending)
+            .with_title_videos(vec![single.clone()]);
+
+        assert!(!job.has_multiple_parts(&single.read().unwrap()));
+        assert!(!job.has_multiple_parts(&different_episode.read().unwrap()));
     }
 }

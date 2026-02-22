@@ -1,16 +1,25 @@
-<turbo-stream action="replace" method="morph" target="{{ disks_options.dom_id() }}">
+<turbo-stream action="replace" method="morph"
+  target="{{ disks_options.dom_id() }}">
   <template>
     {{ disks_options.render_html() | safe }}
   </template>
 </turbo-stream>
 
-<turbo-stream action="replace" method="morph" targets=".{{ seasons_parts.selector_class() }}">
+<turbo-stream action="replace" method="morph"
+  targets=".{{ seasons_parts.selector_class() }}">
   <template>
     {{ seasons_parts.render_html() | safe }}
   </template>
 </turbo-stream>
 
-<turbo-stream action="replace" method="morph"  target="{{ movies_cards.dom_id() }}">
+<turbo-stream action="replace" method="morph" target="season-fab">
+  <template>
+    {{ seasons_fab.render_html() | safe }}
+  </template>
+</turbo-stream>
+
+<turbo-stream action="replace" method="morph"
+  target="{{ movies_cards.dom_id() }}">
   <template>
     {{ movies_cards.render_html() | safe }}
   </template>

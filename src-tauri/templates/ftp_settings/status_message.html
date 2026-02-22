@@ -1,27 +1,50 @@
 
 <div id="{{ self.dom_id() }}" class="ftp-settings-status-message">
-  {% match self.status %}
-  {% when crate::state::FtpConnectionStatus::Unconfigured %}
+  {% match self.ftp_checker.status %}
+  {% when crate::services::ftp_validator::FtpConnectionStatus::Unconfigured %}
   <div class="status-card status-card--vertical status-card--unconfigured">
     <div class="status-card__label">Connection Details</div>
     <div class="status-card__message">FTP is not configured. Please set it up to
       enable movie uploads.</div>
   </div>
-  {% when crate::state::FtpConnectionStatus::Checking %}
+  {% when crate::services::ftp_validator::FtpConnectionStatus::Checking %}
   <div class="status-card status-card--vertical status-card--checking">
     <div class="status-card__label">Connection Details</div>
     <div class="status-card__message">Checking FTP connection...</div>
   </div>
-  {% when crate::state::FtpConnectionStatus::Connected %}
+  {% when crate::services::ftp_validator::FtpConnectionStatus::Connected %}
   <div class="status-card status-card--vertical status-card--connected">
     <div class="status-card__label">Connection Details</div>
     <div class="status-card__message">FTP connection is healthy.</div>
   </div>
-  {% when crate::state::FtpConnectionStatus::Failed %}
+  {% when crate::services::ftp_validator::FtpConnectionStatus::Failed %}
   <div class="status-card status-card--vertical status-card--failed">
     <div class="status-card__label">Connection Details</div>
-    <div class="status-card__message">Failed to connect to FTP. Please check
-      your settings.</div>
+    <div class="status-card__message"
+      style="word-break: break-word; font-size: 0.9em; line-height: 1.45;">
+      {% if let Some(validation_error) = &self.ftp_checker.validation_error %}
+      {% for error in &validation_error.errors %}
+      <div style="margin-bottom: 0.75rem;">
+        <div style="font-weight: 600; margin-bottom: 0.2rem;">{{ error.message
+          }}</div>
+        {% if let Some(path) = &error.path %}
+        <div><span style="opacity: 0.8;">Path:</span> {{ path }}</div>
+        {% endif %}
+        {% if let Some(detail) = &error.error_detail %}
+        <div><span style="opacity: 0.8;">Details:</span> {{ detail }}</div>
+        {% endif %}
+        {% if !error.suggestions.is_empty() %}
+        <div>
+          <span style="opacity: 0.8;">Suggestions:</span>
+          {{ error.suggestions.join(", ") }}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% else %}
+      Failed to connect to FTP. Please check your settings.
+      {% endif %}
+    </div>
   </div>
   {% endmatch %}
 </div>

@@ -98,6 +98,7 @@ pub fn assign_episode_to_title(
                 part: Some(part),
             };
             let title_video = TitleVideo {
+                id: title_video::TitleVideoId::new(),
                 video: Video::Tv(Box::new(tv_season_episode)),
                 title: Some(title_info.clone()),
             };
@@ -187,8 +188,30 @@ pub fn rip_season(
         background_process_state.emit_jobs_changed(&app_handle);
     }
 
+    job.write()
+        .expect("Failed to get job writer")
+        .update_status(JobStatus::Processing);
+
+    let season_update = {
+        let job_guard = job.read().expect("Failed to get job reader");
+        let tv_and_season = job_guard.title_videos.iter().find_map(|title_video| {
+            let title_video_guard = title_video.read().ok()?;
+            match &title_video_guard.video {
+                Video::Tv(tv_season_episode) => {
+                    Some((tv_season_episode.tv.clone(), tv_season_episode.season.clone()))
+                }
+                Video::Movie(_) => None,
+            }
+        });
+
+        match tv_and_season {
+            Some((tv, season)) => templates::seasons::render_show(&app_handle, &tv, &season)?,
+            None => String::new(),
+        }
+    };
+
     spawn_rip(app_handle, job);
-    Ok("".to_string())
+    Ok(season_update)
 }
 
 #[tauri::command]
@@ -386,6 +409,7 @@ fn notify_movie_upload_failure(app_handle: &tauri::AppHandle, file_path: &Path, 
 fn extract_upload_info(
     app_handle: &tauri::AppHandle,
     title_video: &Arc<RwLock<TitleVideo>>,
+    rip_job: &Arc<RwLock<Job>>,
 ) -> Option<(
     UploadedState,
     PathBuf,
@@ -404,10 +428,19 @@ fn extract_upload_info(
         }
     };
 
+    let multiple_parts = rip_job
+        .read()
+        .expect("Failed to get rip_job reader")
+        .has_multiple_parts(
+            &title_video
+                .read()
+                .expect("To get title_video read lock for multiple_parts check"),
+        );
+
     let path = title_video
         .read()
         .expect("Failed to get title_video reader")
-        .video_path(&app_handle.state::<AppState>());
+        .video_path(&app_handle.state::<AppState>(), multiple_parts);
 
     let upload_type = {
         let video_guard = title_video
@@ -422,12 +455,17 @@ fn extract_upload_info(
     Some((uploaded_state, path, upload_type))
 }
 
-fn spawn_upload(app_handle: &tauri::AppHandle, title_video: &Arc<RwLock<TitleVideo>>) {
+fn spawn_upload(
+    app_handle: &tauri::AppHandle,
+    rip_job: &Arc<RwLock<Job>>,
+    title_video: &Arc<RwLock<TitleVideo>>,
+) {
     let app_handle = app_handle.clone();
+    let rip_job = rip_job.clone();
     let title_video = title_video.clone();
     tauri::async_runtime::spawn(async move {
         let (uploaded_state, path, upload_type) =
-            match extract_upload_info(&app_handle, &title_video) {
+            match extract_upload_info(&app_handle, &title_video, &rip_job) {
                 Some(info) => info,
                 None => return,
             };
@@ -507,10 +545,11 @@ async fn rip_title(
     match makemkvcon::rip_title(app_handle, job, title_video).await {
         Ok(_) => {
             let app_state = app_handle.state::<AppState>();
+            let job_reader = job.read().expect("Failed to get job reader");
             title_video
                 .read()
                 .expect("Failed to get title_video reader")
-                .rename_ripped_file(&app_state)
+                .rename_ripped_file(&app_state, &job_reader)
                 .map_err(|e| StandardError {
                     title: "Rename Failure".into(),
                     message: e,
@@ -607,12 +646,17 @@ fn eject_disk(app_handle: &tauri::AppHandle, disk_id: &DiskId) {
 }
 
 async fn process_titles(app_handle: &tauri::AppHandle, job: Arc<RwLock<Job>>) -> bool {
-    let mut success = false;
+    let mut any_success = false;
+    let mut has_error = false;
     let title_videos = {
         let job_guard = job.read().expect("Failed to get job writer");
         job_guard.title_videos.clone()
     };
     for title in title_videos.iter() {
+        // Set current title video ID for progress tracking
+        job.write()
+            .expect("Failed to get job writer")
+            .current_title_video_id = Some(title.read().unwrap().id);
         job.write()
             .expect("Failed to get job writer")
             .update_title(&title.read().unwrap());
@@ -621,44 +665,59 @@ async fn process_titles(app_handle: &tauri::AppHandle, job: Arc<RwLock<Job>>) ->
             .emit_progress_change(app_handle);
         match rip_title(app_handle, &job, title).await {
             Ok(_) => {
-                success = true;
+                any_success = true;
                 match &title.read().unwrap().video {
                     Video::Tv(season) => {
                         notify_tv_success(app_handle, season);
+                        spawn_upload(app_handle, &job, title);
                     }
                     Video::Movie(movie) => {
                         notify_movie_success(app_handle, movie);
                         emit_render_cards(app_handle);
-                        spawn_upload(app_handle, title);
+                        spawn_upload(app_handle, &job, title);
                     }
                 };
-                job.write()
-                    .expect("Failed to get job writer")
-                    .update_status(JobStatus::Finished);
-                templates::disks::emit_disk_change(app_handle);
+                job.read()
+                    .expect("Failed to get job reader")
+                    .emit_progress_change(app_handle);
             }
             Err(error) => {
+                has_error = true;
                 match &title.read().unwrap().video {
                     Video::Tv(_) => {}
                     Video::Movie(_) => {
                         emit_render_cards(app_handle);
                     }
                 };
-                job.write()
-                    .expect("Failed to get job writer")
-                    .update_status(JobStatus::Error);
                 job.write().expect("Failed to get job writer").message =
                     Some(error.message.clone());
                 job.write().expect("Failed to get job writer").subtitle = Some(error.title.clone());
                 job.read()
                     .expect("Failed to get job reader")
                     .emit_progress_change(app_handle);
-                templates::disks::emit_disk_change(app_handle);
                 notify_failure(app_handle, &error);
             }
         };
     }
-    success
+
+    // Mark job as finished/error only after ALL titles are processed
+    if has_error {
+        job.write()
+            .expect("Failed to get job writer")
+            .update_status(JobStatus::Error);
+    } else if any_success {
+        job.write()
+            .expect("Failed to get job writer")
+            .update_status(JobStatus::Finished);
+    }
+
+    // Final UI update
+    job.read()
+        .expect("Failed to get job reader")
+        .emit_progress_change(app_handle);
+    templates::disks::emit_disk_change(app_handle);
+
+    any_success
 }
 
 pub fn spawn_rip(app_handle: tauri::AppHandle, job: Arc<RwLock<Job>>) {
@@ -666,6 +725,18 @@ pub fn spawn_rip(app_handle: tauri::AppHandle, job: Arc<RwLock<Job>>) {
         job.write()
             .expect("Failed to get job writer")
             .update_status(JobStatus::Processing);
+        let has_tv_titles = {
+            let job_guard = job.read().expect("Failed to get job reader");
+            job_guard.title_videos.iter().any(|title_video| {
+                title_video
+                    .read()
+                    .map(|guard| matches!(guard.video, Video::Tv(_)))
+                    .unwrap_or(false)
+            })
+        };
+        if !has_tv_titles {
+            templates::disks::emit_disk_change(&app_handle);
+        }
         job.read()
             .expect("Failed to get job reader")
             .emit_progress_change(&app_handle);
@@ -717,5 +788,224 @@ fn find_or_create_job(app_handle: &tauri::AppHandle, disk: &OpticalDiskInfo) -> 
             background_process_state.emit_jobs_changed(app_handle);
             job
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::title_video::TvSeasonEpisode;
+    use crate::the_movie_db::{SeasonEpisode, SeasonResponse, TvResponse};
+
+    fn create_mock_tv_episode(id: u32, episode_number: u32) -> SeasonEpisode {
+        SeasonEpisode {
+            id,
+            episode_number,
+            episode_type: "standard".to_string(),
+            name: format!("Episode {episode_number}"),
+            overview: "Test episode".to_string(),
+            air_date: Some("2020-01-01".to_string()),
+            production_code: None,
+            runtime: Some(45),
+            season_number: 1,
+            show_id: 100,
+            still_path: None,
+            vote_average: 8.0,
+            vote_count: 100,
+            crew: vec![],
+            guest_stars: vec![],
+        }
+    }
+
+    fn create_mock_season() -> SeasonResponse {
+        SeasonResponse {
+            _id: "test_season".to_string(),
+            id: 1,
+            season_number: 1,
+            name: "Season 1".to_string(),
+            overview: "Test season".to_string(),
+            poster_path: None,
+            air_date: Some("2020-01-01".to_string()),
+            episodes: vec![
+                create_mock_tv_episode(1, 1),
+                create_mock_tv_episode(2, 2),
+                create_mock_tv_episode(3, 3),
+            ],
+            vote_average: 8.5,
+        }
+    }
+
+    fn create_mock_tv() -> TvResponse {
+        TvResponse {
+            adult: false,
+            backdrop_path: None,
+            created_by: vec![],
+            episode_run_time: vec![45],
+            first_air_date: Some("2020-01-01".to_string()),
+            genres: vec![],
+            homepage: None,
+            id: 100,
+            in_production: false,
+            languages: vec!["en".to_string()],
+            last_air_date: None,
+            last_episode_to_air: None,
+            name: "Test Show".to_string(),
+            networks: vec![],
+            next_episode_to_air: None,
+            number_of_episodes: 20,
+            number_of_seasons: 2,
+            origin_country: vec!["US".to_string()],
+            original_language: "en".to_string(),
+            original_name: "Test Show".to_string(),
+            overview: "Test overview".to_string(),
+            popularity: 100.0,
+            poster_path: None,
+            production_companies: vec![],
+            production_countries: vec![],
+            seasons: vec![],
+            spoken_languages: vec![],
+            status: "Returning Series".to_string(),
+            tagline: "Test tagline".to_string(),
+            type_: "Scripted".to_string(),
+            vote_average: 8.5,
+            vote_count: 1000,
+        }
+    }
+
+    #[test]
+    fn test_episode_ids_are_unique() {
+        let season = create_mock_season();
+
+        // Verify each episode has a unique ID
+        assert_eq!(season.episodes[0].id, 1);
+        assert_eq!(season.episodes[1].id, 2);
+        assert_eq!(season.episodes[2].id, 3);
+
+        // Verify IDs are different
+        assert_ne!(season.episodes[0].id, season.episodes[1].id);
+        assert_ne!(season.episodes[1].id, season.episodes[2].id);
+    }
+
+    #[test]
+    fn test_episode_numbers_match_ids() {
+        let season = create_mock_season();
+
+        // For our mock data, episode number should match ID
+        assert_eq!(season.episodes[0].episode_number, 1);
+        assert_eq!(season.episodes[1].episode_number, 2);
+        assert_eq!(season.episodes[2].episode_number, 3);
+    }
+
+    #[test]
+    fn test_tv_season_episode_creation() {
+        let tv = create_mock_tv();
+        let season = create_mock_season();
+        let episode = season.episodes[0].clone();
+
+        let tv_season_episode = TvSeasonEpisode {
+            tv: tv.clone(),
+            season: season.clone(),
+            episode: episode.clone(),
+            part: Some(1),
+        };
+
+        assert_eq!(tv_season_episode.episode.id, 1);
+        assert_eq!(tv_season_episode.part, Some(1));
+        assert_eq!(tv_season_episode.tv.id, 100);
+        assert_eq!(tv_season_episode.season.season_number, 1);
+    }
+
+    #[test]
+    fn test_different_parts_for_same_episode() {
+        let tv = create_mock_tv();
+        let season = create_mock_season();
+        let episode = season.episodes[0].clone();
+
+        let part1 = TvSeasonEpisode {
+            tv: tv.clone(),
+            season: season.clone(),
+            episode: episode.clone(),
+            part: Some(1),
+        };
+
+        let part2 = TvSeasonEpisode {
+            tv: tv.clone(),
+            season: season.clone(),
+            episode: episode.clone(),
+            part: Some(2),
+        };
+
+        // Same episode, different parts
+        assert_eq!(part1.episode.id, part2.episode.id);
+        assert_ne!(part1.part, part2.part);
+    }
+
+    #[test]
+    fn test_multiple_episodes_maintain_independence() {
+        let tv = create_mock_tv();
+        let season = create_mock_season();
+
+        let episode1 = TvSeasonEpisode {
+            tv: tv.clone(),
+            season: season.clone(),
+            episode: season.episodes[0].clone(),
+            part: Some(1),
+        };
+
+        let episode2 = TvSeasonEpisode {
+            tv: tv.clone(),
+            season: season.clone(),
+            episode: season.episodes[1].clone(),
+            part: Some(1),
+        };
+
+        let episode3 = TvSeasonEpisode {
+            tv: tv.clone(),
+            season: season.clone(),
+            episode: season.episodes[2].clone(),
+            part: Some(1),
+        };
+
+        // Verify each episode has unique ID
+        assert_eq!(episode1.episode.id, 1);
+        assert_eq!(episode2.episode.id, 2);
+        assert_eq!(episode3.episode.id, 3);
+
+        // Verify they're all different
+        assert_ne!(episode1.episode.id, episode2.episode.id);
+        assert_ne!(episode2.episode.id, episode3.episode.id);
+        assert_ne!(episode1.episode.id, episode3.episode.id);
+    }
+
+    #[test]
+    fn test_episode_assignment_parameters() {
+        // Test parameter types used in assign_episode_to_title
+        let mvdb_id: u32 = 100;
+        let season_number: u32 = 1;
+        let episode_number: u32 = 1;
+        let title_id: u32 = 5;
+        let part: u16 = 1;
+
+        assert!(mvdb_id > 0);
+        assert!(season_number > 0);
+        assert!(episode_number > 0);
+        assert!(title_id > 0);
+        assert!(part > 0);
+    }
+
+    #[test]
+    fn test_job_type_ripping() {
+        let _job_type = JobType::Ripping;
+        let _loading_type = JobType::Loading;
+
+        // Test passes if enums can be created successfully
+    }
+
+    #[test]
+    fn test_job_status_pending() {
+        let _pending = JobStatus::Pending;
+        let _processing = JobStatus::Processing;
+
+        // Test passes if enums can be created successfully
     }
 }

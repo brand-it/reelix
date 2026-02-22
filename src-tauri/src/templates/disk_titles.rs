@@ -60,6 +60,7 @@ pub fn render_options(
         seasons_parts: &SeasonsParts {
             selected_disk: &selected_disk,
             job: &pending_job,
+            episode_id: None,
         },
         movies_cards: &MoviesCards {
             selected_disk: &selected_disk,

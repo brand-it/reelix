@@ -8,6 +8,13 @@ pub struct Toast {
     pub variant: ToastVariant,
     #[allow(dead_code)]
     pub auto_hide_ms: u32,
+    pub action_link: Option<ToastAction>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ToastAction {
+    pub label: String,
+    pub href: String,
 }
 
 #[allow(dead_code)]
@@ -56,6 +63,7 @@ impl Toast {
             message: message.into(),
             variant,
             auto_hide_ms: 5000,
+            action_link: None,
         }
     }
 
@@ -82,6 +90,14 @@ impl Toast {
     #[allow(dead_code)]
     pub fn with_auto_hide(mut self, ms: u32) -> Self {
         self.auto_hide_ms = ms;
+        self
+    }
+
+    pub fn with_action(mut self, label: impl Into<String>, href: impl Into<String>) -> Self {
+        self.action_link = Some(ToastAction {
+            label: label.into(),
+            href: href.into(),
+        });
         self
     }
 
