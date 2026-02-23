@@ -190,38 +190,6 @@ jobs:
         with:
           args: ${{ matrix.args }} --verbose
 
-      # Generate release notes (only on first platform to avoid redundant API calls)
-      - name: Generate Release Notes
-        if: github.ref_name == 'main' && steps.version_check.outputs.version_changed == 'true' && matrix.platform == 'macos-latest' && matrix.args == '--target aarch64-apple-darwin'
-        id: generate_notes
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          # Extract version from package.json
-          VERSION=$(jq -r '.version' package.json)
-          TAG_NAME="reelix-v${VERSION}"
-          PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-
-          # Generate release notes
-          if [ -z "$PREVIOUS_TAG" ]; then
-            # First release, generate from all commits
-            RELEASE_NOTES=$(gh release notes generate "$TAG_NAME" --repo "${{ github.repository }}" 2>/dev/null || echo "")
-          else
-            # Compare with previous tag
-            RELEASE_NOTES=$(gh release notes generate "$TAG_NAME" --previous-tag "$PREVIOUS_TAG" --repo "${{ github.repository }}" 2>/dev/null || echo "")
-          fi
-
-          # Fallback if generation fails
-          if [ -z "$RELEASE_NOTES" ]; then
-            RELEASE_NOTES="See the assets to download this version and install."
-          fi
-
-          # Output the release notes for use in the next step
-          echo "notes<<EOF" >> $GITHUB_OUTPUT
-          echo "$RELEASE_NOTES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
       # Release build (tag + GitHub release)
       - name: Build & Release Tauri
         uses: tauri-apps/tauri-action@v0
@@ -239,7 +207,55 @@ jobs:
         with:
           tagName: reelix-v__VERSION__
           releaseName: "Reelix v__VERSION__"
-          releaseBody: ${{ steps.generate_notes.outputs.notes || 'See the assets to download this version and install.' }}
+          releaseBody: "See the assets to download this version and install."
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }} --verbose
+
+  finalize-release-notes:
+    name: Finalize Release Notes
+    needs: build-tauri
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    if: github.ref_name == 'main'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if version changed
+        id: version_check
+        shell: bash
+        run: |
+          if git diff HEAD~1 HEAD --name-only | grep -E '(package\.json|src-tauri/tauri\.conf\.json|Cargo\.toml)'; then
+            echo "version_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "version_changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate and apply release notes
+        if: steps.version_check.outputs.version_changed == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          VERSION=$(jq -r '.version' package.json)
+          TAG_NAME="reelix-v${VERSION}"
+
+          git fetch --tags --force
+          PREVIOUS_TAG=$(git tag --sort=-creatordate | grep -v "^${TAG_NAME}$" | head -n 1)
+
+          if [ -z "$PREVIOUS_TAG" ]; then
+            RELEASE_NOTES=$(gh release notes generate "$TAG_NAME" --repo "${{ github.repository }}" 2>/dev/null || echo "")
+          else
+            RELEASE_NOTES=$(gh release notes generate "$TAG_NAME" --previous-tag "$PREVIOUS_TAG" --repo "${{ github.repository }}" 2>/dev/null || echo "")
+          fi
+
+          if [ -z "$RELEASE_NOTES" ]; then
+            RELEASE_NOTES="See the assets to download this version and install."
+          fi
+
+          printf '%s\n' "$RELEASE_NOTES" > release-notes.md
+          gh release edit "$TAG_NAME" --repo "${{ github.repository }}" --notes-file release-notes.md
