@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "reelix",
-  "version": "0.39.0",
+  "version": "0.39.2",
   "identifier": "com.reelix.app",
   "build": {
     "beforeDevCommand": "npm run dev",
