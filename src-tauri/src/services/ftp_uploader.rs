@@ -2,7 +2,9 @@ use crate::progress_tracker::{self, ProgressOptions};
 use crate::state::job_state::{emit_progress, Job};
 use crate::state::title_video::TitleVideo;
 use crate::state::AppState;
+use crate::the_movie_db::{SeasonResponse, TvResponse};
 use log::{debug, error};
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::Write;
 use std::io::{BufReader, Read};
@@ -89,6 +91,135 @@ pub fn file_exists(relative_mkv_file_path: &String, state: &State<'_, AppState>)
         Err(error) => error!("Failed to close FTP connection {error:?}"),
     }
     exists
+}
+
+pub fn tv_ripped_episode_numbers(
+    tv: &TvResponse,
+    season: &SeasonResponse,
+    state: &State<'_, AppState>,
+) -> HashSet<u32> {
+    let tv_upload_path = match state.lock_ftp_tv_upload_path().clone() {
+        Some(value) => value,
+        None => return HashSet::new(),
+    };
+
+    let season_dir = tv_upload_path
+        .join(tv.title_year())
+        .join(format!("Season {:02}", season.season_number));
+
+    let mut ftp = match connect_to_ftp(state) {
+        Ok(ftp) => ftp,
+        Err(_) => return HashSet::new(),
+    };
+
+    let mut ripped_episode_numbers = HashSet::new();
+
+    if ftp.cwd(season_dir.to_string_lossy()).is_ok() {
+        if let Ok(entries) = ftp.nlst(None) {
+            for entry in entries {
+                let file_name = entry.rsplit('/').next().unwrap_or(&entry).trim();
+                if let Some(episode_number) = parse_episode_number_from_tv_filename(
+                    file_name,
+                    &tv.title_year(),
+                    season.season_number,
+                ) {
+                    ripped_episode_numbers.insert(episode_number);
+                }
+            }
+        }
+    }
+
+    match ftp.quit() {
+        Ok(_) => debug!("FTP Connection Closed"),
+        Err(error) => error!("Failed to close FTP connection {error:?}"),
+    }
+
+    ripped_episode_numbers
+}
+
+fn parse_episode_number_from_tv_filename(
+    file_name: &str,
+    tv_title_year: &str,
+    season_number: u32,
+) -> Option<u32> {
+    let lower_name = file_name.to_lowercase();
+    if !lower_name.ends_with(".mkv") {
+        return None;
+    }
+
+    let prefix = format!("{} - s{:02}e", tv_title_year.to_lowercase(), season_number);
+    if !lower_name.starts_with(&prefix) {
+        return None;
+    }
+
+    let rest = &lower_name[prefix.len()..];
+    let episode_digits: String = rest.chars().take_while(|ch| ch.is_ascii_digit()).collect();
+
+    if episode_digits.is_empty() {
+        return None;
+    }
+
+    let after_episode_digits = &rest[episode_digits.len()..];
+    if !after_episode_digits.starts_with(" -") {
+        return None;
+    }
+
+    episode_digits.parse::<u32>().ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_episode_number_from_tv_filename;
+
+    #[test]
+    fn parses_standard_episode_filename() {
+        let result = parse_episode_number_from_tv_filename(
+            "Example Show (2023) - S01E03 - Third Episode.mkv",
+            "Example Show (2023)",
+            1,
+        );
+
+        assert_eq!(result, Some(3));
+    }
+
+    #[test]
+    fn parses_multipart_episode_filename() {
+        let result = parse_episode_number_from_tv_filename(
+            "Example Show (2023) - S01E03 - Third Episode-pt2.mkv",
+            "Example Show (2023)",
+            1,
+        );
+
+        assert_eq!(result, Some(3));
+    }
+
+    #[test]
+    fn ignores_other_show_and_non_mkv_files() {
+        let wrong_show = parse_episode_number_from_tv_filename(
+            "Different Show (2023) - S01E03 - Third Episode.mkv",
+            "Example Show (2023)",
+            1,
+        );
+        let wrong_extension = parse_episode_number_from_tv_filename(
+            "Example Show (2023) - S01E03 - Third Episode.mp4",
+            "Example Show (2023)",
+            1,
+        );
+
+        assert_eq!(wrong_show, None);
+        assert_eq!(wrong_extension, None);
+    }
+
+    #[test]
+    fn ignores_wrong_season() {
+        let result = parse_episode_number_from_tv_filename(
+            "Example Show (2023) - S02E03 - Third Episode.mkv",
+            "Example Show (2023)",
+            1,
+        );
+
+        assert_eq!(result, None);
+    }
 }
 
 /// Connects, authenticates, and Changes current directory to MOVIE_UPLOAD_PATH
