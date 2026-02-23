@@ -109,7 +109,7 @@ pub fn assign_episode_to_title(
         }
     };
 
-    templates::seasons::render_title_selected(&app_handle, season)
+    templates::seasons::render_title_selected(&app_handle, &tv, season)
 }
 
 #[tauri::command]
@@ -128,6 +128,11 @@ pub fn withdraw_episode_from_title(
 
     let season = match find_season(&app_handle, mvdb_id, season_number) {
         Ok(season) => season,
+        Err(e) => return render_error(&e.message),
+    };
+
+    let tv = match find_tv(&app_handle, mvdb_id) {
+        Ok(tv) => tv,
         Err(e) => return render_error(&e.message),
     };
 
@@ -151,7 +156,7 @@ pub fn withdraw_episode_from_title(
         }
     }
 
-    templates::seasons::render_title_selected(&app_handle, season)
+    templates::seasons::render_title_selected(&app_handle, &tv, season)
 }
 
 #[tauri::command]
