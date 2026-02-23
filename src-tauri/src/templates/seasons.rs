@@ -1,4 +1,5 @@
 use crate::models::optical_disk_info::OpticalDiskInfo;
+use crate::services::ftp_uploader;
 use crate::state::background_process_state::{copy_job_state, BackgroundProcessState};
 use crate::state::job_state::{Job, JobStatus};
 use crate::state::AppState;
@@ -106,6 +107,7 @@ pub struct SeasonsEpisodes<'a> {
 pub struct SeasonsEpisode<'a> {
     pub episode: &'a SeasonEpisode,
     pub seasons_parts: &'a SeasonsParts<'a>,
+    pub ripped: bool,
 }
 
 impl SeasonsEpisode<'_> {
@@ -120,6 +122,7 @@ pub fn render_show(
     season: &SeasonResponse,
 ) -> Result<String, super::Error> {
     let app_state = app_handle.state::<AppState>();
+    let ripped_episode_numbers = ftp_uploader::tv_ripped_episode_numbers(tv, season, &app_state);
     let selected_disk = match app_state.selected_disk() {
         Some(disk) => {
             let disk_lock = disk.read().unwrap();
@@ -148,6 +151,7 @@ pub fn render_show(
         .map(|(parts, ep)| SeasonsEpisode {
             episode: ep,
             seasons_parts: parts,
+            ripped: ripped_episode_numbers.contains(&ep.episode_number),
         })
         .collect();
 
@@ -166,9 +170,11 @@ pub fn render_show(
 
 pub fn render_title_selected(
     app_handle: &tauri::AppHandle,
+    tv: &TvResponse,
     season: SeasonResponse,
 ) -> Result<String, super::Error> {
     let app_state = app_handle.state::<AppState>();
+    let ripped_episode_numbers = ftp_uploader::tv_ripped_episode_numbers(tv, &season, &app_state);
 
     let selected_disk = match app_state.selected_disk() {
         Some(disk) => {
@@ -199,6 +205,7 @@ pub fn render_title_selected(
         .map(|(parts, ep)| SeasonsEpisode {
             episode: ep,
             seasons_parts: parts,
+            ripped: ripped_episode_numbers.contains(&ep.episode_number),
         })
         .collect::<Vec<SeasonsEpisode>>();
 
