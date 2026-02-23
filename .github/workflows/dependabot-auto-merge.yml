@@ -29,20 +29,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Bump app version (minor)
-        run: bash scripts/bump-version.sh minor
-
-      - name: Commit and push version bump
-        run: |
-          if git diff --quiet; then
-            echo "No version changes to commit"
-            exit 0
-          fi
-
-          git add package.json package-lock.json src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/tauri.conf.json
-          git commit -m "chore: bump minor version for dependabot PR #${{ github.event.pull_request.number }}"
-          git push
-
       - name: Enable auto-merge
         run: gh pr merge --auto --merge "$PR_URL"
         env:
