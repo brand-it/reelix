@@ -17,20 +17,21 @@ jobs:
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Dependabot PR branch
-        uses: actions/checkout@v4
+      - name: Enable auto-merge (squash)
+        id: enable_automerge_squash
+        continue-on-error: true
+        uses: peter-evans/enable-pull-request-automerge@v3
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          fetch-depth: 0
-
-      - name: Set up git identity
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Enable auto-merge
-        run: gh pr merge --auto --merge "$PR_URL"
+          pull-request-number: ${{ github.event.pull_request.number }}
+          merge-method: squash
         env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable auto-merge (rebase fallback)
+        if: steps.enable_automerge_squash.outcome == 'failure'
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          pull-request-number: ${{ github.event.pull_request.number }}
+          merge-method: rebase
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
