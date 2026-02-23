@@ -16,7 +16,13 @@
       data-bs-dismiss="toast" aria-label="Close"></button>
   </div>
   <div
-    class="toast-body {{ toast.variant.bg_class() }} {{ toast.variant.text_class() }}">
-    {{ toast.message }}
+    class="toast-body {{ toast.variant.bg_class() }} {{ toast.variant.text_class() }}"
+    style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
+    <div>{{ toast.message }}</div>
+    {% if let Some(action) = &toast.action_link %}
+    <a href="{{ action.href }}" class="btn btn-sm btn-light text-dark"
+      style="white-space: nowrap; padding: 0.35rem 0.75rem;">{{ action.label
+      }}</a>
+    {% endif %}
   </div>
 </div>

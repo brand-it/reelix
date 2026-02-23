@@ -1,6 +1,6 @@
 <div id="{{ self.dom_id() }}" class="ftp-status-container">
-  {% match self.status %}
-  {% when crate::state::FtpConnectionStatus::Unconfigured %}
+  {% match self.ftp_checker.status %}
+  {% when crate::services::ftp_validator::FtpConnectionStatus::Unconfigured %}
   <div class="ftp-status-card status-card--unconfigured"
     style="flex-direction: row; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem;">
     <div class="d-flex gap-2 align-items-center">
@@ -15,7 +15,7 @@
     <a href="/ftp_settings" class="btn btn-sm btn-outline-secondary"
       style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">Configure</a>
   </div>
-  {% when crate::state::FtpConnectionStatus::Checking %}
+  {% when crate::services::ftp_validator::FtpConnectionStatus::Checking %}
   <div class="ftp-status-card status-card--checking">
     <div class="d-flex gap-2 align-items-center">
       <div class="ftp-status-icon">
@@ -27,8 +27,9 @@
       </div>
     </div>
   </div>
-  {% when crate::state::FtpConnectionStatus::Connected %}
-  <div class="ftp-status-card status-card--connected">
+  {% when crate::services::ftp_validator::FtpConnectionStatus::Connected %}
+  <div class="ftp-status-card status-card--connected"
+    style="flex-direction: row; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem;">
     <div class="d-flex gap-2 align-items-center">
       <div class="ftp-status-icon">
         <i class="{{ self.icon_class() }}"></i>
@@ -38,9 +39,12 @@
         <div class="ftp-status-text">{{ self.status_text() }}</div>
       </div>
     </div>
+    <a href="/ftp_settings" class="btn btn-sm btn-outline-light"
+      style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">Manage</a>
   </div>
-  {% when crate::state::FtpConnectionStatus::Failed %}
-  <div class="ftp-status-card status-card--failed">
+  {% when crate::services::ftp_validator::FtpConnectionStatus::Failed %}
+  <div class="ftp-status-card status-card--failed"
+    style="flex-direction: row; align-items: center; justify-content: space-between; padding: 1.25rem 1.5rem;">
     <div class="d-flex gap-2 align-items-center">
       <div class="ftp-status-icon">
         <i class="{{ self.icon_class() }}"></i>
@@ -50,6 +54,8 @@
         <div class="ftp-status-text">{{ self.status_text() }}</div>
       </div>
     </div>
+    <a href="/ftp_settings" class="btn btn-sm btn-outline-danger"
+      style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">Fix Now</a>
   </div>
   {% endmatch %}
 </div>

@@ -47,3 +47,42 @@ pub fn eject_disk(
 
     templates::disk_titles::render_options(&state, &background_process_state)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_disk_id_from_u32() {
+        let _id1 = DiskId::from(1u32);
+        let _id2 = DiskId::from(42u32);
+        let _id3 = DiskId::from(999u32);
+
+        // DiskId can be created from various u32 values
+        // Test passes if no panic occurs
+    }
+
+    #[test]
+    fn test_disk_id_equality() {
+        let id1 = DiskId::from(1u32);
+        let id2 = DiskId::from(1u32);
+        let id3 = DiskId::from(2u32);
+
+        // Same IDs should be equal
+        assert!(id1 == id2);
+        // Different IDs should not be equal
+        assert!(id1 != id3);
+    }
+
+    #[test]
+    fn test_disk_id_conversion_range() {
+        // Test DiskId handles various u32 ranges
+        let small_id = DiskId::from(1u32);
+        let medium_id = DiskId::from(100u32);
+        let large_id = DiskId::from(10000u32);
+
+        assert!(small_id == DiskId::from(1));
+        assert!(medium_id == DiskId::from(100));
+        assert!(large_id == DiskId::from(10000));
+    }
+}

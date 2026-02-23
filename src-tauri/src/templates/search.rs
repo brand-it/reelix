@@ -10,7 +10,7 @@ use crate::templates::jobs::{
     JobsItemSummary,
 };
 use crate::templates::{
-    the_movie_db, ftp_status, update_indicator::UpdateIndicator, GenericError, InlineTemplate,
+    ftp_status, the_movie_db, update_indicator::UpdateIndicator, GenericError, InlineTemplate,
 };
 use crate::the_movie_db::SearchResponse;
 use askama::Template;
@@ -74,7 +74,7 @@ pub struct SearchResults<'a> {
     pub query: &'a str,
     pub search: &'a SearchResponse,
     pub update_indicator: &'a UpdateIndicator<'a>,
-    pub ftp_status: &'a ftp_status::FtpStatus,
+    pub ftp_status: &'a ftp_status::FtpStatusContainer<'a>,
 }
 impl SearchResults<'_> {
     pub fn dom_id(&self) -> &'static str {
@@ -190,9 +190,8 @@ pub fn render_index(app_handle: &tauri::AppHandle) -> Result<String, super::Erro
         version_state: &version_state,
     };
 
-    let ftp_status_value = *app_state.lock_ftp_connection_status();
-    let ftp_status_display = ftp_status::FtpStatus {
-        status: ftp_status_value,
+    let ftp_status_display = ftp_status::FtpStatusContainer {
+        ftp_checker: &app_state.ftp_config.lock().unwrap().checker.clone(),
     };
 
     let template = SearchIndexTurbo {
@@ -230,9 +229,9 @@ pub fn render_results(
         version_state: &version_state,
     };
 
-    let ftp_status_value = *app_state.lock_ftp_connection_status();
-    let ftp_status_display = ftp_status::FtpStatus {
-        status: ftp_status_value,
+    let ftp_checker = app_state.ftp_config.lock().unwrap().checker.clone();
+    let ftp_status_display = ftp_status::FtpStatusContainer {
+        ftp_checker: &ftp_checker,
     };
 
     let template = SearchResultsTurbo {

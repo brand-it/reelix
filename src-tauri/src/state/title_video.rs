@@ -1,10 +1,31 @@
 use crate::{
     models::title_info::TitleInfo,
-    state::AppState,
+    state::{job_state::Job, AppState},
     the_movie_db::{MovieResponse, SeasonEpisode, SeasonResponse, TvResponse},
 };
 use serde::Serialize;
-use std::{fs, path::PathBuf};
+use std::{
+    fmt, fs,
+    path::PathBuf,
+    sync::atomic::{AtomicU64, Ordering},
+};
+
+static NEXT_TITLE_VIDEO_ID: AtomicU64 = AtomicU64::new(1);
+
+#[derive(Serialize, Clone, PartialEq, Eq, Copy, Debug)]
+pub struct TitleVideoId(u64);
+
+impl TitleVideoId {
+    pub fn new() -> Self {
+        TitleVideoId(NEXT_TITLE_VIDEO_ID.fetch_add(1, Ordering::Relaxed))
+    }
+}
+
+impl fmt::Display for TitleVideoId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 /// Wrapper for MovieResponse to support multipart and edition info for movies.
 #[derive(Serialize, Clone)]
@@ -28,6 +49,7 @@ impl MoviePartEdition {
 
 #[derive(Serialize, Clone)]
 pub struct TitleVideo {
+    pub id: TitleVideoId,
     pub title: Option<TitleInfo>,
     pub video: Video,
 }
@@ -72,8 +94,8 @@ impl TitleVideo {
     /// - Will fail if the ripped file does not exist or cannot be moved (e.g., permissions).
     /// - Does not create parent directories; ensure they exist before calling.
     /// - Returns a `Result<PathBuf, String>` for error handling in calling code.
-    pub fn rename_ripped_file(&self, app_state: &AppState) -> Result<PathBuf, String> {
-        let target_path = self.video_path(app_state);
+    pub fn rename_ripped_file(&self, app_state: &AppState, job: &Job) -> Result<PathBuf, String> {
+        let target_path = self.video_path_for_job(app_state, job);
         let from_path = self.ripped_file_path(app_state)?;
 
         if !from_path.exists() {
@@ -86,6 +108,10 @@ impl TitleVideo {
         fs::rename(from_path.as_path(), &target_path)
             .map_err(|e| format!("Failed to rename file: {e}"))?;
         Ok(target_path)
+    }
+
+    fn video_path_for_job(&self, app_state: &AppState, job: &Job) -> PathBuf {
+        self.video_path(app_state, job.has_multiple_parts(self))
     }
 
     fn ripped_file_path(&self, app_state: &AppState) -> Result<PathBuf, String> {
@@ -122,13 +148,14 @@ impl TitleVideo {
     /// - Does not create any directories or files; only computes the path.
     /// - Returns `None` if the FTP upload path is missing or not set in config.
     /// - Ensures uploads follow Plex directory and filename conventions for reliable parsing.
-    pub fn upload_file_path(&self, app_state: &AppState) -> Option<PathBuf> {
+    pub fn upload_file_path(&self, app_state: &AppState, multiple_parts: bool) -> Option<PathBuf> {
         match &self.video {
             Video::Movie(movie) => Self::upload_movie_dir(app_state, movie)
                 .map(|dir| dir.join(Self::movie_filename(movie))),
             Video::Tv(tv_season_episode) => {
-                Self::upload_tv_season_dir(app_state, tv_season_episode)
-                    .map(|dir| dir.join(Self::tv_episode_filename(tv_season_episode)))
+                Self::upload_tv_season_dir(app_state, tv_season_episode).map(|dir| {
+                    dir.join(Self::tv_episode_filename(tv_season_episode, multiple_parts))
+                })
             }
         }
     }
@@ -252,10 +279,8 @@ impl TitleVideo {
     /// - Does not create the directory; only computes the path.
     /// - Used for external transfers, not local Plex organization.
     fn upload_movie_dir(app_state: &AppState, movie: &MoviePartEdition) -> Option<PathBuf> {
-        let movies_dir = app_state
-            .ftp_movie_upload_path
-            .lock()
-            .expect("failed to lock ftp_movie_upload_path");
+        let ftp_config = app_state.lock_ftp_config();
+        let movies_dir = &ftp_config.movie_upload_path;
         movies_dir
             .as_ref()
             .map(|dir| dir.join(movie.movie.title_year()))
@@ -285,13 +310,14 @@ impl TitleVideo {
         app_state: &AppState,
         tv_season_episode: &TvSeasonEpisode,
     ) -> Option<PathBuf> {
-        let tv_shows_dir = app_state
-            .ftp_tv_upload_path
-            .lock()
-            .expect("failed to lock ftp_tv_upload_path");
-        tv_shows_dir
-            .as_ref()
-            .map(|dir| dir.join(Self::tv_season_episode_path(app_state, tv_season_episode)))
+        let ftp_config = app_state.lock_ftp_config();
+        let tv_shows_dir = &ftp_config.tv_upload_path;
+        tv_shows_dir.as_ref().map(|dir| {
+            dir.join(tv_season_episode.tv.title_year()).join(format!(
+                "Season {:02}",
+                tv_season_episode.season.season_number
+            ))
+        })
     }
 
     fn create_movie_dir(app_state: &AppState, movie: &MoviePartEdition) -> PathBuf {
@@ -408,11 +434,11 @@ impl TitleVideo {
     ///
     /// Usage:
     /// - Use this when you need the absolute path for storing, moving, or referencing the video file on disk.
-    pub fn video_path(&self, app_state: &AppState) -> PathBuf {
+    pub fn video_path(&self, app_state: &AppState, multiple_parts: bool) -> PathBuf {
         match &self.video {
             Video::Movie(movie) => Self::movie_path(app_state, movie),
             Video::Tv(tv_season_episode) => {
-                Self::tv_season_episode_path(app_state, tv_season_episode)
+                Self::tv_season_episode_path(app_state, tv_season_episode, multiple_parts)
             }
         }
     }
@@ -504,15 +530,17 @@ impl TitleVideo {
     /// Notes:
     /// - Forward slashes in episode titles are replaced with `-` to avoid unintended nested directories.
     /// - Season and episode numbers are zero-padded to two digits for lexicographic ordering.
-    /// - Multi-part suffix is added only when `TvSeasonEpisode.part` is `Some(n)`.
+    /// - Multi-part suffix is added when `TvSeasonEpisode.part` is `Some(n)` and
+    ///   multipart naming is required for the episode.
     ///
     /// See `tv_episode_file_name` for detailed filename construction logic.
     fn tv_season_episode_path(
         app_state: &AppState,
         tv_season_episode: &TvSeasonEpisode,
+        multiple_parts: bool,
     ) -> PathBuf {
         let dir = Self::seasons_episode_dir(app_state, tv_season_episode);
-        let file_name = Self::tv_episode_filename(tv_season_episode);
+        let file_name = Self::tv_episode_filename(tv_season_episode, multiple_parts);
         dir.join(file_name)
     }
 
@@ -520,20 +548,25 @@ impl TitleVideo {
     ///
     /// Naming format (single-part episodes):
     ///   Show Name (Year) - S01E01 - Episode Title.mkv
-    /// If the episode is split into multiple parts (e.g. disc segments), a part suffix is appended:
+    /// If the episode is split into multiple files (e.g. disc segments), a part suffix is appended:
+    ///   Show Name (Year) - S01E01 - Episode Title-pt1.mkv
     ///   Show Name (Year) - S01E01 - Episode Title-pt2.mkv
+    ///
+    /// How to use `multiple_parts`:
+    /// - Pass `false` for normal, single-file episodes. This prevents adding `-pt1`.
+    /// - Pass `true` when the same episode is intentionally split into multiple files.
+    ///   In that case, part 1 becomes `-pt1`, part 2 becomes `-pt2`, etc.
     ///
     /// Steps:
     /// 1. Sanitize the raw episode title by replacing forward slashes '/' with '-'. This prevents
     ///    unintended directory creation and adheres to filesystem safety.
     /// 2. Format the base filename using show title + season/episode numbers (zero-padded) + sanitized title.
-    /// 3. If a `part` number exists, strip the trailing ".mkv", append the `-ptX` suffix, then restore the extension.
+    /// 3. If a `part` number exists and either `part > 1` or `multiple_parts == true`, strip the trailing
+    ///    ".mkv", append the `-ptX` suffix, then restore the extension.
     /// 4. Return the final filename string.
-    fn tv_episode_filename(tv_season_episode: &TvSeasonEpisode) -> String {
-        // 1. Sanitize episode title to avoid path separator issues
+    fn tv_episode_filename(tv_season_episode: &TvSeasonEpisode, multiple_parts: bool) -> String {
         let episode_title = tv_season_episode.episode.name.replace('/', "-");
 
-        // 2. Base filename with zero-padded season and episode numbers
         let mut file_name = format!(
             "{} - S{:02}E{:02} - {}.mkv",
             tv_season_episode.tv.title_year(),
@@ -542,13 +575,13 @@ impl TitleVideo {
             episode_title
         );
 
-        // 3. Append part suffix if this is a multi-part episode
         if let Some(part) = tv_season_episode.part {
-            file_name = format!("{}-pt{}", file_name.trim_end_matches(".mkv"), part);
-            file_name.push_str(".mkv");
+            if part > 1 || multiple_parts {
+                file_name = format!("{}-pt{}", file_name.trim_end_matches(".mkv"), part);
+                file_name.push_str(".mkv");
+            }
         }
 
-        // 4. Return final filename
         file_name
     }
 }
@@ -649,6 +682,91 @@ mod tests {
         }
     }
 
+    fn create_test_tv(title: &str, year: i32) -> TvResponse {
+        TvResponse {
+            adult: false,
+            backdrop_path: None,
+            created_by: vec![],
+            episode_run_time: vec![],
+            first_air_date: Some(format!("{year}-01-01")),
+            genres: vec![],
+            homepage: None,
+            id: 1,
+            in_production: false,
+            languages: vec![],
+            last_air_date: None,
+            last_episode_to_air: None,
+            name: title.to_string(),
+            networks: vec![],
+            next_episode_to_air: None,
+            number_of_episodes: 1,
+            number_of_seasons: 1,
+            origin_country: vec![],
+            original_language: "en".to_string(),
+            original_name: title.to_string(),
+            overview: "Test show".to_string(),
+            popularity: 0.0,
+            poster_path: None,
+            production_companies: vec![],
+            production_countries: vec![],
+            seasons: vec![],
+            spoken_languages: vec![],
+            status: "Ended".to_string(),
+            tagline: String::new(),
+            type_: "Scripted".to_string(),
+            vote_average: 0.0,
+            vote_count: 0,
+        }
+    }
+
+    fn create_test_season(season_number: u32) -> SeasonResponse {
+        SeasonResponse {
+            _id: String::new(),
+            air_date: Some("2023-01-01".to_string()),
+            episodes: vec![],
+            name: format!("Season {season_number}"),
+            overview: String::new(),
+            id: 1,
+            poster_path: None,
+            season_number,
+            vote_average: 0.0,
+        }
+    }
+
+    fn create_test_episode(name: &str, episode_number: u32) -> SeasonEpisode {
+        SeasonEpisode {
+            air_date: Some("2023-01-01".to_string()),
+            episode_number,
+            episode_type: "standard".to_string(),
+            id: 1,
+            name: name.to_string(),
+            overview: "Test episode".to_string(),
+            production_code: None,
+            runtime: Some(42),
+            season_number: 1,
+            show_id: 1,
+            still_path: None,
+            vote_average: 0.0,
+            vote_count: 0,
+            crew: vec![],
+            guest_stars: vec![],
+        }
+    }
+
+    fn create_test_tv_season_episode(
+        episode_name: &str,
+        season_number: u32,
+        episode_number: u32,
+        part: Option<u16>,
+    ) -> TvSeasonEpisode {
+        TvSeasonEpisode {
+            episode: create_test_episode(episode_name, episode_number),
+            season: create_test_season(season_number),
+            tv: create_test_tv("Example Show", 2023),
+            part,
+        }
+    }
+
     #[test]
     fn test_movie_filename_no_part_no_edition() {
         let movie = MoviePartEdition {
@@ -695,5 +813,45 @@ mod tests {
 
         let filename = TitleVideo::movie_filename(&movie);
         assert_eq!(filename, "Kill Bill (2003) {edition-Uncut}-pt2.mkv");
+    }
+
+    #[test]
+    fn test_tv_episode_filename_single_part_no_suffix() {
+        let episode = create_test_tv_season_episode("Pilot", 1, 1, None);
+
+        let filename = TitleVideo::tv_episode_filename(&episode, false);
+        assert_eq!(filename, "Example Show (2023) - S01E01 - Pilot.mkv");
+    }
+
+    #[test]
+    fn test_tv_episode_filename_part1_no_multiple_parts_no_suffix() {
+        let episode = create_test_tv_season_episode("Pilot", 1, 1, Some(1));
+
+        let filename = TitleVideo::tv_episode_filename(&episode, false);
+        assert_eq!(filename, "Example Show (2023) - S01E01 - Pilot.mkv");
+    }
+
+    #[test]
+    fn test_tv_episode_filename_part1_with_multiple_parts_suffix() {
+        let episode = create_test_tv_season_episode("Pilot", 1, 1, Some(1));
+
+        let filename = TitleVideo::tv_episode_filename(&episode, true);
+        assert_eq!(filename, "Example Show (2023) - S01E01 - Pilot-pt1.mkv");
+    }
+
+    #[test]
+    fn test_tv_episode_filename_part2_always_has_suffix() {
+        let episode = create_test_tv_season_episode("Pilot", 1, 1, Some(2));
+
+        let filename = TitleVideo::tv_episode_filename(&episode, false);
+        assert_eq!(filename, "Example Show (2023) - S01E01 - Pilot-pt2.mkv");
+    }
+
+    #[test]
+    fn test_tv_episode_filename_sanitizes_forward_slash() {
+        let episode = create_test_tv_season_episode("Act 1/Act 2", 1, 3, None);
+
+        let filename = TitleVideo::tv_episode_filename(&episode, false);
+        assert_eq!(filename, "Example Show (2023) - S01E03 - Act 1-Act 2.mkv");
     }
 }

@@ -9,14 +9,65 @@ use std::io::{BufReader, Read};
 use std::path::{Component, Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use suppaftp::types::FileType;
-use suppaftp::{FtpError, FtpStream};
+use suppaftp::FtpError as SuppaFtpError;
+use suppaftp::FtpStream;
 use tauri::{AppHandle, Manager, State};
 
-const CHUNK_SIZE: usize = 8192;
+const CHUNK_SIZE: usize = 8192; // 8KB chunk size for streaming upload
 
 struct FileInfo {
     file_size: u64,
     reader: BufReader<File>,
+}
+
+/// Structured error information for FTP validation failures
+#[derive(Clone, PartialEq, Eq)]
+pub struct FtpValidationError {
+    pub errors: Vec<FtpError>,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub struct FtpError {
+    pub message: String,
+    pub path: Option<String>,
+    pub error_detail: Option<String>,
+    pub suggestions: Vec<String>,
+    pub error_type: FtpErrorType,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub enum FtpErrorType {
+    MissingConfig,
+    ConnectionFailed,
+    PathNotFound,
+    Other,
+}
+
+impl FtpValidationError {
+    pub fn new() -> Self {
+        Self { errors: Vec::new() }
+    }
+
+    pub fn add_error(
+        &mut self,
+        message: String,
+        error_type: FtpErrorType,
+        path: Option<String>,
+        error_detail: Option<String>,
+        suggestions: Vec<String>,
+    ) {
+        self.errors.push(FtpError {
+            message,
+            path,
+            error_detail,
+            suggestions,
+            error_type,
+        });
+    }
+
+    pub fn has_errors(&self) -> bool {
+        !self.errors.is_empty()
+    }
 }
 
 pub fn file_exists(relative_mkv_file_path: &String, state: &State<'_, AppState>) -> bool {
@@ -40,29 +91,12 @@ pub fn file_exists(relative_mkv_file_path: &String, state: &State<'_, AppState>)
     exists
 }
 
-/// Internal version of validate_ftp_settings that works with AppState directly (not Tauri State wrapper)
-pub fn validate_ftp_settings_internal(state: &AppState) -> Result<(), String> {
-    let movie_upload_path = match state.lock_ftp_movie_upload_path().clone() {
-        Some(value) => value,
-        None => return Err("missing ftp movie upload path".to_string()),
-    };
-    let mut ftp_stream = connect_to_ftp_internal(state)
-        .map_err(|e| format!("Failed to login and change directory {e}"))?;
-
-    cwd_internal(&mut ftp_stream, &movie_upload_path)?;
-    ftp_stream
-        .quit()
-        .map_err(|e| format!("Failed to close connection: {e}"))?;
-
-    Ok(())
-}
-
 /// Connects, authenticates, and Changes current directory to MOVIE_UPLOAD_PATH
-fn connect_to_ftp(state: &State<'_, AppState>) -> Result<FtpStream, FtpError> {
+pub fn connect_to_ftp(state: &State<'_, AppState>) -> Result<FtpStream, SuppaFtpError> {
     let ftp_host = match state.lock_ftp_host().clone() {
         Some(ftp_host) => ftp_host,
         None => {
-            return Err(FtpError::ConnectionError(std::io::Error::other(
+            return Err(SuppaFtpError::ConnectionError(std::io::Error::other(
                 "ftp host missing",
             )));
         }
@@ -70,7 +104,7 @@ fn connect_to_ftp(state: &State<'_, AppState>) -> Result<FtpStream, FtpError> {
     let ftp_pass = match state.lock_ftp_pass().clone() {
         Some(ftp_pass) => ftp_pass,
         None => {
-            return Err(FtpError::ConnectionError(std::io::Error::other(
+            return Err(SuppaFtpError::ConnectionError(std::io::Error::other(
                 "ftp pass missing",
             )));
         }
@@ -78,7 +112,7 @@ fn connect_to_ftp(state: &State<'_, AppState>) -> Result<FtpStream, FtpError> {
     let ftp_user = match state.lock_ftp_user().clone() {
         Some(ftp_user) => ftp_user,
         None => {
-            return Err(FtpError::ConnectionError(std::io::Error::other(
+            return Err(SuppaFtpError::ConnectionError(std::io::Error::other(
                 "ftp user missing",
             )));
         }
@@ -123,23 +157,35 @@ fn file_info(filepath: &Path) -> Result<FileInfo, String> {
     Ok(FileInfo { file_size, reader })
 }
 
-fn create_movie_dir(
+fn create_upload_dir(
     state: &State<'_, AppState>,
     ftp_stream: &mut FtpStream,
     _job: &Arc<RwLock<Job>>,
     title_video: &Arc<RwLock<TitleVideo>>,
 ) -> Result<PathBuf, String> {
-    let movie_dir = title_video
-        .read()
-        .unwrap()
+    let title_video_guard = title_video.read().unwrap();
+
+    // Determine content type for better error messages
+    let content_type = match &title_video_guard.video {
+        crate::state::title_video::Video::Movie(_) => "movie",
+        crate::state::title_video::Video::Tv(_) => "TV show",
+    };
+
+    let upload_dir = title_video_guard
         .upload_directory(state)
-        .ok_or_else(|| "Failed to get movie directory".to_string())?;
+        .ok_or_else(|| {
+            format!(
+                "FTP upload path not configured for {}. Please configure FTP {} upload path in settings.",
+                content_type,
+                if content_type == "movie" { "movie" } else { "TV" }
+            )
+        })?;
 
-    debug!("creating movie dir movie_dir={movie_dir:?}");
+    debug!("creating upload dir upload_dir={upload_dir:?}");
 
-    ensure_remote_dir_recursive(ftp_stream, &movie_dir)?;
+    ensure_remote_dir_recursive(ftp_stream, &upload_dir)?;
 
-    Ok(movie_dir)
+    Ok(upload_dir)
 }
 
 /// Ensures that each directory component in the given path exists on the FTP server.
@@ -230,12 +276,22 @@ fn start_upload(
     title_video: &Arc<RwLock<TitleVideo>>,
 ) -> Result<(), String> {
     let state = app_handle.state::<AppState>();
-    let upload_file_path = title_video.read().unwrap().upload_file_path(&state);
+    let multiple_parts = job
+        .read()
+        .expect("Failed to acquire read lock on job")
+        .has_multiple_parts(&title_video.read().unwrap());
+    let upload_file_path = title_video
+        .read()
+        .unwrap()
+        .upload_file_path(&state, multiple_parts);
     if upload_file_path.is_none() {
         return Err("Failed to get upload file path".to_string());
     }
     let upload_file_path = upload_file_path.unwrap();
-    let local_file_path = title_video.read().unwrap().video_path(&state);
+    let local_file_path = title_video
+        .read()
+        .unwrap()
+        .video_path(&state, multiple_parts);
     debug!(
         "Start uploading {} to {:?}",
         upload_file_path.display(),
@@ -354,7 +410,7 @@ pub async fn upload(
     let mut ftp_stream =
         connect_to_ftp(&state).map_err(|e| format!("Failed to login and change directory {e}"))?;
 
-    create_movie_dir(&state, &mut ftp_stream, job, title_video)?;
+    create_upload_dir(&state, &mut ftp_stream, job, title_video)?;
 
     start_upload(app_handle, &mut ftp_stream, job, title_video)?;
 
@@ -366,52 +422,44 @@ pub async fn upload(
     Ok(())
 }
 
-/// Internal version of connect_to_ftp that works with AppState directly
-#[allow(dead_code)]
-fn connect_to_ftp_internal(state: &AppState) -> Result<FtpStream, FtpError> {
-    let ftp_host = match state.lock_ftp_host().clone() {
-        Some(ftp_host) => ftp_host,
-        None => {
-            return Err(FtpError::ConnectionError(std::io::Error::other(
-                "ftp host missing",
-            )));
-        }
-    };
-    let ftp_pass = match state.lock_ftp_pass().clone() {
-        Some(ftp_pass) => ftp_pass,
-        None => {
-            return Err(FtpError::ConnectionError(std::io::Error::other(
-                "ftp pass missing",
-            )));
-        }
-    };
-    let ftp_user = match state.lock_ftp_user().clone() {
-        Some(ftp_user) => ftp_user,
-        None => {
-            return Err(FtpError::ConnectionError(std::io::Error::other(
-                "ftp user missing",
-            )));
-        }
-    };
-
-    let ftp_addr = if ftp_host.contains(':') {
-        ftp_host.clone()
-    } else {
-        format!("{ftp_host}:21")
-    };
-
-    debug!("Connecting to FTP server at: {ftp_addr}");
-    let mut ftp_stream = FtpStream::connect(&ftp_addr)?;
-    ftp_stream.login(ftp_user, ftp_pass)?;
-    Ok(ftp_stream)
-}
-
-/// Internal version of cwd that works with AppState directly
-#[allow(dead_code)]
-fn cwd_internal(ftp_stream: &mut FtpStream, path: &PathBuf) -> Result<(), String> {
-    debug!("CWD changing directory to {path:?}");
+pub fn cwd(ftp_stream: &mut FtpStream, path: &Path) -> Result<(), String> {
     match ftp_stream.cwd(path.to_string_lossy()) {
         Ok(_n) => Ok(()),
         Err(e) => Err(format!("failed to CWD to {} {}", path.display(), e)),
     }
+}
+
+/// List directories at a given path on the FTP server
+pub fn list_directories(ftp_stream: &mut FtpStream, path: &str) -> Result<Vec<String>, String> {
+    // Try to change to the directory first
+    if ftp_stream.cwd(path).is_err() {
+        return Err(format!("Cannot access directory: {path}"));
+    }
+
+    // Use NLST to preserve names exactly (including spaces), then probe each entry.
+    // LIST parsing is unreliable for names like "TV Shows" because spacing is ambiguous.
+    let list = ftp_stream
+        .nlst(None)
+        .map_err(|e| format!("Failed to list directory names: {e}"))?;
+
+    // Determine which entries are directories by attempting CWD into each one.
+    let mut dirs = Vec::new();
+    for raw_entry in list {
+        let raw_entry = raw_entry.trim();
+        if raw_entry.is_empty() {
+            continue;
+        }
+
+        let entry_name = raw_entry.rsplit('/').next().unwrap_or(raw_entry).trim();
+        if entry_name == "." || entry_name == ".." || entry_name.is_empty() {
+            continue;
+        }
+
+        if ftp_stream.cwd(entry_name).is_ok() {
+            dirs.push(entry_name.to_string());
+            let _ = ftp_stream.cdup();
+        }
+    }
+
+    Ok(dirs)
 }

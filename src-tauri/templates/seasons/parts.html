@@ -1,4 +1,20 @@
-{% macro part_selector(part, selected_disk) %}
+{% macro title_option_label(title_info) %}
+Title {{ title_info.id }}
+{% if let Some(description) = title_info.description %}
+— {{ description }}
+{% endif %}
+{% if let Some(duration) = title_info.duration %}
+• {{ duration }}
+{% endif %}
+{% if let Some(size) = title_info.size %}
+• {{ size }}
+{% endif %}
+{% if let Some(chapter_count) = title_info.chapter_count %}
+• {{ chapter_count }} ch
+{% endif %}
+{% endmacro %}
+
+{% macro part_selector(part, selected_disk, disabled) %}
 <div class="row g-2 align-items-center mb-2">
   <label for="part{{ part }}" class="col-auto col-form-label fw-bold">Part {{
     part }}*</label>
@@ -6,13 +22,12 @@
     <select id="part{{ part }}" data-episode-target="selector"
       data-episode-part="{{ part }}"
       data-action="episode#titleSelected" class="form-select form-select-sm"
+      {% if disabled %}disabled{% endif %}
       data-episode-previous-value>
       <option value>Select a Disk Title</option>
       {% for title_info in selected_disk.clone_titles() %}
       <option value="{{ title_info.id }}">
-        {% if let Some(description) = title_info.description %}
-        {{ description }}
-        {% endif %}
+        {% call title_option_label(title_info) %}{% endcall %}
       </option>
       {% endfor %}
     </select>
@@ -20,30 +35,36 @@
 </div>
 {% endmacro %}
 
-{% macro episode_part_selector(episode, part, selected_disk, job) %}
+{% macro episode_part_selector(episode_id, part, selected_disk, job, disabled)
+%}
 <div class="row g-2 align-items-center mb-2">
-  {% let previous_value = crate::templates::find_previous_value(episode, part,
+  {% let previous_value =
+  crate::templates::find_previous_value_by_episode_id(episode_id, part,
   job) %}
-  <label for="part{{ episode.id }}-{{ part }}"
+  <label for="part{{ episode_id }}-{{ part }}"
     class="col-auto col-form-label fw-bold">Part {{ part }}*</label>
   <div class="col">
-    <select name="part{{ episode.id }}-{{ part }}"
+    <select name="part{{ episode_id }}-{{ part }}"
       data-episode-target="selector" data-episode-part="{{ part }}"
       data-action="episode#titleSelected" class="form-select form-select-sm"
+      {% if disabled %}disabled{% endif %}
       data-episode-previous-value="{% match previous_value %}{% when Some with (v) %}{{ v }}{% when None %}{% endmatch %}">
       <option value>Select a Disk Title</option>
       {% for title_info in selected_disk.clone_titles() %}
-      {% if crate::templates::is_selected_title(episode, part, title_info, job)
+      {% if crate::templates::is_selected_title_by_episode_id(episode_id, part,
+      title_info, job)
       %}
       <option value="{{ title_info.id }}" selected>
-        {% match title_info.description %}{% when Some with (d) %}{{ d }}{% when
-        None %}Untitled{% endmatch %}
+        {% call title_option_label(title_info) %}{% endcall %}
       </option>
-      {% elif crate::templates::job_contains_episode_for_title(episode,
+      {% elif crate::templates::title_selected_by_other_episode_id(episode_id,
       title_info, job) %}
+      <option value="{{ title_info.id }}" disabled>
+        {% call title_option_label(title_info) %}{% endcall %}
+      </option>
+      {% else %}
       <option value="{{ title_info.id }}">
-        {% match title_info.description %}{% when Some with (d) %}{{ d }}{% when
-        None %}Untitled{% endmatch %}
+        {% call title_option_label(title_info) %}{% endcall %}
       </option>
       {% endif %}
       {% endfor %}
@@ -56,22 +77,26 @@
   {% if let Some(disk) = selected_disk %}
   {% if disk.any_titles() %}
   {% if let Some(job) = job %}
-  {% if let Some(resolved_episode) = self.resolve_episode_from_job() %}
-  {% call episode_part_selector(&resolved_episode, 1, disk, job) %}{% endcall %}
-  {% call episode_part_selector(&resolved_episode, 2, disk, job) %}{% endcall %}
-  {% call episode_part_selector(&resolved_episode, 3, disk, job) %}{% endcall %}
-  {% call episode_part_selector(&resolved_episode, 4, disk, job) %}{% endcall %}
+  {% if let Some(episode_id) = self.episode_id %}
+  {% call episode_part_selector(episode_id, 1, disk, job,
+  self.selectors_disabled()) %}{% endcall %}
+  {% call episode_part_selector(episode_id, 2, disk, job,
+  self.selectors_disabled()) %}{% endcall %}
+  {% call episode_part_selector(episode_id, 3, disk, job,
+  self.selectors_disabled()) %}{% endcall %}
+  {% call episode_part_selector(episode_id, 4, disk, job,
+  self.selectors_disabled()) %}{% endcall %}
   {% else %}
-  {% call part_selector(1, disk) %}{% endcall %}
-  {% call part_selector(2, disk) %}{% endcall %}
-  {% call part_selector(3, disk) %}{% endcall %}
-  {% call part_selector(4, disk) %}{% endcall %}
+  {% call part_selector(1, disk, self.selectors_disabled()) %}{% endcall %}
+  {% call part_selector(2, disk, self.selectors_disabled()) %}{% endcall %}
+  {% call part_selector(3, disk, self.selectors_disabled()) %}{% endcall %}
+  {% call part_selector(4, disk, self.selectors_disabled()) %}{% endcall %}
   {% endif %}
   {% else %}
-  {% call part_selector(1, disk) %}{% endcall %}
-  {% call part_selector(2, disk) %}{% endcall %}
-  {% call part_selector(3, disk) %}{% endcall %}
-  {% call part_selector(4, disk) %}{% endcall %}
+  {% call part_selector(1, disk, self.selectors_disabled()) %}{% endcall %}
+  {% call part_selector(2, disk, self.selectors_disabled()) %}{% endcall %}
+  {% call part_selector(3, disk, self.selectors_disabled()) %}{% endcall %}
+  {% call part_selector(4, disk, self.selectors_disabled()) %}{% endcall %}
   {% endif %}
   <small class="text-muted d-block mt-1">
     * Part 1 is required; additional parts are optional.

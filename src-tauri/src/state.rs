@@ -1,4 +1,5 @@
 use crate::models::optical_disk_info::{DiskId, OpticalDiskInfo};
+use crate::services::ftp_validator;
 use log::debug;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
@@ -10,23 +11,128 @@ pub mod title_video;
 pub mod upload_state;
 pub mod uploaded_state;
 
-#[allow(dead_code)]
-#[derive(Clone, Debug, Copy, PartialEq, Eq)]
-pub enum FtpConnectionStatus {
-    Unconfigured,
-    Checking,
-    Connected,
-    Failed,
+#[derive(Clone)]
+pub struct FtpConfig {
+    pub host: Option<String>,
+    pub movie_upload_path: Option<PathBuf>,
+    pub tv_upload_path: Option<PathBuf>,
+    pub pass: Option<String>,
+    pub user: Option<String>,
+    pub checker: ftp_validator::FtpChecker,
+}
+
+impl FtpConfig {
+    pub fn new() -> Self {
+        Self {
+            host: None,
+            user: None,
+            pass: None,
+            movie_upload_path: None,
+            tv_upload_path: None,
+            checker: ftp_validator::FtpChecker::new(),
+        }
+    }
+
+    pub fn is_configured(&self) -> bool {
+        self.host.is_some() && self.user.is_some() && self.pass.is_some()
+    }
+}
+
+impl PartialEq for FtpConfig {
+    fn eq(&self, other: &Self) -> bool {
+        self.host == other.host
+            && self.user == other.user
+            && self.pass == other.pass
+            && self.movie_upload_path == other.movie_upload_path
+            && self.tv_upload_path == other.tv_upload_path
+    }
+}
+
+impl Eq for FtpConfig {}
+
+pub struct FtpHostGuard<'a>(MutexGuard<'a, FtpConfig>);
+
+impl<'a> std::ops::Deref for FtpHostGuard<'a> {
+    type Target = Option<String>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0.host
+    }
+}
+
+impl<'a> std::ops::DerefMut for FtpHostGuard<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0.host
+    }
+}
+
+pub struct FtpUserGuard<'a>(MutexGuard<'a, FtpConfig>);
+
+impl<'a> std::ops::Deref for FtpUserGuard<'a> {
+    type Target = Option<String>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0.user
+    }
+}
+
+impl<'a> std::ops::DerefMut for FtpUserGuard<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0.user
+    }
+}
+
+pub struct FtpPassGuard<'a>(MutexGuard<'a, FtpConfig>);
+
+impl<'a> std::ops::Deref for FtpPassGuard<'a> {
+    type Target = Option<String>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0.pass
+    }
+}
+
+impl<'a> std::ops::DerefMut for FtpPassGuard<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0.pass
+    }
+}
+
+pub struct FtpMovieUploadPathGuard<'a>(MutexGuard<'a, FtpConfig>);
+
+impl<'a> std::ops::Deref for FtpMovieUploadPathGuard<'a> {
+    type Target = Option<PathBuf>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0.movie_upload_path
+    }
+}
+
+impl<'a> std::ops::DerefMut for FtpMovieUploadPathGuard<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0.movie_upload_path
+    }
+}
+
+pub struct FtpTvUploadPathGuard<'a>(MutexGuard<'a, FtpConfig>);
+
+impl<'a> std::ops::Deref for FtpTvUploadPathGuard<'a> {
+    type Target = Option<PathBuf>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0.tv_upload_path
+    }
+}
+
+impl<'a> std::ops::DerefMut for FtpTvUploadPathGuard<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0.tv_upload_path
+    }
 }
 
 // Structure to hold shared state, thread safe version
 pub struct AppState {
-    pub ftp_host: Arc<Mutex<Option<String>>>,
-    pub ftp_movie_upload_path: Arc<Mutex<Option<PathBuf>>>,
-    pub ftp_tv_upload_path: Arc<Mutex<Option<PathBuf>>>,
-    pub ftp_pass: Arc<Mutex<Option<String>>>,
-    pub ftp_user: Arc<Mutex<Option<String>>>,
-    pub ftp_connection_status: Arc<Mutex<FtpConnectionStatus>>,
+    pub ftp_config: Arc<Mutex<FtpConfig>>,
     pub optical_disks: Arc<RwLock<Vec<Arc<RwLock<OpticalDiskInfo>>>>>,
     pub query: Arc<Mutex<String>>,
     pub selected_optical_disk_id: Arc<RwLock<Option<DiskId>>>,
@@ -42,20 +148,15 @@ impl AppState {
 
     pub fn new() -> Self {
         Self {
-            ftp_host: Arc::new(Mutex::new(None)),
-            ftp_movie_upload_path: Arc::new(Mutex::new(None)),
-            ftp_pass: Arc::new(Mutex::new(None)),
-            ftp_user: Arc::new(Mutex::new(None)),
-            ftp_connection_status: Arc::new(Mutex::new(FtpConnectionStatus::Unconfigured)),
+            current_video: Arc::new(Mutex::new(None)),
+            ftp_config: Arc::new(Mutex::new(FtpConfig::new())),
+            latest_version: Arc::new(Mutex::new(None)),
+            movies_dir: Arc::new(RwLock::new(Self::default_movies_dir())),
             optical_disks: Arc::new(RwLock::new(Vec::<Arc<RwLock<OpticalDiskInfo>>>::new())),
             query: Arc::new(Mutex::new(String::new())),
             selected_optical_disk_id: Arc::new(RwLock::new(None)),
             the_movie_db_key: Arc::new(Mutex::new(String::new())),
-            movies_dir: Arc::new(RwLock::new(Self::default_movies_dir())),
             tv_shows_dir: Arc::new(RwLock::new(Self::default_tv_shows_dir())),
-            ftp_tv_upload_path: Arc::new(Mutex::new(None)),
-            current_video: Arc::new(Mutex::new(None)),
-            latest_version: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -77,27 +178,24 @@ impl AppState {
 
                     match key.as_str() {
                         "ftp_host" => {
-                            let mut ftp_host = self.lock_ftp_host();
-                            *ftp_host = cleaned;
+                            let mut ftp_config = self.lock_ftp_config();
+                            ftp_config.host = cleaned;
                         }
                         "ftp_user" => {
-                            let mut ftp_user = self.lock_ftp_user();
-                            *ftp_user = cleaned;
+                            let mut ftp_config = self.lock_ftp_config();
+                            ftp_config.user = cleaned;
                         }
                         "ftp_pass" => {
-                            let mut ftp_pass = self.lock_ftp_pass();
-                            *ftp_pass = cleaned;
+                            let mut ftp_config = self.lock_ftp_config();
+                            ftp_config.pass = cleaned;
                         }
                         "ftp_movie_upload_path" => {
-                            let mut ftp_movie_upload_path = self.lock_ftp_movie_upload_path();
-                            *ftp_movie_upload_path = cleaned.map(PathBuf::from);
+                            let mut ftp_config = self.lock_ftp_config();
+                            ftp_config.movie_upload_path = cleaned.map(PathBuf::from);
                         }
                         "ftp_tv_upload_path" => {
-                            let mut path = self
-                                .ftp_tv_upload_path
-                                .lock()
-                                .expect("failed to lock ftp_tv_upload_path");
-                            *path = cleaned.map(PathBuf::from);
+                            let mut ftp_config = self.lock_ftp_config();
+                            ftp_config.tv_upload_path = cleaned.map(PathBuf::from);
                         }
                         "the_movie_db_key" => {
                             if let Some(val) = cleaned {
@@ -155,34 +253,32 @@ impl AppState {
             .store(Self::STORE_NAME)
             .map_err(|e| format!("Failed to load store: {e}"))?;
 
+        let ftp_config = self.lock_ftp_config().clone();
+
         // Save FTP settings
-        if let Some(ref host) = *self.lock_ftp_host() {
+        if let Some(ref host) = ftp_config.host {
             store.set("ftp_host", serde_json::json!(host));
         } else {
             store.delete("ftp_host");
         }
-        if let Some(ref user) = *self.lock_ftp_user() {
+        if let Some(ref user) = ftp_config.user {
             store.set("ftp_user", serde_json::json!(user));
         } else {
             store.delete("ftp_user");
         }
-        if let Some(ref pass) = *self.lock_ftp_pass() {
+        if let Some(ref pass) = ftp_config.pass {
             store.set("ftp_pass", serde_json::json!(pass));
         } else {
             store.delete("ftp_pass");
         }
-        if let Some(ref path) = *self.lock_ftp_movie_upload_path() {
+        if let Some(ref path) = ftp_config.movie_upload_path {
             if let Some(path_str) = path.to_str() {
                 store.set("ftp_movie_upload_path", serde_json::json!(path_str));
             }
         } else {
             store.delete("ftp_movie_upload_path");
         }
-        if let Some(ref path) = *self
-            .ftp_tv_upload_path
-            .lock()
-            .expect("failed to lock ftp_tv_upload_path")
-        {
+        if let Some(ref path) = ftp_config.tv_upload_path {
             if let Some(path_str) = path.to_str() {
                 store.set("ftp_tv_upload_path", serde_json::json!(path_str));
             }
@@ -258,28 +354,56 @@ impl AppState {
             .lock()
             .expect("failed to lock the_movie_db_key")
     }
-    pub fn lock_ftp_host(&self) -> MutexGuard<'_, Option<String>> {
-        self.ftp_host.lock().expect("failed to lock ftp_host")
+
+    pub fn lock_ftp_config(&self) -> MutexGuard<'_, FtpConfig> {
+        self.ftp_config.lock().expect("failed to lock ftp_config")
     }
 
-    pub fn lock_ftp_user(&self) -> MutexGuard<'_, Option<String>> {
-        self.ftp_user.lock().expect("failed to lock ftp_user")
+    pub fn lock_ftp_host(&self) -> FtpHostGuard<'_> {
+        FtpHostGuard(self.lock_ftp_config())
     }
 
-    pub fn lock_ftp_pass(&self) -> MutexGuard<'_, Option<String>> {
-        self.ftp_pass.lock().expect("failed to lock ftp_pass")
+    pub fn lock_ftp_user(&self) -> FtpUserGuard<'_> {
+        FtpUserGuard(self.lock_ftp_config())
     }
 
-    pub fn lock_ftp_connection_status(&self) -> MutexGuard<'_, FtpConnectionStatus> {
-        self.ftp_connection_status
-            .lock()
-            .expect("failed to lock ftp_connection_status")
+    pub fn lock_ftp_pass(&self) -> FtpPassGuard<'_> {
+        FtpPassGuard(self.lock_ftp_config())
     }
 
-    pub fn lock_ftp_movie_upload_path(&self) -> MutexGuard<'_, Option<PathBuf>> {
-        self.ftp_movie_upload_path
-            .lock()
-            .expect("failed to lock ftp_movie_upload_path")
+    pub fn lock_ftp_movie_upload_path(&self) -> FtpMovieUploadPathGuard<'_> {
+        FtpMovieUploadPathGuard(self.lock_ftp_config())
+    }
+
+    pub fn lock_ftp_tv_upload_path(&self) -> FtpTvUploadPathGuard<'_> {
+        FtpTvUploadPathGuard(self.lock_ftp_config())
+    }
+
+    pub fn update_ftp_settings(
+        &self,
+        ftp_host: Option<String>,
+        ftp_user: Option<String>,
+        ftp_pass: Option<String>,
+        ftp_movie_upload_path: Option<String>,
+        ftp_tv_upload_path: Option<String>,
+    ) {
+        let clean = |value: Option<String>| {
+            value.and_then(|s| {
+                let trimmed = s.trim();
+                if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed.to_string())
+                }
+            })
+        };
+
+        let mut ftp_config = self.lock_ftp_config();
+        ftp_config.host = clean(ftp_host);
+        ftp_config.user = clean(ftp_user);
+        ftp_config.pass = clean(ftp_pass);
+        ftp_config.movie_upload_path = clean(ftp_movie_upload_path).map(PathBuf::from);
+        ftp_config.tv_upload_path = clean(ftp_tv_upload_path).map(PathBuf::from);
     }
 
     pub fn update(
@@ -313,6 +437,10 @@ impl AppState {
             "ftp_movie_upload_path" => {
                 let mut ftp_movie_upload_path = self.lock_ftp_movie_upload_path();
                 *ftp_movie_upload_path = cleaned.map(PathBuf::from);
+            }
+            "ftp_tv_upload_path" => {
+                let mut ftp_tv_upload_path = self.lock_ftp_tv_upload_path();
+                *ftp_tv_upload_path = cleaned.map(PathBuf::from);
             }
             "the_movie_db_key" => {
                 if let Some(val) = cleaned {
@@ -444,6 +572,10 @@ impl AppState {
                 let mut ftp_movie_upload_path = self.lock_ftp_movie_upload_path();
                 *ftp_movie_upload_path = cleaned.map(PathBuf::from);
             }
+            "ftp_tv_upload_path" => {
+                let mut ftp_tv_upload_path = self.lock_ftp_tv_upload_path();
+                *ftp_tv_upload_path = cleaned.map(PathBuf::from);
+            }
             _ => {}
         }
     }
@@ -564,5 +696,254 @@ mod tests {
         // Clear path
         state.test_update_ftp_setting("ftp_movie_upload_path", Some("".to_string()));
         assert_eq!(*state.lock_ftp_movie_upload_path(), None);
+    }
+
+    // NEW COMPREHENSIVE TESTS FOR ALL UPDATE FIELDS
+
+    #[test]
+    fn test_update_ftp_host_field() {
+        let state = AppState::new();
+
+        // Test setting value
+        state.test_update_ftp_setting("ftp_host", Some("192.168.1.100".to_string()));
+        assert_eq!(*state.lock_ftp_host(), Some("192.168.1.100".to_string()));
+
+        // Test updating value
+        state.test_update_ftp_setting("ftp_host", Some("ftp.newserver.com".to_string()));
+        assert_eq!(
+            *state.lock_ftp_host(),
+            Some("ftp.newserver.com".to_string())
+        );
+
+        // Test clearing value
+        state.test_update_ftp_setting("ftp_host", None);
+        assert_eq!(*state.lock_ftp_host(), None);
+    }
+
+    #[test]
+    fn test_update_ftp_user_field() {
+        let state = AppState::new();
+
+        state.test_update_ftp_setting("ftp_user", Some("admin".to_string()));
+        assert_eq!(*state.lock_ftp_user(), Some("admin".to_string()));
+
+        state.test_update_ftp_setting("ftp_user", Some("  spaced_user  ".to_string()));
+        assert_eq!(*state.lock_ftp_user(), Some("spaced_user".to_string()));
+
+        state.test_update_ftp_setting("ftp_user", Some("".to_string()));
+        assert_eq!(*state.lock_ftp_user(), None);
+    }
+
+    #[test]
+    fn test_update_ftp_pass_field() {
+        let state = AppState::new();
+
+        state.test_update_ftp_setting("ftp_pass", Some("SecureP@ssw0rd!".to_string()));
+        assert_eq!(*state.lock_ftp_pass(), Some("SecureP@ssw0rd!".to_string()));
+
+        // Test that password with spaces is trimmed
+        state.test_update_ftp_setting("ftp_pass", Some("  password123  ".to_string()));
+        assert_eq!(*state.lock_ftp_pass(), Some("password123".to_string()));
+    }
+
+    #[test]
+    fn test_update_ftp_movie_upload_path_field() {
+        let state = AppState::new();
+
+        // Test absolute paths
+        state.test_update_ftp_setting("ftp_movie_upload_path", Some("/Media/Movies".to_string()));
+        assert_eq!(
+            *state.lock_ftp_movie_upload_path(),
+            Some(PathBuf::from("/Media/Movies"))
+        );
+
+        // Test relative paths
+        state.test_update_ftp_setting("ftp_movie_upload_path", Some("movies/folder".to_string()));
+        assert_eq!(
+            *state.lock_ftp_movie_upload_path(),
+            Some(PathBuf::from("movies/folder"))
+        );
+
+        // Test clearing
+        state.test_update_ftp_setting("ftp_movie_upload_path", Some("".to_string()));
+        assert_eq!(*state.lock_ftp_movie_upload_path(), None);
+    }
+
+    #[test]
+    fn test_update_ftp_tv_upload_path_field() {
+        let state = AppState::new();
+
+        // THIS IS THE CRITICAL TEST - previously this field wasn't being updated!
+        state.test_update_ftp_setting("ftp_tv_upload_path", Some("/Media/TV Shows".to_string()));
+        assert_eq!(
+            *state.lock_ftp_tv_upload_path(),
+            Some(PathBuf::from("/Media/TV Shows"))
+        );
+
+        // Test updating to different path
+        state.test_update_ftp_setting("ftp_tv_upload_path", Some("/mnt/tv".to_string()));
+        assert_eq!(
+            *state.lock_ftp_tv_upload_path(),
+            Some(PathBuf::from("/mnt/tv"))
+        );
+
+        // Test with spaces in path (common for TV Shows)
+        state.test_update_ftp_setting(
+            "ftp_tv_upload_path",
+            Some("/Media/TV Shows/Anime".to_string()),
+        );
+        assert_eq!(
+            *state.lock_ftp_tv_upload_path(),
+            Some(PathBuf::from("/Media/TV Shows/Anime"))
+        );
+
+        // Test clearing
+        state.test_update_ftp_setting("ftp_tv_upload_path", None);
+        assert_eq!(*state.lock_ftp_tv_upload_path(), None);
+    }
+
+    #[test]
+    fn test_update_all_ftp_paths_independently() {
+        let state = AppState::new();
+
+        // Set both paths
+        state.test_update_ftp_setting("ftp_movie_upload_path", Some("/movies".to_string()));
+        state.test_update_ftp_setting("ftp_tv_upload_path", Some("/tv".to_string()));
+
+        // Verify both are set correctly
+        assert_eq!(
+            *state.lock_ftp_movie_upload_path(),
+            Some(PathBuf::from("/movies"))
+        );
+        assert_eq!(*state.lock_ftp_tv_upload_path(), Some(PathBuf::from("/tv")));
+
+        // Clear movie path, TV should remain
+        state.test_update_ftp_setting("ftp_movie_upload_path", Some("".to_string()));
+        assert_eq!(*state.lock_ftp_movie_upload_path(), None);
+        assert_eq!(*state.lock_ftp_tv_upload_path(), Some(PathBuf::from("/tv")));
+
+        // Clear TV path
+        state.test_update_ftp_setting("ftp_tv_upload_path", Some("".to_string()));
+        assert_eq!(*state.lock_ftp_tv_upload_path(), None);
+    }
+
+    #[test]
+    fn test_update_the_movie_db_key_field() {
+        let state = AppState::new();
+
+        // Note: the_movie_db_key uses a different pattern - it's always a String, not Option<String>
+        // So we directly set the value
+        let mut key = state.lock_the_movie_db_key();
+        *key = "test_api_key_12345".to_string();
+        drop(key);
+
+        assert_eq!(
+            *state.lock_the_movie_db_key(),
+            "test_api_key_12345".to_string()
+        );
+    }
+
+    #[test]
+    fn test_update_latest_version_field() {
+        let state = AppState::new();
+
+        // Set version
+        let mut version = state.latest_version.lock().unwrap();
+        *version = Some("1.2.3".to_string());
+        drop(version);
+
+        assert_eq!(
+            *state.latest_version.lock().unwrap(),
+            Some("1.2.3".to_string())
+        );
+
+        // Clear version
+        let mut version = state.latest_version.lock().unwrap();
+        *version = None;
+        drop(version);
+
+        assert_eq!(*state.latest_version.lock().unwrap(), None);
+    }
+
+    #[test]
+    fn test_update_all_fields_at_once() {
+        let state = AppState::new();
+
+        // Set all FTP fields at once
+        state.test_update_ftp_setting("ftp_host", Some("192.168.1.100".to_string()));
+        state.test_update_ftp_setting("ftp_user", Some("plex".to_string()));
+        state.test_update_ftp_setting("ftp_pass", Some("password".to_string()));
+        state.test_update_ftp_setting("ftp_movie_upload_path", Some("/Media/Movies".to_string()));
+        state.test_update_ftp_setting("ftp_tv_upload_path", Some("/Media/TV Shows".to_string()));
+
+        // Verify all are set
+        assert_eq!(*state.lock_ftp_host(), Some("192.168.1.100".to_string()));
+        assert_eq!(*state.lock_ftp_user(), Some("plex".to_string()));
+        assert_eq!(*state.lock_ftp_pass(), Some("password".to_string()));
+        assert_eq!(
+            *state.lock_ftp_movie_upload_path(),
+            Some(PathBuf::from("/Media/Movies"))
+        );
+        assert_eq!(
+            *state.lock_ftp_tv_upload_path(),
+            Some(PathBuf::from("/Media/TV Shows"))
+        );
+    }
+
+    #[test]
+    fn test_update_ftp_tv_path_with_special_characters() {
+        let state = AppState::new();
+
+        // Test path with spaces, dashes, and unicode
+        state.test_update_ftp_setting(
+            "ftp_tv_upload_path",
+            Some("/Media/TV-Shows/Scié-Fi & Fantasy".to_string()),
+        );
+        assert_eq!(
+            *state.lock_ftp_tv_upload_path(),
+            Some(PathBuf::from("/Media/TV-Shows/Scié-Fi & Fantasy"))
+        );
+    }
+
+    #[test]
+    fn test_update_empty_vs_whitespace_values() {
+        let state = AppState::new();
+
+        // Empty string should become None
+        state.test_update_ftp_setting("ftp_host", Some("".to_string()));
+        assert_eq!(*state.lock_ftp_host(), None);
+
+        // Whitespace-only should become None
+        state.test_update_ftp_setting("ftp_host", Some("   ".to_string()));
+        assert_eq!(*state.lock_ftp_host(), None);
+
+        // Tab and newline should become None
+        state.test_update_ftp_setting("ftp_host", Some("\t\n".to_string()));
+        assert_eq!(*state.lock_ftp_host(), None);
+    }
+
+    #[test]
+    fn test_update_path_trimming() {
+        let state = AppState::new();
+
+        // Path with trailing/leading whitespace should be trimmed
+        state.test_update_ftp_setting(
+            "ftp_movie_upload_path",
+            Some("  /Media/Movies  ".to_string()),
+        );
+        assert_eq!(
+            *state.lock_ftp_movie_upload_path(),
+            Some(PathBuf::from("/Media/Movies"))
+        );
+
+        // Same for TV path
+        state.test_update_ftp_setting(
+            "ftp_tv_upload_path",
+            Some("\t/Media/TV Shows\n".to_string()),
+        );
+        assert_eq!(
+            *state.lock_ftp_tv_upload_path(),
+            Some(PathBuf::from("/Media/TV Shows"))
+        );
     }
 }

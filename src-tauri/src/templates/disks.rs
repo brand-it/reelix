@@ -2,6 +2,7 @@ use crate::state::background_process_state::BackgroundProcessState;
 use crate::state::job_state::JobStatus;
 use crate::state::AppState;
 use crate::templates::movies::MoviesCards;
+use crate::templates::seasons::SeasonsFab;
 use crate::templates::seasons::SeasonsParts;
 use crate::templates::InlineTemplate;
 use crate::{models::optical_disk_info, state::job_state::Job};
@@ -27,6 +28,7 @@ impl DisksOptions<'_> {
 pub struct DisksOptionsTurbo<'a> {
     pub disks_options: &'a DisksOptions<'a>,
     pub seasons_parts: &'a SeasonsParts<'a>,
+    pub seasons_fab: &'a SeasonsFab<'a>,
     pub movies_cards: &'a MoviesCards<'a>,
 }
 
@@ -79,7 +81,11 @@ pub fn render_options(app_handle: &AppHandle) -> Result<String, super::Error> {
     };
     let seasons_parts = SeasonsParts {
         selected_disk: &selected_disk,
-        job: &pending_job,
+        job: &in_progress_job,
+        episode_id: None,
+    };
+    let seasons_fab = SeasonsFab {
+        job: &in_progress_job,
     };
     let video = match app_state.current_video.lock() {
         Ok(guard) => guard.clone(),
@@ -94,6 +100,7 @@ pub fn render_options(app_handle: &AppHandle) -> Result<String, super::Error> {
     let disks_options_turbo = DisksOptionsTurbo {
         disks_options: &disks_options,
         seasons_parts: &seasons_parts,
+        seasons_fab: &seasons_fab,
         movies_cards: &movies_cards,
     };
 
