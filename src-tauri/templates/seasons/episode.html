@@ -26,6 +26,14 @@
         </h3>
 
         <div class="d-flex align-items-center flex-wrap" style="gap: 0.75rem;">
+          {% if ripped %}
+          <span class="badge text-bg-success" data-bs-toggle="tooltip"
+                data-bs-placement="top"
+                data-bs-title="Found ripped episode file(s) on FTP server">
+            <i class="fas fa-check-square me-1"></i>Ripped
+          </span>
+          {% endif %}
+
           <span class="badge bg-primary">
             <svg xmlns="http://www.w3.org/2000/svg" class="icon text-white" viewBox="0 0 576 512">
               <path fill="currentColor"
