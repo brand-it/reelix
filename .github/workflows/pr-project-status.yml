@@ -19,7 +19,8 @@ jobs:
     steps:
       - name: Add PR to Reelix project
         id: add_to_project
-        uses: actions/add-to-project@v1
+        if: ${{ github.event.action == 'opened' || github.event.action == 'reopened' }}
+        uses: actions/add-to-project@v1.0.2
         with:
           project-url: ${{ vars.REELIX_PROJECT_URL }}
           github-token: ${{ secrets.PROJECTS_TOKEN }}
