@@ -1,0 +1,45 @@
+name: PR project status
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+      - closed
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  add-and-set-in-review:
+    if: ${{ (github.event.action == 'opened' || github.event.action == 'reopened' || github.event.action == 'ready_for_review') && github.event.pull_request.draft == false }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add PR to Reelix project
+        id: add_to_project
+        uses: actions/add-to-project@v1
+        with:
+          project-url: ${{ vars.REELIX_PROJECT_URL }}
+          github-token: ${{ secrets.PROJECTS_TOKEN }}
+
+      - name: Set status to In review
+        uses: nipe0324/update-project-v2-item-field@v2.0.2
+        with:
+          project-url: ${{ vars.REELIX_PROJECT_URL }}
+          github-token: ${{ secrets.PROJECTS_TOKEN }}
+          field-name: Status
+          field-value: In review
+
+  set-done-on-merge:
+    if: ${{ github.event.action == 'closed' && github.event.pull_request.merged == true }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set status to Done after merge
+        uses: nipe0324/update-project-v2-item-field@v2.0.2
+        with:
+          project-url: ${{ vars.REELIX_PROJECT_URL }}
+          github-token: ${{ secrets.PROJECTS_TOKEN }}
+          field-name: Status
+          field-value: Done
