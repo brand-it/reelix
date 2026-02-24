@@ -1,4 +1,5 @@
 use crate::models::optical_disk_info::{DiskId, OpticalDiskInfo};
+use crate::services::ftp_uploader;
 use crate::services::plex::find_tv;
 use crate::services::{self, disk_manager};
 use crate::services::{
@@ -11,8 +12,10 @@ use crate::state::job_state::{emit_progress, Job, JobStatus, JobType};
 use crate::state::title_video::{self, TitleVideo, Video};
 use crate::state::uploaded_state::UploadedState;
 use crate::state::{background_process_state, AppState};
+use crate::templates::toast::{Toast, ToastVariant};
 use crate::templates::{self};
 use log::{debug, error, warn};
+use serde::Deserialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
@@ -159,6 +162,73 @@ pub fn withdraw_episode_from_title(
     templates::seasons::render_title_selected(&app_handle, &tv, season)
 }
 
+#[derive(Deserialize)]
+pub struct EpisodeSwap {
+    pub from: u32,
+    pub to: u32,
+}
+
+#[tauri::command]
+pub fn reorder_tv_episodes_on_ftp(
+    mvdb_id: u32,
+    season_number: u32,
+    swaps: Vec<EpisodeSwap>,
+    app_state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<String, templates::Error> {
+    let tv = match find_tv(&app_handle, mvdb_id) {
+        Ok(tv) => tv,
+        Err(e) => return render_error(&e.message),
+    };
+
+    let season = match find_season(&app_handle, mvdb_id, season_number) {
+        Ok(season) => season,
+        Err(e) => return render_error(&e.message),
+    };
+
+    let filtered_swaps: Vec<(u32, u32)> = swaps
+        .into_iter()
+        .filter(|swap| swap.from != swap.to)
+        .map(|swap| (swap.from, swap.to))
+        .collect();
+
+    if filtered_swaps.is_empty() {
+        let toast = Toast::new(
+            "No episode changes",
+            "Pick at least one different episode destination to reorder files.",
+            ToastVariant::Info,
+        );
+        let toast_stream = templates::toast::render_toast_append(toast)?;
+        return Ok(toast_stream);
+    }
+
+    let mut unique_sources = std::collections::HashSet::new();
+    let mut unique_targets = std::collections::HashSet::new();
+    for (from, to) in &filtered_swaps {
+        if !unique_sources.insert(*from) {
+            return render_error(&format!("Episode {from} is listed more than once"));
+        }
+        if !unique_targets.insert(*to) {
+            return render_error(&format!("Episode {to} is targeted more than once"));
+        }
+    }
+
+    let renamed_count =
+        match ftp_uploader::reorder_tv_episode_files(&tv, &season, &filtered_swaps, &app_state) {
+            Ok(count) => count,
+            Err(message) => return render_error(&message),
+        };
+
+    let toast = Toast::success(
+        "Episode files reordered",
+        format!("Renamed {renamed_count} file(s) on FTP."),
+    );
+    let toast_stream = templates::toast::render_toast_append(toast)?;
+    let season_stream = templates::seasons::render_show(&app_handle, &tv, &season)?;
+
+    Ok(format!("{toast_stream}{season_stream}"))
+}
+
 #[tauri::command]
 pub fn rip_season(
     app_handle: tauri::AppHandle,
@@ -202,9 +272,10 @@ pub fn rip_season(
         let tv_and_season = job_guard.title_videos.iter().find_map(|title_video| {
             let title_video_guard = title_video.read().ok()?;
             match &title_video_guard.video {
-                Video::Tv(tv_season_episode) => {
-                    Some((tv_season_episode.tv.clone(), tv_season_episode.season.clone()))
-                }
+                Video::Tv(tv_season_episode) => Some((
+                    tv_season_episode.tv.clone(),
+                    tv_season_episode.season.clone(),
+                )),
                 Video::Movie(_) => None,
             }
         });

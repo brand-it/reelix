@@ -1,8 +1,6 @@
 {% import "_poster.html" as macros %}
 
 <div id="{{ self.dom_id() }}">
-  {{ seasons_fab.render_html() | safe }}
-
   <div class="row">
     <div class="col show-img-posters">
       <a class="btn img-poster-btn p-0 mb-2 m-0" href="/tv/{{ tv.id }}">
@@ -38,7 +36,39 @@
     </div>
   </div>
 
-  <div class="container my-4">
+  <div class="container my-4"
+    data-controller="episode-reorder"
+    data-episode-reorder-mvdb-id-value="{{ tv.id }}"
+    data-episode-reorder-season-number-value="{{ season.season_number }}">
+    <div
+      class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+      <div>
+        <strong>Reorder FTP episodes</strong>
+        <div class="text-muted small">
+          Choose a new episode number for any file, then apply.
+        </div>
+      </div>
+    </div>
+
+    <div id="season-action-bar" class="season-action-bar mb-3">
+      <div
+        class="d-flex flex-wrap align-items-center justify-content-end gap-2 bg-body-tertiary border rounded shadow-sm p-2">
+        <button class="btn btn-warning btn-sm"
+          data-action="click->episode-reorder#apply">
+          Apply reorder
+        </button>
+        <button class="btn btn-outline-secondary btn-sm"
+          data-action="click->episode-reorder#reset">
+          Reset selections
+        </button>
+        {% if seasons_fab.is_visible() %}
+        <a class="btn btn-success btn-sm" href="/rip_season">
+          Rip selected titles
+        </a>
+        {% endif %}
+      </div>
+    </div>
+
     {# seasons/episodes.html #}
     {{ seasons_episodes.render_html() | safe }}
   </div>

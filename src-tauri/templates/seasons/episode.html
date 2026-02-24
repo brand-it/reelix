@@ -1,55 +1,80 @@
 
-<div id="{{ self.dom_id() }}" class="episode-card row p-0 shadow-sm mb-3 bg-body-tertiary rounded">
+<div id="{{ self.dom_id() }}"
+  class="episode-card row p-0 shadow-sm mb-3 bg-body-tertiary rounded">
   <div class="episode-image col-auto p-0">
-    <a href="https://www.themoviedb.org/tv/{{ episode.show_id }}/season/{{ episode.season_number }}/episode/{{ episode.episode_number }}"
-       command="open_url">
-       {% if let Some(still_path) = episode.still_path %}
-          <img src="https://image.tmdb.org/t/p/w227_and_h127_bestv2{{ still_path }}"
-               alt="{{ episode.name }}"
-               loading="lazy"
-               style="width:227px; display:block;">
-       {% endif %}
+    <a
+      href="https://www.themoviedb.org/tv/{{ episode.show_id }}/season/{{ episode.season_number }}/episode/{{ episode.episode_number }}"
+      command="open_url">
+      {% if let Some(still_path) = episode.still_path %}
+      <img src="https://image.tmdb.org/t/p/w227_and_h127_bestv2{{ still_path }}"
+        alt="{{ episode.name }}"
+        loading="lazy"
+        style="width:227px; display:block;">
+      {% endif %}
     </a>
   </div>
 
   <div class="col" data-controller="episode"
-       data-episode-episode-number-value="{{ episode.episode_number }}"
-       data-episode-season-number-value="{{ episode.season_number }}"
-       data-episode-mvdb-id-value="{{ episode.show_id }}">
+    data-episode-episode-number-value="{{ episode.episode_number }}"
+    data-episode-season-number-value="{{ episode.season_number }}"
+    data-episode-mvdb-id-value="{{ episode.show_id }}">
     <div class="d-flex align-items-start mb-1 pt-2">
       <span class="episode-number">#{{ episode.episode_number }}</span>
       <div class="flex-grow-1">
         <h3 class="h5 mb-0">
           <a class="text-decoration-none"
-             href="https://www.themoviedb.org/tv/{{ episode.show_id }}/season/{{ episode.season_number }}/episode/{{ episode.episode_number }}"
-             command="open_url">{{ episode.name }}</a>
+            href="https://www.themoviedb.org/tv/{{ episode.show_id }}/season/{{ episode.season_number }}/episode/{{ episode.episode_number }}"
+            command="open_url">{{ episode.name }}</a>
         </h3>
 
         <div class="d-flex align-items-center flex-wrap" style="gap: 0.75rem;">
           {% if ripped %}
           <span class="badge text-bg-success" data-bs-toggle="tooltip"
-                data-bs-placement="top"
-                data-bs-title="Found ripped episode file(s) on FTP server">
+            data-bs-placement="top"
+            data-bs-title="Found ripped episode file(s) on FTP server">
             <i class="fas fa-check-square me-1"></i>Ripped
           </span>
           {% endif %}
 
           <span class="badge bg-primary">
-            <svg xmlns="http://www.w3.org/2000/svg" class="icon text-white" viewBox="0 0 576 512">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon text-white"
+              viewBox="0 0 576 512">
               <path fill="currentColor"
-                    d="M287.9 0c9.2 0 17.6 5.2 21.6 13.5l68.6 141.3 153.2 22.6c9 1.3 16.5 7.6 19.3 16.3s.5 18.1-5.9 24.5L433.6 328.4l26.2 155.6c1.5 9-2.2 18.1-9.7 23.5s-17.3 6-25.3 1.7l-137-73.2L151 509.1c-8.1 4.3-17.9 3.7-25.3-1.7s-11.2-14.5-9.7-23.5l26.2-155.6L31.1 218.2c-6.5-6.4-8.7-15.9-5.9-24.5s10.3-14.9 19.3-16.3l153.2-22.6L266.3 13.5C270.4 5.2 278.7 0 287.9 0z" />
+                d="M287.9 0c9.2 0 17.6 5.2 21.6 13.5l68.6 141.3 153.2 22.6c9 1.3 16.5 7.6 19.3 16.3s.5 18.1-5.9 24.5L433.6 328.4l26.2 155.6c1.5 9-2.2 18.1-9.7 23.5s-17.3 6-25.3 1.7l-137-73.2L151 509.1c-8.1 4.3-17.9 3.7-25.3-1.7s-11.2-14.5-9.7-23.5l26.2-155.6L31.1 218.2c-6.5-6.4-8.7-15.9-5.9-24.5s10.3-14.9 19.3-16.3l153.2-22.6L266.3 13.5C270.4 5.2 278.7 0 287.9 0z" />
             </svg>
             {{ episode.formatted_vote_average() }}
           </span>
-          <div class="text-muted">{{ episode.formatted_air_date() }} • {{ episode.formatted_runtime() }}</div>
+          <div class="text-muted">{{ episode.formatted_air_date() }} • {{
+            episode.formatted_runtime() }}</div>
         </div>
       </div>
     </div>
 
     <div class="episode-overview mb-2">
       <p class="mb-1">{{ episode.overview }}</p>
-      <a href="https://www.themoviedb.org/tv/{{ episode.show_id }}/season/{{ episode.season_number }}/episode/{{ episode.episode_number }}"
-         command="open_url" class="small">Read More</a>
+      <a
+        href="https://www.themoviedb.org/tv/{{ episode.show_id }}/season/{{ episode.season_number }}/episode/{{ episode.episode_number }}"
+        command="open_url" class="small">Read More</a>
+    </div>
+    <div class="row g-2 align-items-center mb-3">
+      <div class="col-12 col-lg-5">
+        <div class="fw-semibold">Reorder file</div>
+        <div class="text-muted small">Move this episode's file to another slot.
+        </div>
+      </div>
+      <div class="col-12 col-lg-7">
+        <select class="form-select form-select-sm"
+          data-episode-reorder-target="mapping"
+          data-episode-number="{{ episode.episode_number }}">
+          <option value>Keep as episode {{ episode.episode_number }}</option>
+          {% for target_episode in season.episodes %}
+          <option value="{{ target_episode.episode_number }}">
+            Episode {{ target_episode.episode_number }} - {{ target_episode.name
+            }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
     </div>
     {{ seasons_parts.render_html() | safe }}
   </div>

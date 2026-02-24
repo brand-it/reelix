@@ -108,6 +108,7 @@ pub struct SeasonsEpisode<'a> {
     pub episode: &'a SeasonEpisode,
     pub seasons_parts: &'a SeasonsParts<'a>,
     pub ripped: bool,
+    pub season: &'a SeasonResponse,
 }
 
 impl SeasonsEpisode<'_> {
@@ -152,6 +153,7 @@ pub fn render_show(
             episode: ep,
             seasons_parts: parts,
             ripped: ripped_episode_numbers.contains(&ep.episode_number),
+            season,
         })
         .collect();
 
@@ -206,6 +208,7 @@ pub fn render_title_selected(
             episode: ep,
             seasons_parts: parts,
             ripped: ripped_episode_numbers.contains(&ep.episode_number),
+            season: &season,
         })
         .collect::<Vec<SeasonsEpisode>>();
 

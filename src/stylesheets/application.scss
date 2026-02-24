@@ -48,7 +48,7 @@ body {
 }
 
 /* When footer details are expanded (Bootstrap adds .show), reserve more space */
-body:has(#progressDetails.show) {
+body:has(#disk-progress-footer .collapse.show) {
   padding-bottom: calc(
     var(--progress-footer-collapsed) + var(--progress-footer-expanded-max) +
       1rem
@@ -59,11 +59,18 @@ body:has(#progressDetails.show) {
 #season-fab {
   bottom: calc(var(--progress-footer-collapsed) + 1rem) !important;
 }
-body:has(#progressDetails.show) #season-fab {
+body:has(#disk-progress-footer .collapse.show) #season-fab {
   bottom: calc(
     var(--progress-footer-collapsed) + var(--progress-footer-expanded-max) +
       1rem
   ) !important;
+}
+
+/* Sticky action bar for season page */
+.season-action-bar {
+  position: sticky;
+  top: 1rem;
+  z-index: 1020;
 }
 
 /* Footer details panel should never exceed the configured max; scroll inside */

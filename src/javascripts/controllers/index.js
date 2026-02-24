@@ -15,6 +15,9 @@ application.register("disk-select", DiskSelectController);
 import EpisodeController from "./episode_controller.js";
 application.register("episode", EpisodeController);
 
+import EpisodeReorderController from "./episode_reorder_controller.js";
+application.register("episode-reorder", EpisodeReorderController);
+
 import BootstrapTooltipController from "./bootstrap_tooltip_controller.js";
 application.register("bootstrap-tooltip", BootstrapTooltipController);
 

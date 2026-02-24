@@ -4,7 +4,7 @@ use crate::state::title_video::TitleVideo;
 use crate::state::AppState;
 use crate::the_movie_db::{SeasonResponse, TvResponse};
 use log::{debug, error};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Write;
 use std::io::{BufReader, Read};
@@ -142,6 +142,15 @@ fn parse_episode_number_from_tv_filename(
     tv_title_year: &str,
     season_number: u32,
 ) -> Option<u32> {
+    parse_episode_info_from_tv_filename(file_name, tv_title_year, season_number)
+        .map(|(episode_number, _)| episode_number)
+}
+
+fn parse_episode_info_from_tv_filename(
+    file_name: &str,
+    tv_title_year: &str,
+    season_number: u32,
+) -> Option<(u32, Option<u16>)> {
     let lower_name = file_name.to_lowercase();
     if !lower_name.ends_with(".mkv") {
         return None;
@@ -164,12 +173,191 @@ fn parse_episode_number_from_tv_filename(
         return None;
     }
 
-    episode_digits.parse::<u32>().ok()
+    let episode_number = episode_digits.parse::<u32>().ok()?;
+    let part = parse_part_suffix(&lower_name);
+    Some((episode_number, part))
+}
+
+fn parse_part_suffix(lower_name: &str) -> Option<u16> {
+    let suffix = lower_name.strip_suffix(".mkv")?;
+    let marker = "-pt";
+    let index = suffix.rfind(marker)?;
+    let part_digits = &suffix[index + marker.len()..];
+    if part_digits.is_empty() || !part_digits.chars().all(|ch| ch.is_ascii_digit()) {
+        return None;
+    }
+    part_digits.parse::<u16>().ok()
+}
+
+fn build_tv_episode_filename(
+    tv: &TvResponse,
+    season: &SeasonResponse,
+    episode: &crate::the_movie_db::SeasonEpisode,
+    part: Option<u16>,
+    extension: &str,
+) -> String {
+    let episode_title = episode.name.replace('/', "-");
+    let mut file_name = format!(
+        "{} - S{:02}E{:02} - {}.{extension}",
+        tv.title_year(),
+        season.season_number,
+        episode.episode_number,
+        episode_title
+    );
+
+    if let Some(part) = part {
+        let base = file_name.trim_end_matches(&format!(".{extension}"));
+        file_name = format!("{base}-pt{part}.{extension}");
+    }
+
+    file_name
+}
+
+pub fn reorder_tv_episode_files(
+    tv: &TvResponse,
+    season: &SeasonResponse,
+    swaps: &[(u32, u32)],
+    state: &State<'_, AppState>,
+) -> Result<usize, String> {
+    if swaps.is_empty() {
+        return Ok(0);
+    }
+
+    let tv_upload_path = match state.lock_ftp_tv_upload_path().clone() {
+        Some(value) => value,
+        None => return Err("FTP TV upload path is not configured".to_string()),
+    };
+
+    let season_dir = tv_upload_path
+        .join(tv.title_year())
+        .join(format!("Season {:02}", season.season_number));
+
+    let mut ftp =
+        connect_to_ftp(state).map_err(|e| format!("Failed to connect to FTP server: {e:?}"))?;
+    ftp.transfer_type(FileType::Binary)
+        .map_err(|e| format!("Failed to set FTP binary mode: {e:?}"))?;
+
+    ftp.cwd(season_dir.to_string_lossy())
+        .map_err(|e| format!("Failed to access season directory on FTP: {e:?}"))?;
+
+    let entries = ftp
+        .nlst(None)
+        .map_err(|e| format!("Failed to list season directory on FTP: {e:?}"))?;
+
+    let mut episode_files: HashMap<u32, Vec<String>> = HashMap::new();
+    let mut existing_files: HashSet<String> = HashSet::new();
+
+    for entry in entries {
+        let file_name = entry
+            .rsplit('/')
+            .next()
+            .unwrap_or(&entry)
+            .trim()
+            .to_string();
+        if let Some((episode_number, _)) =
+            parse_episode_info_from_tv_filename(&file_name, &tv.title_year(), season.season_number)
+        {
+            episode_files
+                .entry(episode_number)
+                .or_default()
+                .push(file_name.clone());
+            existing_files.insert(file_name);
+        }
+    }
+
+    let mut episode_lookup = HashMap::new();
+    for episode in &season.episodes {
+        episode_lookup.insert(episode.episode_number, episode);
+    }
+
+    let mut move_ops: Vec<(String, String)> = Vec::new();
+    let mut source_files: HashSet<String> = HashSet::new();
+    let mut target_files: HashSet<String> = HashSet::new();
+
+    for (from_episode, to_episode) in swaps {
+        let source_files_for_episode = episode_files
+            .get(from_episode)
+            .ok_or_else(|| format!("No FTP files found for episode {from_episode}"))?;
+
+        if source_files_for_episode.len() > 1 {
+            let all_have_parts = source_files_for_episode.iter().all(|name| {
+                let lower_name = name.to_lowercase();
+                parse_part_suffix(&lower_name).is_some()
+            });
+            if !all_have_parts {
+                return Err(format!(
+                    "Episode {from_episode} has multiple files without part suffixes"
+                ));
+            }
+        }
+
+        let target_episode = episode_lookup
+            .get(to_episode)
+            .ok_or_else(|| format!("Episode {to_episode} does not exist in this season"))?;
+
+        for source_file in source_files_for_episode {
+            let lower_name = source_file.to_lowercase();
+            let part = parse_part_suffix(&lower_name);
+            let extension = std::path::Path::new(source_file)
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .unwrap_or("mkv");
+
+            let target_file =
+                build_tv_episode_filename(tv, season, target_episode, part, extension);
+
+            if !target_files.insert(target_file.clone()) {
+                return Err(format!(
+                    "Multiple files are mapped to the same destination: {target_file}"
+                ));
+            }
+
+            source_files.insert(source_file.clone());
+            move_ops.push((source_file.clone(), target_file));
+        }
+    }
+
+    for target in &target_files {
+        if existing_files.contains(target) && !source_files.contains(target) {
+            return Err(format!("Destination file already exists: {target}"));
+        }
+    }
+
+    let swap_stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or(0);
+
+    let mut temp_moves: Vec<(String, String)> = Vec::new();
+
+    for (index, (source, target)) in move_ops.iter().enumerate() {
+        let extension = std::path::Path::new(source)
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .unwrap_or("mkv");
+        let temp_name = format!(".reelix-swap-{swap_stamp}-{index}.{extension}");
+        ftp.rename(source, &temp_name)
+            .map_err(|e| format!("Failed to rename {source} to temp file: {e:?}"))?;
+        temp_moves.push((temp_name, target.clone()));
+    }
+
+    for (temp_name, target_name) in temp_moves {
+        ftp.rename(&temp_name, &target_name)
+            .map_err(|e| format!("Failed to rename {temp_name} to {target_name}: {e:?}"))?;
+    }
+
+    ftp.quit()
+        .map_err(|e| format!("Failed to close FTP connection: {e:?}"))?;
+
+    Ok(move_ops.len())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::parse_episode_number_from_tv_filename;
+    use super::{
+        parse_episode_info_from_tv_filename, parse_episode_number_from_tv_filename,
+        parse_part_suffix,
+    };
 
     #[test]
     fn parses_standard_episode_filename() {
@@ -217,6 +405,35 @@ mod tests {
             "Example Show (2023)",
             1,
         );
+
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn parses_episode_info_with_part_suffix() {
+        let result = parse_episode_info_from_tv_filename(
+            "Example Show (2023) - S01E05 - Finale-pt2.mkv",
+            "Example Show (2023)",
+            1,
+        );
+
+        assert_eq!(result, Some((5, Some(2))));
+    }
+
+    #[test]
+    fn parses_episode_info_without_part_suffix() {
+        let result = parse_episode_info_from_tv_filename(
+            "Example Show (2023) - S01E07 - Episode Seven.mkv",
+            "Example Show (2023)",
+            1,
+        );
+
+        assert_eq!(result, Some((7, None)));
+    }
+
+    #[test]
+    fn ignores_invalid_part_suffix() {
+        let result = parse_part_suffix("example show (2023) - s01e01 - pilot-ptx.mkv");
 
         assert_eq!(result, None);
     }
