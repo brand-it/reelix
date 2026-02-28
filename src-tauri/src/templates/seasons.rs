@@ -81,7 +81,7 @@ pub struct SeasonsShow<'a> {
     pub tv: &'a TvResponse,
     pub season: &'a SeasonResponse,
     pub seasons_episodes: &'a SeasonsEpisodes<'a>,
-    pub seasons_fab: &'a SeasonsFab<'a>,
+    pub _seasons_fab: &'a SeasonsFab<'a>,
 }
 
 impl SeasonsShow<'_> {
@@ -164,7 +164,7 @@ pub fn render_show(
             seasons_episodes: &SeasonsEpisodes {
                 episodes: &episodes,
             },
-            seasons_fab: &SeasonsFab { job: &job },
+            _seasons_fab: &SeasonsFab { job: &job },
         },
     };
     super::render(seasons_show_turbo)
@@ -248,7 +248,7 @@ fn get_job(app_handle: &tauri::AppHandle, selected_disk: &Option<OpticalDiskInfo
 mod tests {
     use super::*;
     use crate::state::title_video::{TitleVideo, TvSeasonEpisode, Video};
-    use crate::the_movie_db::{SeasonEpisode, SeasonResponse, TvResponse};
+    use crate::the_movie_db::{SeasonEpisode, SeasonResponse, TvId, TvResponse};
     use std::sync::{Arc, RwLock};
 
     /// Helper function to create a minimal mock SeasonEpisode for testing
@@ -297,7 +297,7 @@ mod tests {
             first_air_date: Some("2020-01-01".to_string()),
             genres: vec![],
             homepage: None,
-            id: 1,
+            id: TvId::from(1),
             in_production: false,
             languages: vec!["en".to_string()],
             last_air_date: None,
@@ -335,7 +335,7 @@ mod tests {
                     episode,
                     season: create_mock_season_response(),
                     tv: create_mock_tv_response(),
-                    part: None,
+                    part: 1,
                 };
                 Arc::new(RwLock::new(TitleVideo {
                     id: crate::state::title_video::TitleVideoId::new(),

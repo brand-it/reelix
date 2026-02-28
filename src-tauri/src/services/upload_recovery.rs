@@ -261,7 +261,7 @@ fn reconstruct_tv_with_tmdb_blocking(
         .file_stem()
         .ok_or_else(|| "No filename found".to_string())?
         .to_string_lossy();
-    let part = parse_tv_part(&filename);
+    let part = parse_tv_part(&filename).unwrap_or(1);
 
     let tv_show = title_video::TvSeasonEpisode {
         episode,
@@ -519,7 +519,6 @@ fn parse_movie_filename(filename: &str) -> Result<(String, String), String> {
 }
 
 /// Reconstruct TV show video metadata from file path
-#[allow(dead_code)]
 fn reconstruct_tv_video(path: &Path) -> Result<Arc<RwLock<TitleVideo>>, String> {
     let filename = path
         .file_stem()
@@ -539,7 +538,7 @@ fn reconstruct_tv_video(path: &Path) -> Result<Arc<RwLock<TitleVideo>>, String> 
         first_air_date: None,
         genres: vec![],
         homepage: None,
-        id: 0,
+        id: the_movie_db::TvId::from(0),
         in_production: false,
         languages: vec![],
         last_air_date: None,
@@ -600,7 +599,7 @@ fn reconstruct_tv_video(path: &Path) -> Result<Arc<RwLock<TitleVideo>>, String> 
         episode: episode_obj,
         season: season_response,
         tv: tv_response,
-        part: None,
+        part: 1,
     };
 
     // Create a minimal TitleInfo for the title

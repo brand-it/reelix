@@ -3,7 +3,7 @@ use crate::{
     state::{job_state::Job, title_video::Video},
 };
 use askama::Template;
-use log::debug;
+use log::{debug, warn};
 use serde::Serialize;
 
 // Trait to add render_html method to any Template implementor
@@ -107,9 +107,10 @@ pub fn render_html<T: Template>(template: T) -> String {
 }
 
 pub fn render_error(message: &str) -> Result<String, Error> {
-    let generic_error = GenericError { message };
+    let toast_msg = toast::Toast::danger("Error", message.to_string()).with_auto_hide(10_000);
 
-    render(&generic_error)
+    warn!("Rendering error template with message: {message}");
+    toast::render_toast_append(toast_msg)
 }
 
 // Helper functions
@@ -120,7 +121,7 @@ pub fn find_previous_value_by_episode_id(episode_id: &u32, part: &u16, job: &Job
         let title_video = title_video.read().unwrap();
         match &title_video.video {
             Video::Tv(tv) => {
-                if tv.part == Some(*part) && tv.episode.id == *episode_id {
+                if tv.part == *part && tv.episode.id == *episode_id {
                     if let Some(title) = &title_video.title {
                         return Some(title.id);
                     }
@@ -143,7 +144,7 @@ pub fn is_selected_title_by_episode_id(
         let title_video = title_video.read().unwrap();
         match &title_video.video {
             Video::Tv(tv) => {
-                tv.part == Some(*part)
+                tv.part == *part
                     && tv.episode.id == *episode_id
                     && title_video.title.as_ref().map(|t| t.id) == Some(title_info.id)
             }

@@ -26,6 +26,24 @@ impl TitleInfo {
         }
     }
 
+
+    pub fn title_option_label(&self) -> String {
+        let mut label = format!("Title {}", self.id);
+        if let Some(description) = &self.description {
+            label.push_str(&format!(" — {description}"));
+        }
+        if let Some(duration) = &self.duration {
+            label.push_str(&format!(" • {duration}"));
+        }
+        if let Some(size) = &self.size {
+            label.push_str(&format!(" • {size}"));
+        }
+        if let Some(chapter_count) = self.chapter_count {
+            label.push_str(&format!(" • {chapter_count} ch"));
+        }
+        label
+    }
+
     pub fn has_chapters(&self) -> bool {
         self.chapter_count.unwrap_or(0) > 0
     }
@@ -77,5 +95,28 @@ impl TitleInfo {
             "description" => self.description = Some(value),
             _ => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_title_option_label() {
+        let mut title = TitleInfo::new(1);
+        assert_eq!(title.title_option_label(), "Title 1");
+
+        title.description = Some("Main Movie".to_string());
+        assert_eq!(title.title_option_label(), "Title 1 — Main Movie");
+
+        title.duration = Some("01:30:00".to_string());
+        assert_eq!(title.title_option_label(), "Title 1 — Main Movie • 01:30:00");
+
+        title.size = Some("4.5 GB".to_string());
+        assert_eq!(title.title_option_label(), "Title 1 — Main Movie • 01:30:00 • 4.5 GB");
+
+        title.chapter_count = Some(12);
+        assert_eq!(title.title_option_label(), "Title 1 — Main Movie • 01:30:00 • 4.5 GB • 12 ch");
     }
 }

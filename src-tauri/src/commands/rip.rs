@@ -1,4 +1,4 @@
-use crate::models::optical_disk_info::{DiskId, OpticalDiskInfo};
+use crate::models::optical_disk_info::DiskId;
 use crate::services::ftp_uploader;
 use crate::services::plex::find_tv;
 use crate::services::{self, disk_manager};
@@ -28,7 +28,7 @@ pub fn assign_episode_to_title(
     mvdb_id: u32,
     season_number: u32,
     episode_number: u32,
-    title_id: u32,
+    title_id: Option<u32>,
     part: u16,
     background_process_state: State<'_, background_process_state::BackgroundProcessState>,
     app_handle: tauri::AppHandle,
@@ -65,102 +65,137 @@ pub fn assign_episode_to_title(
         Some(job) => job,
         None => {
             let optical_disk_info = optical_disk.read().unwrap().clone();
-            let job = background_process_state.new_job(
+            background_process_state.new_job(
                 JobType::Ripping,
                 JobStatus::Pending,
                 Some(optical_disk_info),
-            );
-            background_process_state.emit_jobs_changed(&app_handle);
-            job
+            )
         }
     };
-    let title_video = job.read().unwrap().find_tv_title_video(
-        mvdb_id,
-        season_number,
-        episode_number,
-        title_id,
-        Some(part),
-    );
+    let title_video = job
+        .read()
+        .unwrap()
+        .find_tv_title_video(tv.id, season.id, episode.id, part);
+    if let Some(title_id) = title_id {
+        let title = match optical_disk.read().unwrap().find_title_by_id(title_id) {
+            Some(title) => title,
+            None => {
+                return templates::render_error(
+                    "Failed to find Title on Optical Disk to Assign to Episode",
+                );
+            }
+        };
+        match title_video {
+            Some(title_vid) => {
+                title_vid
+                    .write()
+                    .unwrap()
+                    .update_video(Video::Tv(Box::new(title_video::TvSeasonEpisode {
+                        tv: tv.clone(),
+                        season: season.clone(),
+                        episode: episode.clone(),
+                        part,
+                    })))
+                    .update_title(title.clone());
+            }
+            None => {
+                debug!("Unable to find existing title video for episode, creating new title video for episode assignment Part={part}, Episode={season_number}-{episode_number} on TV show id {mvdb_id} with title_id={title_id:?}");
+                let tv_season_episode = Video::Tv(Box::new(title_video::TvSeasonEpisode {
+                    tv: tv.clone(),
+                    season: season.clone(),
+                    episode: episode.clone(),
+                    part,
+                }));
 
-    let title_info = match optical_disk.read().unwrap().find_title_by_id(title_id) {
-        Some(title) => title,
-        None => {
-            return render_error("Failed to find Title on Optical Disk to Assign Episode");
+                let _ = job
+                    .write()
+                    .expect("Failed to lock job for write")
+                    .add_title_video(title, tv_season_episode)
+                    .map_err(|e| {
+                        templates::render_error(&format!(
+                            "Failed to assign episode to title: {}",
+                            e.message
+                        ))
+                        .unwrap_err()
+                    });
+            }
+        };
+    } else if let Some(title_video) = title_video {
+        let removed = job
+            .write()
+            .expect("Failed to lock job for write")
+            .remove_title_video(title_video.read().unwrap().title.as_ref().unwrap());
+        match removed {
+            Ok(_) => {
+                let no_titles = job.read().unwrap().title_videos.is_empty();
+                if no_titles {
+                    // remove the job entirely if there are no more title videos, since a job with no title videos doesn't make sense and would just be confusing to show in the UI
+                    let job_id = job.read().expect("Failed to lock job for read").id;
+                    background_process_state.delete_job(job_id);
+                }
+            }
+            Err(e) => {
+                return templates::render_error(&format!(
+                    "Failed to withdraw episode from title: {}",
+                    e.message
+                ));
+            }
         }
-    };
-
-    match title_video {
-        Some(_) => {
-            return templates::render_error("Episode already assigned to title");
-        }
-        None => {
-            let tv_season_episode = title_video::TvSeasonEpisode {
-                tv: tv.clone(),
-                season: season.clone(),
-                episode: episode.clone(),
-                part: Some(part),
-            };
-            let title_video = TitleVideo {
-                id: title_video::TitleVideoId::new(),
-                video: Video::Tv(Box::new(tv_season_episode)),
-                title: Some(title_info.clone()),
-            };
-            job.write()
-                .expect("Failed to lock job for write")
-                .title_videos
-                .push(Arc::new(RwLock::new(title_video)));
-        }
-    };
-
-    templates::seasons::render_title_selected(&app_handle, &tv, season)
-}
-
-#[tauri::command]
-pub fn withdraw_episode_from_title(
-    mvdb_id: u32,
-    season_number: u32,
-    episode_number: u32,
-    title_id: u32,
-    app_state: State<'_, AppState>,
-    app_handle: tauri::AppHandle,
-) -> Result<String, templates::Error> {
-    let optical_disk = match app_state.selected_disk() {
-        Some(d) => d,
-        None => return render_error("No current selected disk"),
-    };
-
-    let season = match find_season(&app_handle, mvdb_id, season_number) {
-        Ok(season) => season,
-        Err(e) => return render_error(&e.message),
-    };
-
-    let tv = match find_tv(&app_handle, mvdb_id) {
-        Ok(tv) => tv,
-        Err(e) => return render_error(&e.message),
-    };
-
-    let job = find_or_create_job(&app_handle, &optical_disk.read().unwrap());
-    let title_video = job.read().unwrap().find_tv_title_video(
-        mvdb_id,
-        season_number,
-        episode_number,
-        title_id,
-        None,
-    );
-    match title_video {
-        Some(title_video) => {
-            job.write()
-                .expect("Failed to lock job for write")
-                .title_videos
-                .retain(|tv| !Arc::ptr_eq(tv, &title_video));
-        }
-        None => {
-            return render_error("Failed to find Episode to Withdraw from Title");
-        }
+    } else {
+        return templates::render_error("Unclear error: no title video found for episode to withdraw, and no title specified to assign");
     }
 
+    background_process_state.emit_jobs_changed(&app_handle);
+
     templates::seasons::render_title_selected(&app_handle, &tv, season)
 }
+
+// pub fn withdraw_episode_from_title(
+//     mvdb_id: u32,
+//     season_number: u32,
+//     episode_number: u32,
+//     title_id: u32,
+//     part: Option<u16>,
+//     app_state: State<'_, AppState>,
+//     app_handle: tauri::AppHandle,
+// ) -> Result<String, templates::Error> {
+//     let optical_disk = match app_state.selected_disk() {
+//         Some(d) => d,
+//         None => return render_error("No current selected disk"),
+//     };
+
+//     let season = match find_season(&app_handle, mvdb_id, season_number) {
+//         Ok(season) => season,
+//         Err(e) => return render_error(&e.message),
+//     };
+
+//     let tv = match find_tv(&app_handle, mvdb_id) {
+//         Ok(tv) => tv,
+//         Err(e) => return render_error(&e.message),
+//     };
+
+//     let job = find_or_create_job(&app_handle, &optical_disk.read().unwrap());
+//     let title_video = job.read().unwrap().find_tv_title_video(
+//         mvdb_id,
+//         season_number,
+//         episode_number,
+//         title_id,
+//         Some(part),
+//     );
+//     match title_video {
+//         Some(title_video) => {
+//             job.write()
+//                 .expect("Failed to lock job for write")
+//                 .title_videos
+//                 .retain(|tv| !Arc::ptr_eq(tv, &title_video));
+//         }
+//         None => {
+//             return render_error("Failed to find Episode to Withdraw from Title");
+//         }
+//     }
+
+//     templates::seasons::render_title_selected(&app_handle, &tv, season)
+// }
 
 #[derive(Deserialize)]
 pub struct EpisodeSwap {
@@ -844,34 +879,33 @@ pub fn spawn_rip(app_handle: tauri::AppHandle, job: Arc<RwLock<Job>>) {
 //     }
 // }
 
-fn find_or_create_job(app_handle: &tauri::AppHandle, disk: &OpticalDiskInfo) -> Arc<RwLock<Job>> {
-    let background_process_state = app_handle.state::<BackgroundProcessState>();
+// fn find_or_create_job(app_handle: &tauri::AppHandle, disk: &OpticalDiskInfo) -> Arc<RwLock<Job>> {
+//     let background_process_state = app_handle.state::<BackgroundProcessState>();
 
-    let disk_id = disk.id;
-    match background_process_state.find_job(
-        Some(disk_id),
-        &Some(JobType::Ripping),
-        &[JobStatus::Pending],
-    ) {
-        Some(job) => job,
-        None => {
-            let optical_disk_info = disk.clone();
-            let job = background_process_state.new_job(
-                JobType::Ripping,
-                JobStatus::Pending,
-                Some(optical_disk_info),
-            );
-            background_process_state.emit_jobs_changed(app_handle);
-            job
-        }
-    }
-}
+//     let disk_id = disk.id;
+//     match background_process_state.find_job(
+//         Some(disk_id),
+//         &Some(JobType::Ripping),
+//         &[JobStatus::Pending],
+//     ) {
+//         Some(job) => job,
+//         None => {
+//             let optical_disk_info = disk.clone();
+//             let job = background_process_state.new_job(
+//                 JobType::Ripping,
+//                 JobStatus::Pending,
+//                 Some(optical_disk_info),
+//             );
+//             background_process_state.emit_jobs_changed(app_handle);
+//             job
+//         }
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::state::title_video::TvSeasonEpisode;
-    use crate::the_movie_db::{SeasonEpisode, SeasonResponse, TvResponse};
+    use crate::the_movie_db::{SeasonEpisode, SeasonResponse, TvId, TvResponse};
 
     fn create_mock_tv_episode(id: u32, episode_number: u32) -> SeasonEpisode {
         SeasonEpisode {
@@ -920,7 +954,7 @@ mod tests {
             first_air_date: Some("2020-01-01".to_string()),
             genres: vec![],
             homepage: None,
-            id: 100,
+            id: TvId::from(100),
             in_production: false,
             languages: vec!["en".to_string()],
             last_air_date: None,
@@ -982,12 +1016,12 @@ mod tests {
             tv: tv.clone(),
             season: season.clone(),
             episode: episode.clone(),
-            part: Some(1),
+            part: 1,
         };
 
         assert_eq!(tv_season_episode.episode.id, 1);
-        assert_eq!(tv_season_episode.part, Some(1));
-        assert_eq!(tv_season_episode.tv.id, 100);
+        assert_eq!(tv_season_episode.part, 1);
+        assert_eq!(tv_season_episode.tv.id, TvId::from(100));
         assert_eq!(tv_season_episode.season.season_number, 1);
     }
 
@@ -1001,14 +1035,14 @@ mod tests {
             tv: tv.clone(),
             season: season.clone(),
             episode: episode.clone(),
-            part: Some(1),
+            part: 1,
         };
 
         let part2 = TvSeasonEpisode {
             tv: tv.clone(),
             season: season.clone(),
             episode: episode.clone(),
-            part: Some(2),
+            part: 2,
         };
 
         // Same episode, different parts
@@ -1025,21 +1059,21 @@ mod tests {
             tv: tv.clone(),
             season: season.clone(),
             episode: season.episodes[0].clone(),
-            part: Some(1),
+            part: 1,
         };
 
         let episode2 = TvSeasonEpisode {
             tv: tv.clone(),
             season: season.clone(),
             episode: season.episodes[1].clone(),
-            part: Some(1),
+            part: 1,
         };
 
         let episode3 = TvSeasonEpisode {
             tv: tv.clone(),
             season: season.clone(),
             episode: season.episodes[2].clone(),
-            part: Some(1),
+            part: 1,
         };
 
         // Verify each episode has unique ID
@@ -1067,21 +1101,5 @@ mod tests {
         assert!(episode_number > 0);
         assert!(title_id > 0);
         assert!(part > 0);
-    }
-
-    #[test]
-    fn test_job_type_ripping() {
-        let _job_type = JobType::Ripping;
-        let _loading_type = JobType::Loading;
-
-        // Test passes if enums can be created successfully
-    }
-
-    #[test]
-    fn test_job_status_pending() {
-        let _pending = JobStatus::Pending;
-        let _processing = JobStatus::Processing;
-
-        // Test passes if enums can be created successfully
     }
 }

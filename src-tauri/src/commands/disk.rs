@@ -20,7 +20,11 @@ pub fn selected_disk(
         .expect("failed to lock selected disk ID");
     *selected_optical_disk_id = Some(id);
 
-    templates::disk_titles::render_options(&state, &background_process_state)
+    // Also refresh the current season if one is being viewed
+    let disk_selector_html =
+        templates::disk_titles::render_options(&state, &background_process_state)?;
+
+    Ok(disk_selector_html)
 }
 
 #[tauri::command]

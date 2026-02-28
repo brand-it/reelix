@@ -14,26 +14,13 @@ export default class extends Controller {
   titleSelected(event) {
     const selectedTitle = event.currentTarget;
     const part = parseInt(selectedTitle.dataset.episodePart);
-    const previousValue = parseInt(selectedTitle.dataset.episodePreviousValue);
-    const currentValue = parseInt(selectedTitle.value);
-    if (!Number.isNaN(previousValue)) {
-      window.turboInvoke("withdraw_episode_from_title", {
-        mvdbId: this.mvdbIdValue,
-        seasonNumber: this.seasonNumberValue,
-        episodeNumber: this.episodeNumberValue,
-        titleId: previousValue,
-      });
-      selectedTitle.dataset.episodePreviousValue = "";
-    }
-    if (!Number.isNaN(currentValue)) {
-      window.turboInvoke("assign_episode_to_title", {
-        mvdbId: this.mvdbIdValue,
-        seasonNumber: this.seasonNumberValue,
-        episodeNumber: this.episodeNumberValue,
-        titleId: currentValue,
-        part: part,
-      });
-      selectedTitle.dataset.episodePreviousValue = currentValue;
-    }
+    const titleId = parseInt(selectedTitle.value);
+    window.turboInvoke("assign_episode_to_title", {
+      mvdbId: this.mvdbIdValue,
+      seasonNumber: this.seasonNumberValue,
+      episodeNumber: this.episodeNumberValue,
+      titleId: titleId,
+      part: part,
+    });
   }
 }

@@ -575,14 +575,34 @@ impl TitleVideo {
             episode_title
         );
 
-        if let Some(part) = tv_season_episode.part {
-            if part > 1 || multiple_parts {
-                file_name = format!("{}-pt{}", file_name.trim_end_matches(".mkv"), part);
-                file_name.push_str(".mkv");
-            }
+        if tv_season_episode.part > 1 || multiple_parts {
+            file_name = format!(
+                "{}-pt{}",
+                file_name.trim_end_matches(".mkv"),
+                tv_season_episode.part
+            );
+            file_name.push_str(".mkv");
         }
 
         file_name
+    }
+
+    // Helper method to update the video content of this TitleVideo, returning a mutable reference for chaining.
+    // Useful for builder-style updates when modifying the video information after creation.
+    // Example usage:
+    //   title_video.update_video(new_video).update_title(new_title_info);
+    pub fn update_video(&mut self, video: Video) -> &mut Self {
+        self.video = video;
+        self
+    }
+
+    // Helper method to update the title information of this TitleVideo, returning a mutable reference for chaining.
+    // Allows for fluent updates to the title metadata after the initial creation of the TitleVideo.
+    // Example usage:
+    //   title_video.update_title(new_title_info).update_video(new_video);
+    pub fn update_title(&mut self, title: TitleInfo) -> &mut Self {
+        self.title = Some(title);
+        self
     }
 }
 
@@ -610,7 +630,7 @@ impl Video {
     pub fn mvdb_id(&self) -> u32 {
         match self {
             Video::Movie(movie) => movie.movie.id,
-            Video::Tv(tv) => tv.tv.id,
+            Video::Tv(tv) => tv.tv.id.into(),
         }
     }
 }
@@ -620,7 +640,7 @@ pub struct TvSeasonEpisode {
     pub episode: SeasonEpisode,
     pub season: SeasonResponse,
     pub tv: TvResponse,
-    pub part: Option<u16>,
+    pub part: u16,
 }
 
 impl TvSeasonEpisode {
@@ -658,6 +678,8 @@ impl TvSeasonEpisode {
 
 #[cfg(test)]
 mod tests {
+    use crate::the_movie_db::TvId;
+
     use super::*;
 
     // Helper function to create a minimal test MovieResponse
@@ -691,7 +713,7 @@ mod tests {
             first_air_date: Some(format!("{year}-01-01")),
             genres: vec![],
             homepage: None,
-            id: 1,
+            id: TvId::from(1),
             in_production: false,
             languages: vec![],
             last_air_date: None,
@@ -757,7 +779,7 @@ mod tests {
         episode_name: &str,
         season_number: u32,
         episode_number: u32,
-        part: Option<u16>,
+        part: u16,
     ) -> TvSeasonEpisode {
         TvSeasonEpisode {
             episode: create_test_episode(episode_name, episode_number),
@@ -817,7 +839,7 @@ mod tests {
 
     #[test]
     fn test_tv_episode_filename_single_part_no_suffix() {
-        let episode = create_test_tv_season_episode("Pilot", 1, 1, None);
+        let episode = create_test_tv_season_episode("Pilot", 1, 1, 1);
 
         let filename = TitleVideo::tv_episode_filename(&episode, false);
         assert_eq!(filename, "Example Show (2023) - S01E01 - Pilot.mkv");
@@ -825,7 +847,7 @@ mod tests {
 
     #[test]
     fn test_tv_episode_filename_part1_no_multiple_parts_no_suffix() {
-        let episode = create_test_tv_season_episode("Pilot", 1, 1, Some(1));
+        let episode = create_test_tv_season_episode("Pilot", 1, 1, 1);
 
         let filename = TitleVideo::tv_episode_filename(&episode, false);
         assert_eq!(filename, "Example Show (2023) - S01E01 - Pilot.mkv");
@@ -833,7 +855,7 @@ mod tests {
 
     #[test]
     fn test_tv_episode_filename_part1_with_multiple_parts_suffix() {
-        let episode = create_test_tv_season_episode("Pilot", 1, 1, Some(1));
+        let episode = create_test_tv_season_episode("Pilot", 1, 1, 1);
 
         let filename = TitleVideo::tv_episode_filename(&episode, true);
         assert_eq!(filename, "Example Show (2023) - S01E01 - Pilot-pt1.mkv");
@@ -841,7 +863,7 @@ mod tests {
 
     #[test]
     fn test_tv_episode_filename_part2_always_has_suffix() {
-        let episode = create_test_tv_season_episode("Pilot", 1, 1, Some(2));
+        let episode = create_test_tv_season_episode("Pilot", 1, 1, 2);
 
         let filename = TitleVideo::tv_episode_filename(&episode, false);
         assert_eq!(filename, "Example Show (2023) - S01E01 - Pilot-pt2.mkv");
@@ -849,7 +871,7 @@ mod tests {
 
     #[test]
     fn test_tv_episode_filename_sanitizes_forward_slash() {
-        let episode = create_test_tv_season_episode("Act 1/Act 2", 1, 3, None);
+        let episode = create_test_tv_season_episode("Act 1/Act 2", 1, 3, 1);
 
         let filename = TitleVideo::tv_episode_filename(&episode, false);
         assert_eq!(filename, "Example Show (2023) - S01E03 - Act 1-Act 2.mkv");

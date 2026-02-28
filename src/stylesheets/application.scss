@@ -70,7 +70,6 @@ body:has(#disk-progress-footer .collapse.show) #season-fab {
 .season-action-bar {
   position: sticky;
   top: 1rem;
-  z-index: 1020;
 }
 
 /* Footer details panel should never exceed the configured max; scroll inside */

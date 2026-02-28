@@ -56,6 +56,7 @@
         href="https://www.themoviedb.org/tv/{{ episode.show_id }}/season/{{ episode.season_number }}/episode/{{ episode.episode_number }}"
         command="open_url" class="small">Read More</a>
     </div>
+    {% if ripped %}
     <div class="row g-2 align-items-center mb-3">
       <div class="col-12 col-lg-5">
         <div class="fw-semibold">Reorder file</div>
@@ -76,6 +77,7 @@
         </select>
       </div>
     </div>
+    {% endif %}
     {{ seasons_parts.render_html() | safe }}
   </div>
 </div>

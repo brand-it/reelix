@@ -118,22 +118,14 @@ pub fn render_cards(app_handle: &tauri::AppHandle) -> Result<String, super::Erro
 
     let in_progress_job = match &selected_disk {
         Some(disk) => background_process_state
-            .find_job(
-                Some(disk.id),
-                &None,
-                &[JobStatus::Processing],
-            )
+            .find_job(Some(disk.id), &None, &[JobStatus::Processing])
             .and_then(|job_arc| copy_job_state(&Some(job_arc))),
         None => None,
     };
 
     let pending_job = match &selected_disk {
         Some(disk) => background_process_state
-            .find_job(
-                Some(disk.id),
-                &None,
-                &[JobStatus::Pending],
-            )
+            .find_job(Some(disk.id), &None, &[JobStatus::Pending])
             .and_then(|job_arc| copy_job_state(&Some(job_arc))),
         None => None,
     };
@@ -185,8 +177,6 @@ pub fn render_cards(app_handle: &tauri::AppHandle) -> Result<String, super::Erro
             tv.tv.id,
             tv.title(),
             tv.part
-                .map(|part| part.to_string())
-                .unwrap_or_else(|| "-".to_string())
         ),
     });
 

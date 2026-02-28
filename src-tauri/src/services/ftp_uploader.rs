@@ -352,93 +352,6 @@ pub fn reorder_tv_episode_files(
     Ok(move_ops.len())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::{
-        parse_episode_info_from_tv_filename, parse_episode_number_from_tv_filename,
-        parse_part_suffix,
-    };
-
-    #[test]
-    fn parses_standard_episode_filename() {
-        let result = parse_episode_number_from_tv_filename(
-            "Example Show (2023) - S01E03 - Third Episode.mkv",
-            "Example Show (2023)",
-            1,
-        );
-
-        assert_eq!(result, Some(3));
-    }
-
-    #[test]
-    fn parses_multipart_episode_filename() {
-        let result = parse_episode_number_from_tv_filename(
-            "Example Show (2023) - S01E03 - Third Episode-pt2.mkv",
-            "Example Show (2023)",
-            1,
-        );
-
-        assert_eq!(result, Some(3));
-    }
-
-    #[test]
-    fn ignores_other_show_and_non_mkv_files() {
-        let wrong_show = parse_episode_number_from_tv_filename(
-            "Different Show (2023) - S01E03 - Third Episode.mkv",
-            "Example Show (2023)",
-            1,
-        );
-        let wrong_extension = parse_episode_number_from_tv_filename(
-            "Example Show (2023) - S01E03 - Third Episode.mp4",
-            "Example Show (2023)",
-            1,
-        );
-
-        assert_eq!(wrong_show, None);
-        assert_eq!(wrong_extension, None);
-    }
-
-    #[test]
-    fn ignores_wrong_season() {
-        let result = parse_episode_number_from_tv_filename(
-            "Example Show (2023) - S02E03 - Third Episode.mkv",
-            "Example Show (2023)",
-            1,
-        );
-
-        assert_eq!(result, None);
-    }
-
-    #[test]
-    fn parses_episode_info_with_part_suffix() {
-        let result = parse_episode_info_from_tv_filename(
-            "Example Show (2023) - S01E05 - Finale-pt2.mkv",
-            "Example Show (2023)",
-            1,
-        );
-
-        assert_eq!(result, Some((5, Some(2))));
-    }
-
-    #[test]
-    fn parses_episode_info_without_part_suffix() {
-        let result = parse_episode_info_from_tv_filename(
-            "Example Show (2023) - S01E07 - Episode Seven.mkv",
-            "Example Show (2023)",
-            1,
-        );
-
-        assert_eq!(result, Some((7, None)));
-    }
-
-    #[test]
-    fn ignores_invalid_part_suffix() {
-        let result = parse_part_suffix("example show (2023) - s01e01 - pilot-ptx.mkv");
-
-        assert_eq!(result, None);
-    }
-}
-
 /// Connects, authenticates, and Changes current directory to MOVIE_UPLOAD_PATH
 pub fn connect_to_ftp(state: &State<'_, AppState>) -> Result<FtpStream, SuppaFtpError> {
     let ftp_host = match state.lock_ftp_host().clone() {
@@ -810,4 +723,91 @@ pub fn list_directories(ftp_stream: &mut FtpStream, path: &str) -> Result<Vec<St
     }
 
     Ok(dirs)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        parse_episode_info_from_tv_filename, parse_episode_number_from_tv_filename,
+        parse_part_suffix,
+    };
+
+    #[test]
+    fn parses_standard_episode_filename() {
+        let result = parse_episode_number_from_tv_filename(
+            "Example Show (2023) - S01E03 - Third Episode.mkv",
+            "Example Show (2023)",
+            1,
+        );
+
+        assert_eq!(result, Some(3));
+    }
+
+    #[test]
+    fn parses_multipart_episode_filename() {
+        let result = parse_episode_number_from_tv_filename(
+            "Example Show (2023) - S01E03 - Third Episode-pt2.mkv",
+            "Example Show (2023)",
+            1,
+        );
+
+        assert_eq!(result, Some(3));
+    }
+
+    #[test]
+    fn ignores_other_show_and_non_mkv_files() {
+        let wrong_show = parse_episode_number_from_tv_filename(
+            "Different Show (2023) - S01E03 - Third Episode.mkv",
+            "Example Show (2023)",
+            1,
+        );
+        let wrong_extension = parse_episode_number_from_tv_filename(
+            "Example Show (2023) - S01E03 - Third Episode.mp4",
+            "Example Show (2023)",
+            1,
+        );
+
+        assert_eq!(wrong_show, None);
+        assert_eq!(wrong_extension, None);
+    }
+
+    #[test]
+    fn ignores_wrong_season() {
+        let result = parse_episode_number_from_tv_filename(
+            "Example Show (2023) - S02E03 - Third Episode.mkv",
+            "Example Show (2023)",
+            1,
+        );
+
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn parses_episode_info_with_part_suffix() {
+        let result = parse_episode_info_from_tv_filename(
+            "Example Show (2023) - S01E05 - Finale-pt2.mkv",
+            "Example Show (2023)",
+            1,
+        );
+
+        assert_eq!(result, Some((5, Some(2))));
+    }
+
+    #[test]
+    fn parses_episode_info_without_part_suffix() {
+        let result = parse_episode_info_from_tv_filename(
+            "Example Show (2023) - S01E07 - Episode Seven.mkv",
+            "Example Show (2023)",
+            1,
+        );
+
+        assert_eq!(result, Some((7, None)));
+    }
+
+    #[test]
+    fn ignores_invalid_part_suffix() {
+        let result = parse_part_suffix("example show (2023) - s01e01 - pilot-ptx.mkv");
+
+        assert_eq!(result, None);
+    }
 }
