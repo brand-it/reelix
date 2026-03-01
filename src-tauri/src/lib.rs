@@ -181,7 +181,7 @@ pub fn run() {
         .plugin(tauri_plugin_http::init())
         .plugin(
             tauri_plugin_log::Builder::new()
-                .level(LevelFilter::Trace)
+                .level(LevelFilter::Debug)
                 .targets([
                     Target::new(TargetKind::Stdout),
                     Target::new(TargetKind::LogDir { file_name: None }),

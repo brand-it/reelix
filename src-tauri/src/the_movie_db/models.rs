@@ -174,6 +174,105 @@ impl SearchResult {
 // ---------- TV -----------
 // -------------------------
 
+#[derive(Serialize, Clone, PartialEq, Eq, Copy, PartialOrd, Ord, Deserialize, Debug)]
+
+pub struct TvId(u32);
+
+impl std::fmt::Display for TvId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<TvId> for u32 {
+    fn from(id: TvId) -> Self {
+        id.0
+    }
+}
+
+// From unsigned types
+impl From<u8> for TvId {
+    fn from(id: u8) -> Self {
+        TvId(id as u32)
+    }
+}
+
+impl From<u16> for TvId {
+    fn from(id: u16) -> Self {
+        TvId(id as u32)
+    }
+}
+
+impl From<u32> for TvId {
+    fn from(id: u32) -> Self {
+        TvId(id)
+    }
+}
+
+impl From<u64> for TvId {
+    fn from(id: u64) -> Self {
+        TvId(id as u32)
+    }
+}
+
+impl From<u128> for TvId {
+    fn from(id: u128) -> Self {
+        TvId(id as u32)
+    }
+}
+
+impl From<usize> for TvId {
+    fn from(id: usize) -> Self {
+        TvId(id as u32)
+    }
+}
+
+// From signed types
+impl From<i8> for TvId {
+    fn from(id: i8) -> Self {
+        TvId(id as u32)
+    }
+}
+
+impl From<i16> for TvId {
+    fn from(id: i16) -> Self {
+        TvId(id as u32)
+    }
+}
+
+impl From<i32> for TvId {
+    fn from(id: i32) -> Self {
+        TvId(id as u32)
+    }
+}
+
+impl From<i64> for TvId {
+    fn from(id: i64) -> Self {
+        TvId(id as u32)
+    }
+}
+
+impl From<i128> for TvId {
+    fn from(id: i128) -> Self {
+        TvId(id as u32)
+    }
+}
+
+impl From<isize> for TvId {
+    fn from(id: isize) -> Self {
+        TvId(id as u32)
+    }
+}
+
+impl TryFrom<&str> for TvId {
+    type Error = std::num::ParseIntError;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        let parsed = s.parse::<u32>()?;
+        Ok(TvId(parsed))
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TvResponse {
     pub adult: bool,
@@ -183,7 +282,7 @@ pub struct TvResponse {
     pub first_air_date: Option<String>,
     pub genres: Vec<TvGenre>,
     pub homepage: Option<String>,
-    pub id: u32,
+    pub id: TvId,
     pub in_production: bool,
     pub languages: Vec<String>,
     pub last_air_date: Option<String>,

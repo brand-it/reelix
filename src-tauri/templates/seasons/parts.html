@@ -1,18 +1,3 @@
-{% macro title_option_label(title_info) %}
-Title {{ title_info.id }}
-{% if let Some(description) = title_info.description %}
-— {{ description }}
-{% endif %}
-{% if let Some(duration) = title_info.duration %}
-• {{ duration }}
-{% endif %}
-{% if let Some(size) = title_info.size %}
-• {{ size }}
-{% endif %}
-{% if let Some(chapter_count) = title_info.chapter_count %}
-• {{ chapter_count }} ch
-{% endif %}
-{% endmacro %}
 
 {% macro part_selector(part, selected_disk, disabled) %}
 <div class="row g-2 align-items-center mb-2">
@@ -27,7 +12,7 @@ Title {{ title_info.id }}
       <option value>Select a Disk Title</option>
       {% for title_info in selected_disk.clone_titles() %}
       <option value="{{ title_info.id }}">
-        {% call title_option_label(title_info) %}{% endcall %}
+        {{ title_info.title_option_label() }}
       </option>
       {% endfor %}
     </select>
@@ -55,16 +40,16 @@ Title {{ title_info.id }}
       title_info, job)
       %}
       <option value="{{ title_info.id }}" selected>
-        {% call title_option_label(title_info) %}{% endcall %}
+        {{ title_info.title_option_label() }}
       </option>
       {% elif crate::templates::title_selected_by_other_episode_id(episode_id,
       title_info, job) %}
       <option value="{{ title_info.id }}" disabled>
-        {% call title_option_label(title_info) %}{% endcall %}
+        {{ title_info.title_option_label() }}
       </option>
       {% else %}
       <option value="{{ title_info.id }}">
-        {% call title_option_label(title_info) %}{% endcall %}
+        {{ title_info.title_option_label() }}
       </option>
       {% endif %}
       {% endfor %}

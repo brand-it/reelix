@@ -67,12 +67,10 @@ impl Toast {
         }
     }
 
-    #[allow(dead_code)]
     pub fn success(title: impl Into<String>, message: impl Into<String>) -> Self {
         Self::new(title, message, ToastVariant::Success)
     }
 
-    #[allow(dead_code)]
     pub fn danger(title: impl Into<String>, message: impl Into<String>) -> Self {
         Self::new(title, message, ToastVariant::Danger)
     }
@@ -87,7 +85,6 @@ impl Toast {
         Self::new(title, message, ToastVariant::Info)
     }
 
-    #[allow(dead_code)]
     pub fn with_auto_hide(mut self, ms: u32) -> Self {
         self.auto_hide_ms = ms;
         self

@@ -1,6 +1,7 @@
 use crate::models::title_info::TitleInfo;
 use crate::standard_error::StandardError;
 use crate::state::title_video::{TitleVideo, Video};
+use crate::the_movie_db::TvId;
 use crate::{
     models::optical_disk_info::OpticalDiskInfo,
     progress_tracker::{self, components::TimeComponent},
@@ -69,14 +70,14 @@ impl Job {
     /// same episode identity but differ by `part` (e.g. `pt1`, `pt2`).
     fn select_tv_title_video_parts(
         &self,
-        mvdb_id: u32,
+        tv_id: TvId,
         season_number: u32,
         episode_number: u32,
     ) -> Vec<Arc<RwLock<TitleVideo>>> {
         let parts = self.title_videos.iter().filter(|tv| {
             if let Ok(guard) = tv.read() {
                 if let Video::Tv(tv_ep) = &guard.video {
-                    return tv_ep.tv.id == mvdb_id
+                    return tv_ep.tv.id == tv_id
                         && tv_ep.season.id == season_number
                         && tv_ep.episode.id == episode_number;
                 }
@@ -92,7 +93,7 @@ impl Job {
     /// This lets us keep `part` metadata (e.g. `part=1`) on the assigned video
     /// while deciding at rip time whether `-pt1` is actually needed in filenames.
     pub fn has_multiple_parts(&self, title_video: &TitleVideo) -> bool {
-        let (mvdb_id, season_number, episode_number) = match &title_video.video {
+        let (tv_id, season_number, episode_number) = match &title_video.video {
             Video::Tv(tv_season_episode) => (
                 tv_season_episode.tv.id,
                 tv_season_episode.season.id,
@@ -100,7 +101,7 @@ impl Job {
             ),
             _ => return false,
         };
-        self.select_tv_title_video_parts(mvdb_id, season_number, episode_number)
+        self.select_tv_title_video_parts(tv_id, season_number, episode_number)
             .len()
             > 1
     }
@@ -109,30 +110,29 @@ impl Job {
     ///
     /// How to use:
     /// ```text
-    /// let maybe_title_video = job.find_tv_title_video(mvdb_id, season_number, episode_number, title_id, Some(part));
+    /// let maybe_title_video = job.find_tv_title_video(tv_id, season_number, episode_number, title_id, Some(part));
     /// if let Some(title_video) = maybe_title_video {
     ///     // Do something with the matching TitleVideo
     /// }
+    /// }
     /// ```
-    ///
     /// Returns Some(Arc<RwLock<TitleVideo>>) if found, otherwise None.
     pub fn find_tv_title_video(
         &self,
-        mvdb_id: u32,
+        tv_id: TvId,
         season_number: u32,
         episode_number: u32,
-        title_id: u32,
-        part: Option<u16>,
+        part: u16,
     ) -> Option<Arc<RwLock<TitleVideo>>> {
         self.title_videos
             .iter()
             .find(|title_video| {
                 let title_video = title_video.read().unwrap();
+
                 if let Video::Tv(tv_season_episode) = &title_video.video {
-                    tv_season_episode.tv.id == mvdb_id
+                    tv_season_episode.tv.id == tv_id
                         && tv_season_episode.season.id == season_number
                         && tv_season_episode.episode.id == episode_number
-                        && title_video.title.as_ref().map(|t| t.id) == Some(title_id)
                         && tv_season_episode.part == part
                 } else {
                     false
@@ -155,18 +155,23 @@ impl Job {
         })
     }
 
-    pub fn add_title_video(&mut self, title: TitleInfo, video: Video) -> Result<(), StandardError> {
+    pub fn add_title_video(
+        &mut self,
+        title: TitleInfo,
+        video: Video,
+    ) -> Result<&mut Self, StandardError> {
         self.validate_title_video_modifiable("add")?;
         let title_video = TitleVideo {
             id: crate::state::title_video::TitleVideoId::new(),
             title: Some(title),
             video,
         };
+        self.update_title(&title_video);
         self.title_videos.push(Arc::new(RwLock::new(title_video)));
-        Ok(())
+        Ok(self)
     }
 
-    pub fn add_incomplete_video(&mut self, video: Video) -> Result<(), StandardError> {
+    pub fn add_incomplete_video(&mut self, video: Video) -> Result<&mut Self, StandardError> {
         self.validate_title_video_modifiable("add")?;
         let title_video = TitleVideo {
             id: crate::state::title_video::TitleVideoId::new(),
@@ -174,18 +179,25 @@ impl Job {
             video,
         };
         self.title_videos.push(Arc::new(RwLock::new(title_video)));
-        Ok(())
+        Ok(self)
     }
 
-    // pub fn remove_title_video(&mut self, title: &TitleInfo) -> Result<(), StandardError> {
-    //     self.validate_title_video_modifiable("remove")?;
-    //     self.title_videos
-    //         .retain(|tv| tv.read().unwrap().title.id != title.id);
-    //     if self.title_videos.is_empty() {
-    //         self.status = JobStatus::Pending;
-    //     }
-    //     Ok(())
-    // }
+    // Removes the title video matching the given title from the job.
+    // If the job is currently processing, returns an error instead of modifying the job.
+    // If the removed title video was the only one in the job, resets the job status to Pending.
+    // How to use:
+    // ```text
+    // job.remove_title_video(&title_info)?;
+    // ```
+    pub fn remove_title_video(&mut self, title: &TitleInfo) -> Result<(), StandardError> {
+        self.validate_title_video_modifiable("remove")?;
+        self.title_videos
+            .retain(|tv| tv.read().unwrap().title.as_ref().map(|t| t.id) != Some(title.id));
+        if self.title_videos.is_empty() {
+            self.status = JobStatus::Pending;
+        }
+        Ok(())
+    }
 
     // pub fn clear_title_videos(&mut self) -> Result<(), StandardError> {
     //     self.validate_title_video_modifiable("clear")?;
@@ -258,12 +270,14 @@ impl Job {
         self.message = Some(message.to_string());
     }
 
-    pub fn update_title(&mut self, title_video: &TitleVideo) {
+    // Replace the job's title with the title from the given TitleVideo, if it has one.
+    pub fn update_title(&mut self, title_video: &TitleVideo) -> &mut Self {
         let title = match title_video.video {
             Video::Movie(ref movie) => Some(movie.movie.title_year()),
             Video::Tv(ref tv) => Some(tv.title()),
         };
         self.title = title;
+        self
     }
 
     // pub fn update_subtitle(&mut self, title_video: &TitleVideo) {
@@ -340,7 +354,12 @@ impl Job {
         let current_id = self.current_title_video_id?;
         self.title_videos
             .iter()
-            .position(|title_video| title_video.read().map(|tv| tv.id == current_id).unwrap_or(false))
+            .position(|title_video| {
+                title_video
+                    .read()
+                    .map(|tv| tv.id == current_id)
+                    .unwrap_or(false)
+            })
             .map(|index| index + 1)
     }
 
@@ -354,7 +373,8 @@ impl Job {
             return total;
         }
 
-        self.current_title_position().map_or(0, |position| position.saturating_sub(1))
+        self.current_title_position()
+            .map_or(0, |position| position.saturating_sub(1))
     }
 
     pub fn remaining_titles_count(&self) -> usize {
@@ -392,17 +412,6 @@ impl Job {
     pub fn overall_progress_formatted_percentage(&self) -> String {
         format!("{}%", self.overall_progress_percent().round() as u8)
     }
-
-    // Human-friendly label for finished states, used by templates
-    // pub fn finished_label(&self) -> Option<&'static str> {
-    //     if self.is_finished() {
-    //         Some("Finished")
-    //     } else if self.is_error() {
-    //         Some("Error")
-    //     } else {
-    //         None
-    //     }
-    // }
 
     fn validate_title_video_modifiable(&self, action: &str) -> Result<(), StandardError> {
         if !self.is_modifiable() {
@@ -513,7 +522,7 @@ mod tests {
             first_air_date: Some("2020-01-01".to_string()),
             genres: vec![],
             homepage: None,
-            id: show_id,
+            id: TvId::from(show_id),
             in_production: false,
             languages: vec!["en".to_string()],
             last_air_date: None,
@@ -584,7 +593,7 @@ mod tests {
         season_id: u32,
         season_number: u32,
         episode_number: u32,
-        part: Option<u16>,
+        part: u16,
     ) -> Arc<RwLock<TitleVideo>> {
         let episode = create_mock_episode(show_id, season_number, episode_number);
         let season = create_mock_season(season_id, season_number, vec![episode.clone()]);
@@ -633,9 +642,9 @@ mod tests {
 
     #[test]
     fn select_tv_title_video_parts_returns_all_parts_for_matching_episode() {
-        let match_part_1 = create_tv_title_video(100, 1, 1, 1, Some(1));
-        let match_part_2 = create_tv_title_video(100, 1, 1, 1, Some(2));
-        let different_episode = create_tv_title_video(100, 1, 1, 2, None);
+        let match_part_1 = create_tv_title_video(100, 1, 1, 1, 1);
+        let match_part_2 = create_tv_title_video(100, 1, 1, 1, 2);
+        let different_episode = create_tv_title_video(100, 1, 1, 2, 1);
 
         let job = Job::new(JobType::Ripping, None, JobStatus::Pending).with_title_videos(vec![
             match_part_1.clone(),
@@ -643,7 +652,7 @@ mod tests {
             different_episode,
         ]);
 
-        let parts = job.select_tv_title_video_parts(100, 1, 1);
+        let parts = job.select_tv_title_video_parts(TvId::from(100), 1, 1);
 
         assert_eq!(parts.len(), 2);
         assert!(parts.iter().any(|p| Arc::ptr_eq(p, &match_part_1)));
@@ -652,10 +661,10 @@ mod tests {
 
     #[test]
     fn select_tv_title_video_parts_ignores_non_matching_and_movie_entries() {
-        let matching_tv = create_tv_title_video(100, 1, 1, 1, None);
-        let different_show = create_tv_title_video(101, 1, 1, 1, None);
-        let different_season = create_tv_title_video(100, 2, 2, 1, None);
-        let different_episode = create_tv_title_video(100, 1, 1, 2, None);
+        let matching_tv = create_tv_title_video(100, 1, 1, 1, 1);
+        let different_show = create_tv_title_video(101, 1, 1, 1, 1);
+        let different_season = create_tv_title_video(100, 2, 2, 1, 1);
+        let different_episode = create_tv_title_video(100, 1, 1, 2, 1);
         let movie = create_movie_title_video(999);
 
         let job = Job::new(JobType::Ripping, None, JobStatus::Pending).with_title_videos(vec![
@@ -666,7 +675,7 @@ mod tests {
             movie,
         ]);
 
-        let parts = job.select_tv_title_video_parts(100, 1, 1);
+        let parts = job.select_tv_title_video_parts(TvId::from(100), 1, 1);
 
         assert_eq!(parts.len(), 1);
         assert!(Arc::ptr_eq(&parts[0], &matching_tv));
@@ -676,15 +685,15 @@ mod tests {
     fn select_tv_title_video_parts_returns_empty_when_no_matches_exist() {
         let job = Job::new(JobType::Ripping, None, JobStatus::Pending).with_title_videos(vec![]);
 
-        let parts = job.select_tv_title_video_parts(100, 1, 1);
+        let parts = job.select_tv_title_video_parts(TvId::from(100), 1, 1);
 
         assert!(parts.is_empty());
     }
 
     #[test]
     fn has_multiple_parts_returns_true_when_episode_has_multiple_parts() {
-        let part1 = create_tv_title_video(100, 1, 1, 1, Some(1));
-        let part2 = create_tv_title_video(100, 1, 1, 1, Some(2));
+        let part1 = create_tv_title_video(100, 1, 1, 1, 1);
+        let part2 = create_tv_title_video(100, 1, 1, 1, 2);
 
         let job = Job::new(JobType::Ripping, None, JobStatus::Pending)
             .with_title_videos(vec![part1.clone(), part2.clone()]);
@@ -694,8 +703,8 @@ mod tests {
 
     #[test]
     fn has_multiple_parts_returns_false_for_single_or_missing_matches() {
-        let single = create_tv_title_video(100, 1, 1, 1, Some(1));
-        let different_episode = create_tv_title_video(100, 9, 9, 9, Some(1));
+        let single = create_tv_title_video(100, 1, 1, 1, 1);
+        let different_episode = create_tv_title_video(100, 9, 9, 9, 1);
 
         let job = Job::new(JobType::Ripping, None, JobStatus::Pending)
             .with_title_videos(vec![single.clone()]);
