@@ -1,12 +1,9 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use crate::services::auto_complete;
-use crate::services::plex::{
-    find_movie, find_season, find_tv, get_movie_certification, search_multi,
-};
+use crate::services::plex::{find_movie, find_season, find_tv, get_movie_certification};
 use crate::state::background_process_state::BackgroundProcessState;
 use crate::state::AppState;
 use crate::templates::{self, render_error};
-use crate::the_movie_db;
 use tauri::State;
 use tauri_plugin_opener::OpenerExt;
 
@@ -16,11 +13,43 @@ pub fn index(
     app_handle: tauri::AppHandle,
     app_state: State<'_, AppState>,
 ) -> Result<String, templates::Error> {
-    match search_multi(&app_state, "Martian") {
-        Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_index(&app_state, &e.message),
+    if !app_state.has_manager_host() {
+        return templates::auth::render_host_setup("", "");
+    }
+
+    if !app_state.is_authenticated() {
+        return crate::commands::auth::start_device_auth(app_state, app_handle);
+    }
+
+    let host = app_state.get_manager_host().unwrap_or_default();
+    let token = app_state.get_manager_token().unwrap_or_default();
+
+    if !crate::services::reelix_manager::check_health(&host) {
+        return templates::auth::render_host_unreachable(&host);
+    }
+
+    if let Ok(false) = crate::services::reelix_manager::verify_token(&host, &token) {
+        app_state.set_manager_token(None);
+        let _ = app_state.save(&app_handle);
+        return crate::commands::auth::start_device_auth(app_state, app_handle);
+    }
+
+    let query = app_state.query.lock().unwrap().to_string();
+    let search = if query.is_empty() {
+        crate::the_movie_db::SearchResponse::default()
+    } else {
+        match crate::services::reelix_manager::search(&host, &token, &query, 1) {
+            Ok(resp) => resp,
+            Err(e) if e.is_unauthorized() => {
+                app_state.set_manager_token(None);
+                let _ = app_state.save(&app_handle);
+                return crate::commands::auth::start_device_auth(app_state, app_handle);
+            }
+            Err(_) => crate::the_movie_db::SearchResponse::default(),
+        }
     };
-    templates::search::render_index(&app_handle)
+
+    templates::search::render_index(&app_handle, &search)
 }
 
 #[tauri::command]
@@ -40,7 +69,7 @@ pub fn movie(
     app_state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, templates::Error> {
-    let movie = match find_movie(&app_handle, id) {
+    let (movie, ripped) = match find_movie(&app_handle, id) {
         Ok(resp) => resp,
         Err(e) => return templates::the_movie_db::render_index(&app_state, &e.message),
     };
@@ -54,6 +83,7 @@ pub fn movie(
         &background_process_state,
         &movie,
         &certification,
+        ripped,
     )
 }
 
@@ -83,12 +113,12 @@ pub fn season(
         Err(e) => return templates::the_movie_db::render_index(&state, &e.message),
     };
 
-    let season = match find_season(&app_handle, tv_id, season_number) {
+    let (season, ripped_episodes) = match find_season(&app_handle, tv_id, season_number) {
         Ok(resp) => resp,
         Err(e) => return templates::the_movie_db::render_index(&state, &e.message),
     };
 
-    templates::seasons::render_show(&app_handle, &tv, &season)
+    templates::seasons::render_show(&app_handle, &tv, &season, &ripped_episodes)
 }
 
 #[tauri::command]
@@ -99,12 +129,23 @@ pub fn search(
 ) -> Result<String, templates::Error> {
     state.save_query(search);
 
-    let api_key = &state.lock_the_movie_db_key();
-    let language = "en-US";
-    let movie_db = the_movie_db::TheMovieDb::new(api_key, language);
-    let response = match movie_db.search_multi(search, 1) {
+    let host = match state.get_manager_host() {
+        Some(h) => h,
+        None => return templates::auth::render_host_setup("", ""),
+    };
+    let token = match state.get_manager_token() {
+        Some(t) => t,
+        None => return crate::commands::auth::start_device_auth(state, app_handle),
+    };
+
+    let response = match crate::services::reelix_manager::search(&host, &token, search, 1) {
         Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_index(&state, &e.message),
+        Err(e) if e.is_unauthorized() => {
+            state.set_manager_token(None);
+            let _ = state.save(&app_handle);
+            return crate::commands::auth::start_device_auth(state, app_handle);
+        }
+        Err(e) => return templates::render_error(&e.message),
     };
 
     templates::search::render_results(&app_handle, search, &response)

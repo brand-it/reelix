@@ -3,7 +3,7 @@ use crate::state::job_state::{emit_progress, Job};
 use crate::state::title_video::TitleVideo;
 use crate::state::AppState;
 use crate::the_movie_db::{SeasonResponse, TvResponse};
-use log::{debug, error};
+use log::debug;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Write;
@@ -72,71 +72,7 @@ impl FtpValidationError {
     }
 }
 
-pub fn file_exists(relative_mkv_file_path: &String, state: &State<'_, AppState>) -> bool {
-    let movie_upload_path = match state.lock_ftp_movie_upload_path().clone() {
-        Some(value) => format!("{}/{relative_mkv_file_path}", value.to_string_lossy()),
-        None => return false,
-    };
-    let mut ftp = match connect_to_ftp(state) {
-        Ok(ftp) => ftp,
-        Err(_) => return false,
-    };
-    ftp.transfer_type(FileType::Binary)
-        .expect("failed to set binary mode");
-
-    let exists = ftp.size(&movie_upload_path).is_ok();
-    debug!("FTP Exists: {movie_upload_path} {exists}");
-    match ftp.quit() {
-        Ok(_) => debug!("FTP Connection Closed"),
-        Err(error) => error!("Failed to close FTP connection {error:?}"),
-    }
-    exists
-}
-
-pub fn tv_ripped_episode_numbers(
-    tv: &TvResponse,
-    season: &SeasonResponse,
-    state: &State<'_, AppState>,
-) -> HashSet<u32> {
-    let tv_upload_path = match state.lock_ftp_tv_upload_path().clone() {
-        Some(value) => value,
-        None => return HashSet::new(),
-    };
-
-    let season_dir = tv_upload_path
-        .join(tv.title_year())
-        .join(format!("Season {:02}", season.season_number));
-
-    let mut ftp = match connect_to_ftp(state) {
-        Ok(ftp) => ftp,
-        Err(_) => return HashSet::new(),
-    };
-
-    let mut ripped_episode_numbers = HashSet::new();
-
-    if ftp.cwd(season_dir.to_string_lossy()).is_ok() {
-        if let Ok(entries) = ftp.nlst(None) {
-            for entry in entries {
-                let file_name = entry.rsplit('/').next().unwrap_or(&entry).trim();
-                if let Some(episode_number) = parse_episode_number_from_tv_filename(
-                    file_name,
-                    &tv.title_year(),
-                    season.season_number,
-                ) {
-                    ripped_episode_numbers.insert(episode_number);
-                }
-            }
-        }
-    }
-
-    match ftp.quit() {
-        Ok(_) => debug!("FTP Connection Closed"),
-        Err(error) => error!("Failed to close FTP connection {error:?}"),
-    }
-
-    ripped_episode_numbers
-}
-
+#[cfg(test)]
 fn parse_episode_number_from_tv_filename(
     file_name: &str,
     tv_title_year: &str,

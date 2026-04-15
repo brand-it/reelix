@@ -123,31 +123,24 @@ fn reconstruct_movie_with_tmdb_blocking(
         .parse()
         .map_err(|_| "Invalid year format".to_string())?;
 
-    // Search TMDB for the movie
+    // Search GQL for the movie
     let state = app_handle.state::<AppState>();
-    let api_key = state.lock_the_movie_db_key().to_string();
+    let host = state.get_manager_host().unwrap_or_default();
+    let token = state.get_manager_token().unwrap_or_default();
 
-    if api_key.is_empty() {
-        return Err("TMDB API key not configured".to_string());
-    }
+    let search_results = crate::services::reelix_manager::search(&host, &token, &title, 1)
+        .map_err(|e| format!("Movie search failed: {}", e.message))?;
 
-    let movie_db = the_movie_db::TheMovieDb::new(&api_key, "en-US");
-
-    // Search for the movie using dedicated search_movie endpoint with year filter
-    let search_results = movie_db
-        .search_movie(&title, Some(year), 1)
-        .map_err(|e| format!("TMDB movie search failed: {}", e.message))?;
-
-    // Get the first result (should be the best match)
+    // Find a movie result matching our title and year
     let movie_result = search_results
         .results
-        .first()
-        .ok_or_else(|| format!("No TMDB movie match found for {title} ({year}"))?;
+        .iter()
+        .find(|r| r.media_type == "movie")
+        .ok_or_else(|| format!("No movie match found for {title} ({year})"))?;
 
     // Get full movie details
     let movie_id = movie_result.id;
-    let movie_response = movie_db
-        .movie(movie_id)
+    let (movie_response, _) = crate::services::reelix_manager::find_movie(&host, &token, movie_id)
         .map_err(|e| format!("Failed to get movie details: {}", e.message))?;
 
     // Parse edition and part from filename if present
@@ -184,7 +177,7 @@ fn reconstruct_movie_with_tmdb_blocking(
         video,
     };
 
-    info!("Successfully reconstructed metadata for {title} using TMDB");
+    info!("Successfully reconstructed metadata for {title} using GQL API");
     Ok(Arc::new(RwLock::new(title_video)))
 }
 
@@ -202,31 +195,24 @@ fn reconstruct_tv_with_tmdb_blocking(
 
     info!("Reconstructing TV show: {show_name} ({year}), S{season_number:02}E{episode_number:02}");
 
-    // Search TMDB for the TV show
+    // Search GQL for the TV show
     let state = app_handle.state::<AppState>();
-    let api_key = state.lock_the_movie_db_key().to_string();
+    let host = state.get_manager_host().unwrap_or_default();
+    let token = state.get_manager_token().unwrap_or_default();
 
-    if api_key.is_empty() {
-        return Err("TMDB API key not configured".to_string());
-    }
+    let search_results = crate::services::reelix_manager::search(&host, &token, &show_name, 1)
+        .map_err(|e| format!("TV search failed: {}", e.message))?;
 
-    let movie_db = the_movie_db::TheMovieDb::new(&api_key, "en-US");
-
-    // Search for the TV show using dedicated search_tv endpoint with year filter
-    let search_results = movie_db
-        .search_tv(&show_name, Some(year), 1)
-        .map_err(|e| format!("TMDB TV search failed: {}", e.message))?;
-
-    // Get the first result (should be the best match)
+    // Find a TV result matching our title and year
     let tv_result = search_results
         .results
-        .first()
-        .ok_or_else(|| format!("No TMDB TV show found for {show_name} ({year})"))?;
+        .iter()
+        .find(|r| r.media_type == "tv")
+        .ok_or_else(|| format!("No TV show found for {show_name} ({year})"))?;
 
     // Get full TV show details
     let tv_id = tv_result.id;
-    let tv_response = movie_db
-        .tv(tv_id)
+    let tv_response = crate::services::reelix_manager::find_tv(&host, &token, tv_id)
         .map_err(|e| format!("Failed to get TV show details: {}", e.message))?;
 
     // Verify the season exists in the TV show
@@ -242,9 +228,9 @@ fn reconstruct_tv_with_tmdb_blocking(
     }
 
     // Get season details with episodes
-    let season_response = movie_db
-        .season(tv_id, season_number)
-        .map_err(|e| format!("Failed to get season details: {}", e.message))?;
+    let (season_response, _) =
+        crate::services::reelix_manager::find_season(&host, &token, tv_id, season_number)
+            .map_err(|e| format!("Failed to get season details: {}", e.message))?;
 
     // Find the specific episode
     let episode = season_response
@@ -296,7 +282,7 @@ fn reconstruct_tv_with_tmdb_blocking(
     };
 
     info!(
-        "Successfully reconstructed TV metadata for {show_name} S{season_number:02}E{episode_number:02} using TMDB"
+        "Successfully reconstructed TV metadata for {show_name} S{season_number:02}E{episode_number:02} using GQL API"
     );
     Ok(Arc::new(RwLock::new(title_video)))
 }

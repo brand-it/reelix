@@ -36,7 +36,7 @@ tauri:
 	npm run tauri -- $(ARGS)
 
 tauri-dev:
-	cargo tauri dev --config src-tauri/tauri.linux.dev.conf.json
+	LIBRARY_PATH="/home/linuxbrew/.linuxbrew/lib:$$LIBRARY_PATH" cargo tauri dev --config src-tauri/tauri.linux.dev.conf.json
 
 tauri-dev-linux: tauri-dev
 

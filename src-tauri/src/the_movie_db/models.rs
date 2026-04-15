@@ -66,10 +66,6 @@ impl MovieResponse {
         format!("{}", format_duration(duration))
     }
 
-    // returns a basic file path for example Alien (1979)/Alien (1979).mkv
-    pub fn to_file_path(&self) -> String {
-        format!("{}/{}.mkv", self.title_year(), self.title_year())
-    }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -106,7 +102,7 @@ pub struct ReleaseDate {
 // -------------------------
 
 // Struct to represent the full response
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct SearchResponse {
     page: u32,
     pub results: Vec<SearchResult>,
@@ -167,6 +163,348 @@ impl SearchResult {
                 }
             })
             .unwrap_or_else(|| "N/A".to_string())
+    }
+}
+
+// -------------------------
+// ------ GQL Common -------
+// -------------------------
+
+#[derive(Deserialize)]
+pub struct GqlVideoBlob {}
+
+#[derive(Deserialize)]
+pub struct GqlGenre {
+    pub id: u32,
+    pub name: String,
+}
+
+// -------------------------
+// ------- GQL Movie -------
+// -------------------------
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GqlMovie {
+    pub adult: bool,
+    pub backdrop_path: Option<String>,
+    pub genres: Vec<GqlGenre>,
+    pub homepage: Option<String>,
+    pub id: u32,
+    pub imdb_id: Option<String>,
+    pub origin_country: Vec<String>,
+    pub original_language: String,
+    pub original_title: String,
+    pub overview: String,
+    pub popularity: f64,
+    pub poster_path: Option<String>,
+    pub release_date: Option<String>,
+    pub revenue: Option<f64>,
+    pub runtime: Option<i64>,
+    pub title: String,
+    pub video_blobs: Vec<GqlVideoBlob>,
+}
+
+#[derive(Deserialize)]
+pub struct GqlMovieResponse {
+    pub movie: GqlMovie,
+}
+
+impl From<GqlMovie> for MovieResponse {
+    fn from(g: GqlMovie) -> Self {
+        MovieResponse {
+            adult: g.adult,
+            backdrop_path: g.backdrop_path,
+            genres: g.genres.into_iter().map(|gr| MovieGenre { id: gr.id, name: gr.name }).collect(),
+            homepage: g.homepage.unwrap_or_default(),
+            id: g.id,
+            imdb_id: g.imdb_id.unwrap_or_default(),
+            origin_country: g.origin_country,
+            original_language: g.original_language,
+            original_title: g.original_title,
+            overview: g.overview,
+            popularity: g.popularity as f32,
+            poster_path: g.poster_path,
+            release_date: g.release_date,
+            revenue: g.revenue.map(|r| r as u64).unwrap_or(0),
+            runtime: g.runtime.map(|r| r as u64).unwrap_or(0),
+            title: g.title,
+        }
+    }
+}
+
+// -------------------------
+// -------- GQL TV ---------
+// -------------------------
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GqlTvSeason {
+    pub air_date: Option<String>,
+    pub episode_count: u32,
+    pub id: u32,
+    pub name: String,
+    pub overview: String,
+    pub poster_path: Option<String>,
+    pub season_number: u32,
+    pub vote_average: f64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GqlTv {
+    pub adult: bool,
+    pub backdrop_path: Option<String>,
+    pub episode_run_time: Vec<u32>,
+    pub first_air_date: Option<String>,
+    pub genres: Vec<GqlGenre>,
+    pub homepage: Option<String>,
+    pub id: u32,
+    pub in_production: bool,
+    pub languages: Vec<String>,
+    pub last_air_date: Option<String>,
+    pub name: String,
+    pub number_of_episodes: u32,
+    pub number_of_seasons: u32,
+    pub origin_country: Vec<String>,
+    pub original_language: String,
+    pub original_name: String,
+    pub overview: String,
+    pub popularity: f64,
+    pub poster_path: Option<String>,
+    pub seasons: Vec<GqlTvSeason>,
+    pub show_type: String,
+    pub status: String,
+    pub tagline: String,
+    pub vote_average: f64,
+    pub vote_count: u32,
+}
+
+#[derive(Deserialize)]
+pub struct GqlTvResponse {
+    pub tv: GqlTv,
+}
+
+impl From<GqlTv> for TvResponse {
+    fn from(g: GqlTv) -> Self {
+        TvResponse {
+            adult: g.adult,
+            backdrop_path: g.backdrop_path,
+            created_by: vec![],
+            episode_run_time: g.episode_run_time,
+            first_air_date: g.first_air_date,
+            genres: g.genres.into_iter().map(|gr| TvGenre { id: gr.id, name: gr.name }).collect(),
+            homepage: g.homepage,
+            id: TvId::from(g.id),
+            in_production: g.in_production,
+            languages: g.languages,
+            last_air_date: g.last_air_date,
+            last_episode_to_air: None,
+            name: g.name,
+            networks: vec![],
+            next_episode_to_air: None,
+            number_of_episodes: g.number_of_episodes,
+            number_of_seasons: g.number_of_seasons,
+            origin_country: g.origin_country,
+            original_language: g.original_language,
+            original_name: g.original_name,
+            overview: g.overview,
+            popularity: g.popularity,
+            poster_path: g.poster_path,
+            production_companies: vec![],
+            production_countries: vec![],
+            seasons: g.seasons.into_iter().map(|s| TvSeason {
+                air_date: s.air_date,
+                episode_count: s.episode_count,
+                id: s.id,
+                name: s.name,
+                overview: s.overview,
+                poster_path: s.poster_path,
+                season_number: s.season_number,
+                vote_average: s.vote_average,
+            }).collect(),
+            spoken_languages: vec![],
+            status: g.status,
+            tagline: g.tagline,
+            type_: g.show_type,
+            vote_average: g.vote_average,
+            vote_count: g.vote_count,
+        }
+    }
+}
+
+// -------------------------
+// ------- GQL Season ------
+// -------------------------
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GqlSeasonEpisode {
+    pub air_date: Option<String>,
+    pub episode_number: u32,
+    pub episode_type: Option<String>,
+    pub id: u32,
+    pub name: String,
+    pub overview: String,
+    pub production_code: Option<String>,
+    pub runtime: Option<i64>,
+    pub season_number: u32,
+    pub show_id: u32,
+    pub still_path: Option<String>,
+    pub video_blobs: Vec<GqlVideoBlob>,
+    pub vote_average: f64,
+    pub vote_count: u32,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GqlSeason {
+    pub air_date: Option<String>,
+    pub episodes: Vec<GqlSeasonEpisode>,
+    pub id: u32,
+    pub name: String,
+    pub overview: String,
+    pub poster_path: Option<String>,
+    pub season_number: u32,
+    pub vote_average: f64,
+}
+
+#[derive(Deserialize)]
+pub struct GqlSeasonResponse {
+    pub season: GqlSeason,
+}
+
+impl From<GqlSeasonEpisode> for SeasonEpisode {
+    fn from(g: GqlSeasonEpisode) -> Self {
+        SeasonEpisode {
+            air_date: g.air_date,
+            episode_number: g.episode_number,
+            episode_type: g.episode_type.unwrap_or_default(),
+            id: g.id,
+            name: g.name,
+            overview: g.overview,
+            production_code: g.production_code,
+            runtime: g.runtime.map(|r| r as u32),
+            season_number: g.season_number,
+            show_id: g.show_id,
+            still_path: g.still_path,
+            vote_average: g.vote_average as f32,
+            vote_count: g.vote_count,
+            crew: vec![],
+            guest_stars: vec![],
+        }
+    }
+}
+
+impl From<GqlSeason> for SeasonResponse {
+    fn from(g: GqlSeason) -> Self {
+        SeasonResponse {
+            _id: String::new(),
+            air_date: g.air_date,
+            episodes: g.episodes.into_iter().map(SeasonEpisode::from).collect(),
+            name: g.name,
+            overview: g.overview,
+            id: g.id,
+            poster_path: g.poster_path,
+            season_number: g.season_number,
+            vote_average: g.vote_average as f32,
+        }
+    }
+}
+
+// -------------------------
+// ---- GQL Search Types ---
+// -------------------------
+
+#[derive(Deserialize)]
+pub struct GqlSearchResponse {
+    #[serde(rename = "searchMulti")]
+    pub search_multi: GqlSearchPayload,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GqlSearchPayload {
+    pub page: u32,
+    pub results: Vec<GqlSearchResult>,
+    pub total_pages: u32,
+    pub total_results: u32,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GqlSearchResult {
+    pub id: u32,
+    pub media_type: String,
+    pub display_title: String,
+    pub title: Option<String>,
+    pub name: Option<String>,
+    pub poster_path: Option<String>,
+    pub backdrop_path: Option<String>,
+    pub release_date: Option<String>,
+    pub first_air_date: Option<String>,
+    pub overview: String,
+    pub vote_average: f64,
+    #[serde(default)]
+    pub popularity: Option<f64>,
+    pub adult: bool,
+    pub vote_count: u32,
+    pub original_language: String,
+    pub original_title: Option<String>,
+    pub original_name: Option<String>,
+    #[serde(default)]
+    pub genre_ids: Vec<u32>,
+}
+
+impl From<GqlSearchResult> for SearchResult {
+    fn from(g: GqlSearchResult) -> Self {
+        // Use display_title as fallback so title/name is always populated
+        let title = g.title.or_else(|| {
+            if g.media_type != "tv" {
+                Some(g.display_title.clone())
+            } else {
+                None
+            }
+        });
+        let name = g.name.or_else(|| {
+            if g.media_type == "tv" {
+                Some(g.display_title)
+            } else {
+                None
+            }
+        });
+        SearchResult {
+            name: name.unwrap_or_default(),
+            original_name: g.original_name.unwrap_or_default(),
+            adult: g.adult,
+            backdrop_path: g.backdrop_path,
+            genre_ids: g.genre_ids,
+            id: g.id,
+            media_type: g.media_type,
+            original_language: g.original_language,
+            original_title: g.original_title,
+            overview: g.overview,
+            popularity: g.popularity,
+            profile_path: None,
+            poster_path: g.poster_path,
+            release_date: g.release_date,
+            first_air_date: g.first_air_date,
+            title,
+            video: false,
+            vote_average: g.vote_average,
+            vote_count: g.vote_count,
+        }
+    }
+}
+
+impl From<GqlSearchPayload> for SearchResponse {
+    fn from(g: GqlSearchPayload) -> Self {
+        SearchResponse {
+            page: g.page,
+            results: g.results.into_iter().map(SearchResult::from).collect(),
+            total_pages: g.total_pages,
+            total_results: g.total_results,
+        }
     }
 }
 

@@ -1,0 +1,70 @@
+<div id="{{ self.dom_id() }}"
+  {% if error_message.is_empty() %}
+  data-controller="poll"
+  data-poll-command-value="poll_auth_token"
+  data-poll-interval-value="5000"
+  {% endif %}>
+  <div class="d-flex align-items-center justify-content-center" style="min-height: 100vh;">
+    <div style="width: 100%; max-width: 420px; padding: 1.5rem;">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body p-5 text-center">
+
+          <div class="mb-4">
+            <i class="fas fa-shield-alt fa-2x text-primary"></i>
+          </div>
+
+          <h4 class="fw-semibold mb-1">Authorize Reelix</h4>
+          <p class="text-muted small mb-4">Connecting to <code>{{ host }}</code></p>
+
+          <div class="mb-3">
+            <p class="text-muted small mb-2">1. Open this link in your browser</p>
+            <a href="{{ verification_uri }}" command="open_url"
+               class="btn btn-outline-primary w-100 text-truncate"
+               title="{{ verification_uri }}">
+              <i class="fas fa-external-link-alt me-2"></i>{{ verification_uri }}
+            </a>
+          </div>
+
+          <div class="mb-4">
+            <p class="text-muted small mb-2">2. Enter this code <span class="text-muted">(click to copy)</span></p>
+            <button type="button"
+                    class="btn w-100 py-3 position-relative"
+                    style="font-family: monospace; font-size: 1.75rem; font-weight: 700; letter-spacing: 0.35em; background: var(--bs-tertiary-bg, #2b2b2b); border: 2px solid var(--bs-border-color, #444); color: var(--bs-body-color);"
+                    onclick="
+                      navigator.clipboard.writeText('{{ user_code }}').then(() => {
+                        const btn = this;
+                        const orig = btn.innerHTML;
+                        btn.innerHTML = '<i class=\'fas fa-check me-2 text-success\'></i><span style=\'font-size:1rem;letter-spacing:normal\'>Copied!</span>';
+                        setTimeout(() => { btn.innerHTML = orig; }, 1500);
+                      });
+                    "
+                    title="Click to copy">
+              {{ user_code }}
+            </button>
+          </div>
+
+          {% if !error_message.is_empty() %}
+          <div class="alert alert-danger text-start" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>{{ error_message }}
+            <div class="mt-2">
+              <a href="/start_device_auth" class="btn btn-sm btn-outline-danger">Try Again</a>
+            </div>
+          </div>
+          {% else %}
+          <div class="d-flex align-items-center justify-content-center gap-2 text-muted small">
+            <div class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
+            <span>Waiting for approval…</span>
+          </div>
+          {% endif %}
+
+          <hr class="my-3 opacity-25">
+
+          <a href="/set_host" class="btn btn-link btn-sm text-muted p-0">
+            <i class="fas fa-arrow-left me-1"></i>Change server
+          </a>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

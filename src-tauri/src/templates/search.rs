@@ -1,6 +1,5 @@
 use crate::models::optical_disk_info;
 use crate::services::auto_complete::suggestion;
-use crate::services::plex::search_multi;
 use crate::state::background_process_state::BackgroundProcessState;
 use crate::state::job_state::Job;
 use crate::state::AppState;
@@ -10,7 +9,7 @@ use crate::templates::jobs::{
     JobsItemSummary,
 };
 use crate::templates::{
-    ftp_status, the_movie_db, update_indicator::UpdateIndicator, GenericError, InlineTemplate,
+    ftp_status, update_indicator::UpdateIndicator, GenericError, InlineTemplate,
 };
 use crate::the_movie_db::SearchResponse;
 use askama::Template;
@@ -88,14 +87,13 @@ pub struct SearchResultsTurbo<'a> {
     pub search_results: &'a SearchResults<'a>,
 }
 
-pub fn render_index(app_handle: &tauri::AppHandle) -> Result<String, super::Error> {
+pub fn render_index(
+    app_handle: &tauri::AppHandle,
+    search: &SearchResponse,
+) -> Result<String, super::Error> {
     let app_state = app_handle.state::<AppState>();
     let background_process_state = app_handle.state::<BackgroundProcessState>();
     let query = app_state.query.lock().unwrap().to_string();
-    let search = match search_multi(&app_state, &query) {
-        Ok(resp) => resp,
-        Err(e) => return the_movie_db::render_index(&app_state, &e.message),
-    };
     let suggestion = suggestion(&query);
     let selected_disk: Option<optical_disk_info::OpticalDiskInfo> = match app_state.selected_disk()
     {
@@ -204,7 +202,7 @@ pub fn render_index(app_handle: &tauri::AppHandle) -> Result<String, super::Erro
             },
             search_results: &SearchResults {
                 query: &query,
-                search: &search,
+                search,
                 update_indicator: &update_indicator,
                 ftp_status: &ftp_status_display,
             },

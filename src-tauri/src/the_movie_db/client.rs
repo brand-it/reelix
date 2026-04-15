@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tauri_plugin_http::reqwest::blocking::{Client, RequestBuilder};
 
-// Struct for the TMDB Client
+#[allow(dead_code)]
 pub struct TheMovieDb {
     api_key: String,
     language: String,
@@ -25,8 +25,10 @@ pub struct SearchError {
     status_message: String,
     success: bool,
 }
+#[allow(dead_code)]
 static URL_ENDPOINT: &str = "https://api.themoviedb.org/3";
 
+#[allow(dead_code)]
 impl TheMovieDb {
     pub fn new(api_key: &String, language: &str) -> Self {
         TheMovieDb {

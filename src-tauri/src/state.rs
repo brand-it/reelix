@@ -133,10 +133,12 @@ impl<'a> std::ops::DerefMut for FtpTvUploadPathGuard<'a> {
 // Structure to hold shared state, thread safe version
 pub struct AppState {
     pub ftp_config: Arc<Mutex<FtpConfig>>,
+    pub manager_host: Arc<Mutex<Option<String>>>,
+    pub manager_token: Arc<Mutex<Option<String>>>,
+    pub pending_device_code: Arc<Mutex<Option<String>>>,
     pub optical_disks: Arc<RwLock<Vec<Arc<RwLock<OpticalDiskInfo>>>>>,
     pub query: Arc<Mutex<String>>,
     pub selected_optical_disk_id: Arc<RwLock<Option<DiskId>>>,
-    pub the_movie_db_key: Arc<Mutex<String>>,
     pub movies_dir: Arc<RwLock<PathBuf>>,
     pub tv_shows_dir: Arc<RwLock<PathBuf>>,
     pub current_video: Arc<Mutex<Option<title_video::Video>>>,
@@ -151,11 +153,13 @@ impl AppState {
             current_video: Arc::new(Mutex::new(None)),
             ftp_config: Arc::new(Mutex::new(FtpConfig::new())),
             latest_version: Arc::new(Mutex::new(None)),
+            manager_host: Arc::new(Mutex::new(None)),
+            manager_token: Arc::new(Mutex::new(None)),
+            pending_device_code: Arc::new(Mutex::new(None)),
             movies_dir: Arc::new(RwLock::new(Self::default_movies_dir())),
             optical_disks: Arc::new(RwLock::new(Vec::<Arc<RwLock<OpticalDiskInfo>>>::new())),
             query: Arc::new(Mutex::new(String::new())),
             selected_optical_disk_id: Arc::new(RwLock::new(None)),
-            the_movie_db_key: Arc::new(Mutex::new(String::new())),
             tv_shows_dir: Arc::new(RwLock::new(Self::default_tv_shows_dir())),
         }
     }
@@ -198,10 +202,7 @@ impl AppState {
                             ftp_config.tv_upload_path = cleaned.map(PathBuf::from);
                         }
                         "the_movie_db_key" => {
-                            if let Some(val) = cleaned {
-                                let mut the_movie_db_key = self.lock_the_movie_db_key();
-                                *the_movie_db_key = val;
-                            }
+                            // Legacy key — no longer used, skip silently
                         }
                         "movies_dir" => {
                             if let Some(val) = cleaned {
@@ -234,6 +235,14 @@ impl AppState {
                         "latest_version" => {
                             let mut lv = self.latest_version.lock().unwrap();
                             *lv = cleaned;
+                        }
+                        "manager_host" => {
+                            let mut host = self.manager_host.lock().unwrap();
+                            *host = cleaned;
+                        }
+                        "manager_token" => {
+                            let mut token = self.manager_token.lock().unwrap();
+                            *token = cleaned;
                         }
                         _ => debug!("Unknown key in store: {key}"),
                     }
@@ -286,12 +295,6 @@ impl AppState {
             store.delete("ftp_tv_upload_path");
         }
 
-        // Save The Movie DB key
-        let tmdb_key = self.lock_the_movie_db_key();
-        if !tmdb_key.is_empty() {
-            store.set("the_movie_db_key", serde_json::json!(tmdb_key.as_str()));
-        }
-
         // Save directory paths
         let movies_dir = self
             .movies_dir
@@ -316,6 +319,23 @@ impl AppState {
         if let Some(version) = latest_version_guard.as_ref() {
             store.set("latest_version", serde_json::json!(version));
         }
+
+        // Save Reelix Manager connection
+        let manager_host = self.manager_host.lock().expect("failed to lock manager_host");
+        if let Some(ref host) = *manager_host {
+            store.set("manager_host", serde_json::json!(host));
+        } else {
+            store.delete("manager_host");
+        }
+        drop(manager_host);
+
+        let manager_token = self.manager_token.lock().expect("failed to lock manager_token");
+        if let Some(ref token) = *manager_token {
+            store.set("manager_token", serde_json::json!(token));
+        } else {
+            store.delete("manager_token");
+        }
+        drop(manager_token);
 
         store
             .save()
@@ -349,10 +369,39 @@ impl AppState {
             .join("TV Shows")
     }
 
-    pub fn lock_the_movie_db_key(&self) -> MutexGuard<'_, String> {
-        self.the_movie_db_key
-            .lock()
-            .expect("failed to lock the_movie_db_key")
+    pub fn get_pending_device_code(&self) -> Option<String> {
+        self.pending_device_code.lock().expect("failed to lock pending_device_code").clone()
+    }
+
+    pub fn set_pending_device_code(&self, code: Option<String>) {
+        let mut guard = self.pending_device_code.lock().expect("failed to lock pending_device_code");
+        *guard = code;
+    }
+
+    pub fn get_manager_host(&self) -> Option<String> {
+        self.manager_host.lock().expect("failed to lock manager_host").clone()
+    }
+
+    pub fn get_manager_token(&self) -> Option<String> {
+        self.manager_token.lock().expect("failed to lock manager_token").clone()
+    }
+
+    pub fn set_manager_host(&self, host: Option<String>) {
+        let mut guard = self.manager_host.lock().expect("failed to lock manager_host");
+        *guard = host;
+    }
+
+    pub fn set_manager_token(&self, token: Option<String>) {
+        let mut guard = self.manager_token.lock().expect("failed to lock manager_token");
+        *guard = token;
+    }
+
+    pub fn is_authenticated(&self) -> bool {
+        self.get_manager_host().is_some() && self.get_manager_token().is_some()
+    }
+
+    pub fn has_manager_host(&self) -> bool {
+        self.get_manager_host().is_some()
     }
 
     pub fn lock_ftp_config(&self) -> MutexGuard<'_, FtpConfig> {
@@ -443,10 +492,7 @@ impl AppState {
                 *ftp_tv_upload_path = cleaned.map(PathBuf::from);
             }
             "the_movie_db_key" => {
-                if let Some(val) = cleaned {
-                    let mut the_movie_db_key = self.lock_the_movie_db_key();
-                    *the_movie_db_key = val;
-                };
+                // Legacy key — no longer used
             }
             "movies_dir" => {
                 if let Some(val) = cleaned {
@@ -825,22 +871,6 @@ mod tests {
         // Clear TV path
         state.test_update_ftp_setting("ftp_tv_upload_path", Some("".to_string()));
         assert_eq!(*state.lock_ftp_tv_upload_path(), None);
-    }
-
-    #[test]
-    fn test_update_the_movie_db_key_field() {
-        let state = AppState::new();
-
-        // Note: the_movie_db_key uses a different pattern - it's always a String, not Option<String>
-        // So we directly set the value
-        let mut key = state.lock_the_movie_db_key();
-        *key = "test_api_key_12345".to_string();
-        drop(key);
-
-        assert_eq!(
-            *state.lock_the_movie_db_key(),
-            "test_api_key_12345".to_string()
-        );
     }
 
     #[test]

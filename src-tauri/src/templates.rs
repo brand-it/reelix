@@ -16,6 +16,7 @@ pub trait InlineTemplate: Template {
 // Blanket implementation for all Template types
 impl<T: Template> InlineTemplate for T {}
 
+pub mod auth;
 pub mod disk_titles;
 pub mod disks;
 pub mod ftp_settings;

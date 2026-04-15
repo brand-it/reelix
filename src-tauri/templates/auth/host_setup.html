@@ -1,0 +1,43 @@
+<div id="{{ self.dom_id() }}">
+  <div class="container mt-5">
+    <div class="row justify-content-center">
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-body p-4">
+            <div class="text-center mb-4">
+              <i class="fas fa-server fa-3x text-primary mb-3"></i>
+              <h2 class="card-title">Connect to Reelix Manager</h2>
+              <p class="text-muted">Enter the address of your Reelix Manager server.</p>
+            </div>
+
+            {% if !error_message.is_empty() %}
+            <div class="alert alert-danger" role="alert">
+              <i class="fas fa-exclamation-triangle me-2"></i>{{ error_message }}
+            </div>
+            {% endif %}
+
+            <form action="/set_host" method="post">
+              <div class="mb-3">
+                <label for="host" class="form-label">Server URL</label>
+                <input
+                  type="text"
+                  class="form-control form-control-lg"
+                  id="host"
+                  name="host"
+                  placeholder="http://192.168.1.100:8081"
+                  value="{{ current_host }}"
+                  required>
+                <div class="form-text">Include the protocol and port, e.g. <code>http://192.168.1.100:8081</code></div>
+              </div>
+              <div class="d-grid">
+                <button type="submit" class="btn btn-primary btn-lg">
+                  <i class="fas fa-plug me-2"></i>Connect
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

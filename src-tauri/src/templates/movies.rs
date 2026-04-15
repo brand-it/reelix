@@ -1,6 +1,5 @@
 use super::InlineTemplate;
 use crate::models::optical_disk_info::OpticalDiskInfo;
-use crate::services::ftp_uploader;
 use crate::state::background_process_state::{copy_job_state, BackgroundProcessState};
 use crate::state::job_state::{Job, JobStatus};
 use crate::state::title_video::Video;
@@ -56,8 +55,8 @@ pub fn render_show(
     background_process_state: &State<'_, background_process_state::BackgroundProcessState>,
     movie: &the_movie_db::MovieResponse,
     certification: &Option<String>,
+    ripped: bool,
 ) -> Result<String, super::Error> {
-    let ripped = ftp_uploader::file_exists(&movie.to_file_path(), app_state);
     let selected_disk = match app_state.selected_disk() {
         Some(disk) => {
             let disk_lock = disk.read().unwrap();

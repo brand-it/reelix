@@ -43,7 +43,7 @@ pub fn assign_episode_to_title(
         Err(e) => return render_error(&e.message),
     };
 
-    let season = match find_season(&app_handle, mvdb_id, season_number) {
+    let (season, ripped_episodes) = match find_season(&app_handle, mvdb_id, season_number) {
         Ok(season) => season,
         Err(e) => return render_error(&e.message),
     };
@@ -147,7 +147,7 @@ pub fn assign_episode_to_title(
 
     background_process_state.emit_jobs_changed(&app_handle);
 
-    templates::seasons::render_title_selected(&app_handle, &tv, season)
+    templates::seasons::render_title_selected(&app_handle, &tv, season, &ripped_episodes)
 }
 
 // pub fn withdraw_episode_from_title(
@@ -216,7 +216,7 @@ pub fn reorder_tv_episodes_on_ftp(
         Err(e) => return render_error(&e.message),
     };
 
-    let season = match find_season(&app_handle, mvdb_id, season_number) {
+    let (season, ripped_episodes) = match find_season(&app_handle, mvdb_id, season_number) {
         Ok(season) => season,
         Err(e) => return render_error(&e.message),
     };
@@ -259,7 +259,7 @@ pub fn reorder_tv_episodes_on_ftp(
         format!("Renamed {renamed_count} file(s) on FTP."),
     );
     let toast_stream = templates::toast::render_toast_append(toast)?;
-    let season_stream = templates::seasons::render_show(&app_handle, &tv, &season)?;
+    let season_stream = templates::seasons::render_show(&app_handle, &tv, &season, &ripped_episodes)?;
 
     Ok(format!("{toast_stream}{season_stream}"))
 }
@@ -316,7 +316,7 @@ pub fn rip_season(
         });
 
         match tv_and_season {
-            Some((tv, season)) => templates::seasons::render_show(&app_handle, &tv, &season)?,
+            Some((tv, season)) => templates::seasons::render_show(&app_handle, &tv, &season, &std::collections::HashSet::new())?,
             None => String::new(),
         }
     };
@@ -361,7 +361,7 @@ pub fn rip_movie(
         background_process_state.emit_jobs_changed(&app_handle);
     }
 
-    let movie = match find_movie(&app_handle, mvdb_id) {
+    let (movie, _ripped) = match find_movie(&app_handle, mvdb_id) {
         Ok(movie) => movie,
         Err(e) => return render_error(&e.message),
     };
@@ -422,7 +422,7 @@ pub fn set_auto_rip(
             );
         }
 
-        let movie = match find_movie(&app_handle, mvdb_id) {
+        let (movie, _ripped) = match find_movie(&app_handle, mvdb_id) {
             Ok(movie) => movie,
             Err(e) => return render_error(&e.message),
         };

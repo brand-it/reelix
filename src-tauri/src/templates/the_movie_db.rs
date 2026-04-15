@@ -8,31 +8,28 @@ use tauri::State;
 #[template(path = "the_movie_db/index.turbo.html")]
 pub struct TheMovieDBIndexTurbo<'a> {
     pub generic_error_turbo: &'a GenericErrorTurbo<'a>,
-    pub the_movie_db_index: &'a TheMovieDBIndex<'a>,
+    pub the_movie_db_index: &'a TheMovieDBIndex,
 }
 
 #[derive(Template)]
 #[template(path = "the_movie_db/index.html")]
-pub struct TheMovieDBIndex<'a> {
-    pub api_key: &'a str,
-}
+pub struct TheMovieDBIndex;
 
-impl TheMovieDBIndex<'_> {
+impl TheMovieDBIndex {
     pub fn dom_id(&self) -> &'static str {
         super::INDEX_ID
     }
 }
 
-pub fn render_index(app_state: &State<'_, AppState>, error_message: &str) -> Result<String, Error> {
+pub fn render_index(_app_state: &State<'_, AppState>, error_message: &str) -> Result<String, Error> {
     let error = GenericErrorTurbo {
         generic_error: &GenericError {
-            message: &format!("Error from TMDB: {error_message}"),
+            message: &format!("Server API error: {error_message}"),
         },
     };
-    let api_key = &app_state.lock_the_movie_db_key().to_string();
     let template = TheMovieDBIndexTurbo {
         generic_error_turbo: &error,
-        the_movie_db_index: &TheMovieDBIndex { api_key },
+        the_movie_db_index: &TheMovieDBIndex,
     };
     render(template)
 }

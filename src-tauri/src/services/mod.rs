@@ -8,6 +8,7 @@ pub mod github_api;
 pub mod makemkvcon;
 pub mod makemkvcon_parser;
 pub mod plex;
+pub mod reelix_manager;
 pub mod semantic_version;
 pub mod upload_recovery;
 pub mod version_checker;
