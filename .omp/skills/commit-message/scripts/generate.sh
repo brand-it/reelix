@@ -144,7 +144,7 @@ generate_subject() {
   local subject_files=""
   for file in "${display_files[@]}"; do
     # Remove common prefixes and keep just the relevant part
-    local clean_file=$(echo "$file" | sed -E 's|^./||; s|^(src/|app/|lib/)||')
+    local clean_file=$(echo "$file" | sed -E "s#^[./]+##" | sed -E "s#^(src/|app/|lib/)##")
     
     if [[ -n "$subject_files" ]]; then
       subject_files="$subject_files, $clean_file"
