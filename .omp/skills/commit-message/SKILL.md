@@ -56,3 +56,4 @@ No configuration required. The skill auto-detects commit type based on:
 - File paths and extensions
 - File additions/deletions
 - Diff content patterns
+test
