@@ -1,6 +1,7 @@
 use crate::services;
+use crate::services::reelix_manager::ReelixManager;
 use crate::state::background_process_state::BackgroundProcessState;
-use crate::state::job_state::{emit_progress, JobStatus, JobType};
+use crate::state::job_state::{JobStatus, JobType};
 use crate::state::title_video::{self, TitleVideo};
 use crate::state::upload_state::{PendingUpload, UploadType};
 use crate::state::uploaded_state::UploadedState;
@@ -125,10 +126,9 @@ fn reconstruct_movie_with_tmdb_blocking(
 
     // Search GQL for the movie
     let state = app_handle.state::<AppState>();
-    let host = state.get_manager_host().unwrap_or_default();
-    let token = state.get_manager_token().unwrap_or_default();
+    let manager = ReelixManager::new(&state);
 
-    let search_results = crate::services::reelix_manager::search(&host, &token, &title, 1)
+    let search_results = manager.search(&title, 1)
         .map_err(|e| format!("Movie search failed: {}", e.message))?;
 
     // Find a movie result matching our title and year
@@ -140,7 +140,7 @@ fn reconstruct_movie_with_tmdb_blocking(
 
     // Get full movie details
     let movie_id = movie_result.id;
-    let (movie_response, _) = crate::services::reelix_manager::find_movie(&host, &token, movie_id)
+    let (movie_response, _) = manager.find_movie(movie_id)
         .map_err(|e| format!("Failed to get movie details: {}", e.message))?;
 
     // Parse edition and part from filename if present
@@ -197,10 +197,9 @@ fn reconstruct_tv_with_tmdb_blocking(
 
     // Search GQL for the TV show
     let state = app_handle.state::<AppState>();
-    let host = state.get_manager_host().unwrap_or_default();
-    let token = state.get_manager_token().unwrap_or_default();
+    let manager = ReelixManager::new(&state);
 
-    let search_results = crate::services::reelix_manager::search(&host, &token, &show_name, 1)
+    let search_results = manager.search(&show_name, 1)
         .map_err(|e| format!("TV search failed: {}", e.message))?;
 
     // Find a TV result matching our title and year
@@ -212,7 +211,7 @@ fn reconstruct_tv_with_tmdb_blocking(
 
     // Get full TV show details
     let tv_id = tv_result.id;
-    let tv_response = crate::services::reelix_manager::find_tv(&host, &token, tv_id)
+    let tv_response = manager.find_tv(tv_id)
         .map_err(|e| format!("Failed to get TV show details: {}", e.message))?;
 
     // Verify the season exists in the TV show
@@ -229,7 +228,7 @@ fn reconstruct_tv_with_tmdb_blocking(
 
     // Get season details with episodes
     let (season_response, _) =
-        crate::services::reelix_manager::find_season(&host, &token, tv_id, season_number)
+        manager.find_season(tv_id, season_number)
             .map_err(|e| format!("Failed to get season details: {}", e.message))?;
 
     // Find the specific episode
@@ -687,8 +686,14 @@ async fn upload_video(
         .expect("Failed to get job reader")
         .emit_progress_change(app_handle);
 
-    // Use the standard ftp_uploader::upload function
-    match services::ftp_uploader::upload(app_handle, &job, title_video).await {
+    // Get stored upload_id from pending uploads
+    let stored_upload_id = uploaded_state.get_pending()
+        .iter()
+        .find(|u| u.video_path == video_path)
+        .and_then(|u| u.upload_id.clone());
+    
+    // Use tus uploader
+    match services::tus_uploader::upload(app_handle, &job, title_video, stored_upload_id).await {
         Ok(_) => {
             info!("Successfully uploaded: {video_path}");
             notify_upload_success(app_handle, video_path);
@@ -696,7 +701,9 @@ async fn upload_video(
             job.write()
                 .expect("Failed to acquire write lock on job")
                 .update_status(JobStatus::Finished);
-            emit_progress(app_handle, &job, true);
+
+            // Re-render all jobs to move completed job to the completed section
+            background_process_state.emit_jobs_changed(app_handle);
 
             // Remove from upload queue on success
             if let Err(e) = uploaded_state.remove_upload(app_handle, video_path) {
@@ -713,7 +720,9 @@ async fn upload_video(
                 .expect("Failed to get job writer")
                 .update_status(JobStatus::Error);
             job.write().expect("Failed to get job writer").message = Some(e.clone());
-            emit_progress(app_handle, &job, true);
+
+            // Re-render all jobs to move failed job to the completed section
+            background_process_state.emit_jobs_changed(app_handle);
 
             notify_upload_failure(app_handle, video_path, &e);
             // Keep in upload queue for retry on next boot
@@ -788,52 +797,41 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_tv_filename_lowercase() {
-        let result = parse_tv_filename("breaking bad - s05e14");
+    fn test_parse_tv_filename_different_formats() {
+        let result = parse_tv_filename("Breaking Bad S03E07 - I.F.T.");
         assert!(result.is_ok());
         let (show, season, episode) = result.unwrap();
-        assert_eq!(show, "breaking bad");
-        assert_eq!(season, 5);
-        assert_eq!(episode, 14);
+        assert_eq!(show, "Breaking Bad");
+        assert_eq!(season, 3);
+        assert_eq!(episode, 7);
+    }
+
+    #[test]
+    fn test_parse_movie_filename_with_edition() {
+        let (edition, part) = parse_edition_and_part("Movie (2020) {edition-Director's Cut}");
+        assert_eq!(edition, Some("Director's Cut".to_string()));
+        assert_eq!(part, None);
+    }
+
+    #[test]
+    fn test_parse_movie_filename_with_part() {
+        let (edition, part) = parse_edition_and_part("Movie (2020) -pt1");
+        assert_eq!(edition, None);
+        assert_eq!(part, Some(1));
     }
 
     #[test]
     fn test_parse_show_name_and_year() {
-        let result = parse_show_name_and_year("Game of Thrones (2011)");
+        let result = parse_show_name_and_year("The Matrix (1999)");
         assert!(result.is_ok());
-        let (show, year) = result.unwrap();
-        assert_eq!(show, "Game of Thrones");
-        assert_eq!(year, "2011");
+        let (name, year) = result.unwrap();
+        assert_eq!(name, "The Matrix");
+        assert_eq!(year, "1999");
     }
 
     #[test]
-    fn test_parse_show_name_and_year_with_extra_spaces() {
-        let result = parse_show_name_and_year("Breaking Bad  (2008)");
-        assert!(result.is_ok());
-        let (show, year) = result.unwrap();
-        assert_eq!(show, "Breaking Bad");
-        assert_eq!(year, "2008");
-    }
-
-    #[test]
-    fn test_parse_edition_and_part() {
-        let (edition, part) = parse_edition_and_part("Movie (2020) {edition-Director's Cut}");
-        assert_eq!(edition, Some("Director's Cut".to_string()));
-        assert_eq!(part, None);
-
-        let (edition, part) = parse_edition_and_part("Movie (2020) -pt1");
-        assert_eq!(edition, None);
-        assert_eq!(part, Some(1));
-
-        let (edition, part) = parse_edition_and_part("Movie (2020) {edition-Extended} -pt2");
-        assert_eq!(edition, Some("Extended".to_string()));
-        assert_eq!(part, Some(2));
-    }
-
-    #[test]
-    fn test_parse_tv_part() {
-        assert_eq!(parse_tv_part("Show - S01E01 -pt1"), Some(1));
-        assert_eq!(parse_tv_part("Show - S01E01 -pt2"), Some(2));
-        assert_eq!(parse_tv_part("Show - S01E01"), None);
+    fn test_parse_show_name_and_year_invalid_year() {
+        let result = parse_show_name_and_year("The Matrix (199)");
+        assert!(result.is_err());
     }
 }

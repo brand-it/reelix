@@ -12,7 +12,7 @@
         <div class="ftp-status-text">{{ self.status_text() }}</div>
       </div>
     </div>
-    <a href="/ftp_settings" class="btn btn-sm btn-outline-secondary"
+    <a href="/manager_settings" class="btn btn-sm btn-outline-secondary"
       style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">Configure</a>
   </div>
   {% when crate::services::ftp_validator::FtpConnectionStatus::Checking %}
@@ -39,7 +39,7 @@
         <div class="ftp-status-text">{{ self.status_text() }}</div>
       </div>
     </div>
-    <a href="/ftp_settings" class="btn btn-sm btn-outline-light"
+    <a href="/manager_settings" class="btn btn-sm btn-outline-light"
       style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">Manage</a>
   </div>
   {% when crate::services::ftp_validator::FtpConnectionStatus::Failed %}
@@ -54,7 +54,7 @@
         <div class="ftp-status-text">{{ self.status_text() }}</div>
       </div>
     </div>
-    <a href="/ftp_settings" class="btn btn-sm btn-outline-danger"
+    <a href="/manager_settings" class="btn btn-sm btn-outline-danger"
       style="padding: 0.35rem 0.75rem; font-size: 0.85rem;">Fix Now</a>
   </div>
   {% endmatch %}

@@ -1,6 +1,7 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use crate::services::auto_complete;
 use crate::services::plex::{find_movie, find_season, find_tv, get_movie_certification};
+use crate::services::reelix_manager::ReelixManager;
 use crate::state::background_process_state::BackgroundProcessState;
 use crate::state::AppState;
 use crate::templates::{self, render_error};
@@ -22,13 +23,14 @@ pub fn index(
     }
 
     let host = app_state.get_manager_host().unwrap_or_default();
-    let token = app_state.get_manager_token().unwrap_or_default();
 
     if !crate::services::reelix_manager::check_health(&host) {
         return templates::auth::render_host_unreachable(&host);
     }
 
-    if let Ok(false) = crate::services::reelix_manager::verify_token(&host, &token) {
+    let manager = ReelixManager::new(&app_state);
+
+    if let Ok(false) = manager.verify_token() {
         app_state.set_manager_token(None);
         let _ = app_state.save(&app_handle);
         return crate::commands::auth::start_device_auth(app_state, app_handle);
@@ -38,7 +40,7 @@ pub fn index(
     let search = if query.is_empty() {
         crate::the_movie_db::SearchResponse::default()
     } else {
-        match crate::services::reelix_manager::search(&host, &token, &query, 1) {
+        match manager.search(&query, 1) {
             Ok(resp) => resp,
             Err(e) if e.is_unauthorized() => {
                 app_state.set_manager_token(None);
@@ -138,7 +140,9 @@ pub fn search(
         None => return crate::commands::auth::start_device_auth(state, app_handle),
     };
 
-    let response = match crate::services::reelix_manager::search(&host, &token, search, 1) {
+    let manager = ReelixManager::with_credentials(&host, &token);
+
+    let response = match manager.search(search, 1) {
         Ok(resp) => resp,
         Err(e) if e.is_unauthorized() => {
             state.set_manager_token(None);

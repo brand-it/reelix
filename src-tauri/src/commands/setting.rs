@@ -2,9 +2,18 @@ use crate::services::ftp_validator;
 use crate::state::AppState;
 use crate::templates::{ftp_settings, render_error, Error};
 use tauri::State;
+use tauri::Manager;
 
 #[tauri::command]
 pub fn ftp_settings(
+    app_handle: tauri::AppHandle,
+) -> Result<String, Error> {
+    // ftp_settings is an alias for manager_settings for backwards compatibility
+    manager_settings(app_handle.clone().state::<AppState>(), app_handle)
+}
+
+#[tauri::command]
+pub fn manager_settings(
     state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, Error> {
@@ -13,12 +22,14 @@ pub fn ftp_settings(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn update_ftp_settings(
     ftp_host: String,
     ftp_user: String,
     ftp_pass: String,
     ftp_movie_upload_path: String,
     ftp_tv_upload_path: String,
+    manager_host: String,
     state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, Error> {
@@ -29,6 +40,14 @@ pub fn update_ftp_settings(
         Some(ftp_movie_upload_path),
         Some(ftp_tv_upload_path),
     );
+
+    let manager_host = manager_host.trim().trim_end_matches('/');
+    if manager_host.is_empty() {
+        state.set_manager_host(None);
+    } else {
+        state.set_manager_host(Some(manager_host.to_string()));
+        state.set_manager_token(None);
+    }
 
     if let Err(message) = state.save(&app_handle) {
         return render_error(&message);

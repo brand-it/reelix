@@ -148,6 +148,7 @@ impl TitleVideo {
     /// - Does not create any directories or files; only computes the path.
     /// - Returns `None` if the FTP upload path is missing or not set in config.
     /// - Ensures uploads follow Plex directory and filename conventions for reliable parsing.
+    #[allow(dead_code)] // Used by FTP upload (being migrated to tus)
     pub fn upload_file_path(&self, app_state: &AppState, multiple_parts: bool) -> Option<PathBuf> {
         match &self.video {
             Video::Movie(movie) => Self::upload_movie_dir(app_state, movie)
@@ -171,6 +172,7 @@ impl TitleVideo {
     /// Usage:
     /// - Use this to determine the target directory for FTP uploads or external transfers.
     /// - Does not create the directory; only computes the path.
+    #[allow(dead_code)] // Used by FTP upload (being migrated to tus)
     pub fn upload_directory(&self, app_state: &AppState) -> Option<PathBuf> {
         match &self.video {
             Video::Movie(movie) => Self::upload_movie_dir(app_state, movie),
@@ -278,6 +280,7 @@ impl TitleVideo {
     /// Notes:
     /// - Does not create the directory; only computes the path.
     /// - Used for external transfers, not local Plex organization.
+    #[allow(dead_code)] // Used by FTP upload (being migrated to tus)
     fn upload_movie_dir(app_state: &AppState, movie: &MoviePartEdition) -> Option<PathBuf> {
         let ftp_config = app_state.lock_ftp_config();
         let movies_dir = &ftp_config.movie_upload_path;
@@ -306,6 +309,7 @@ impl TitleVideo {
     /// - Does not create the directory; only computes the path.
     /// - Used for external transfers, not local Plex organization.
     /// - Returns the full episode file path, not just the season folder.
+    #[allow(dead_code)] // Used by FTP upload (being migrated to tus)
     fn upload_tv_season_dir(
         app_state: &AppState,
         tv_season_episode: &TvSeasonEpisode,

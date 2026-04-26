@@ -1,5 +1,6 @@
 use crate::models::optical_disk_info::DiskId;
 use crate::services::ftp_uploader;
+use crate::services::upload_info::{self, UploadInfo};
 use crate::services::plex::find_tv;
 use crate::services::{self, disk_manager};
 use crate::services::{
@@ -10,7 +11,6 @@ use crate::standard_error::StandardError;
 use crate::state::background_process_state::BackgroundProcessState;
 use crate::state::job_state::{emit_progress, Job, JobStatus, JobType};
 use crate::state::title_video::{self, TitleVideo, Video};
-use crate::state::uploaded_state::UploadedState;
 use crate::state::{background_process_state, AppState};
 use crate::templates::toast::{Toast, ToastVariant};
 use crate::templates::{self};
@@ -516,56 +516,6 @@ fn notify_movie_upload_failure(app_handle: &tauri::AppHandle, file_path: &Path, 
         .unwrap();
 }
 
-/// Extract upload preparation data from a title_video
-fn extract_upload_info(
-    app_handle: &tauri::AppHandle,
-    title_video: &Arc<RwLock<TitleVideo>>,
-    rip_job: &Arc<RwLock<Job>>,
-) -> Option<(
-    UploadedState,
-    PathBuf,
-    crate::state::upload_state::UploadType,
-)> {
-    let uploaded_state = match app_handle.try_state::<UploadedState>() {
-        Some(state) => {
-            let state_ref = state.inner();
-            UploadedState {
-                queue: Arc::clone(&state_ref.queue),
-            }
-        }
-        None => {
-            error!("Failed to get UploadedState");
-            return None;
-        }
-    };
-
-    let multiple_parts = rip_job
-        .read()
-        .expect("Failed to get rip_job reader")
-        .has_multiple_parts(
-            &title_video
-                .read()
-                .expect("To get title_video read lock for multiple_parts check"),
-        );
-
-    let path = title_video
-        .read()
-        .expect("Failed to get title_video reader")
-        .video_path(&app_handle.state::<AppState>(), multiple_parts);
-
-    let upload_type = {
-        let video_guard = title_video
-            .read()
-            .expect("Failed to get title_video reader");
-        match &video_guard.video {
-            Video::Movie(_) => crate::state::upload_state::UploadType::Movie,
-            Video::Tv(_) => crate::state::upload_state::UploadType::TvShow,
-        }
-    };
-
-    Some((uploaded_state, path, upload_type))
-}
-
 fn spawn_upload(
     app_handle: &tauri::AppHandle,
     rip_job: &Arc<RwLock<Job>>,
@@ -575,16 +525,28 @@ fn spawn_upload(
     let rip_job = rip_job.clone();
     let title_video = title_video.clone();
     tauri::async_runtime::spawn(async move {
-        let (uploaded_state, path, upload_type) =
-            match extract_upload_info(&app_handle, &title_video, &rip_job) {
-                Some(info) => info,
-                None => return,
-            };
-
+        let UploadInfo {
+            uploaded_state,
+            path,
+            upload_type,
+            upload_id,
+            tmdb_id,
+            season_number,
+            episode_number,
+        } = match upload_info::extract_upload_info(&app_handle, &title_video, &rip_job) {
+            Some(info) => info,
+            None => return,
+        };
         // Add to persistent upload queue before starting
-        if let Err(e) =
-            uploaded_state.add_upload(&app_handle, path.to_string_lossy().to_string(), upload_type)
-        {
+        if let Err(e) = uploaded_state.add_upload(
+            &app_handle,
+            path.to_string_lossy().to_string(),
+            upload_type,
+            upload_id,
+            tmdb_id,
+            season_number,
+            episode_number,
+        ) {
             error!("Failed to add video to upload queue: {e}");
             return;
         }
@@ -614,7 +576,9 @@ fn spawn_upload(
             .expect("Failed to get job reader")
             .emit_progress_change(&app_handle);
 
-        match services::ftp_uploader::upload(&app_handle, &job, &title_video).await {
+        // Note: upload_id is always None for new uploads spawned here
+        // The tus_uploader will create a new upload session or resume existing one by filename
+        match services::tus_uploader::upload(&app_handle, &job, &title_video, None).await {
             Ok(_m) => {
                 notify_movie_upload_success(&app_handle, &path);
                 job.write()

@@ -225,7 +225,7 @@ impl Job {
     /// - This will overwrite the job's `progress` field with the latest values from the tracker.
     /// - The tracker should be updated externally as the operation proceeds.
     pub fn update_progress(&mut self, tracker: &progress_tracker::Base) {
-        let percent = tracker.percentage_component.percentage();
+        let percent = tracker.percentage_component.percentage() as f32;
         self.progress = JobProgress {
             eta: tracker.time_component.estimated(None),
             percent,

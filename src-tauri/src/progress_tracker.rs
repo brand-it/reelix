@@ -8,15 +8,15 @@ use std::time::SystemTime;
 /// will be one of the foundations that makes this tool great.
 // --- Progress ---
 pub struct Progress {
-    pub total: usize,
-    pub progress: usize,
-    pub starting_position: usize,
+    pub total: f64,
+    pub progress: f64,
+    pub starting_position: f64,
 }
 
 impl Progress {
-    pub fn new(total: Option<usize>) -> Self {
-        let total = total.unwrap_or(100);
-        let starting_position = 0;
+    pub fn new(total: Option<f64>) -> Self {
+        let total = total.unwrap_or(100.0);
+        let starting_position = 0.0;
         let progress = starting_position;
         Progress {
             total,
@@ -25,7 +25,7 @@ impl Progress {
         }
     }
 
-    pub fn start(&mut self, at: Option<usize>) {
+    pub fn start(&mut self, at: Option<f64>) {
         let pos = at.unwrap_or(self.progress);
         self.starting_position = pos;
         self.progress = pos;
@@ -69,26 +69,28 @@ impl Progress {
     //     self.start(Some(self.starting_position));
     // }
 
-    pub fn set_progress(&mut self, new_progress: usize) {
+    pub fn set_progress(&mut self, new_progress: f64) {
         if new_progress > self.total {
-            panic!("You can't set the item's current value to be greater than the total.");
+            debug!("Progress value {} exceeds total {}. Clamping to total.", new_progress, self.total);
+            self.progress = self.total;
+        } else {
+            self.progress = new_progress;
         }
-        self.progress = new_progress;
     }
 
-    pub fn set_total(&mut self, new_total: usize) {
+    pub fn set_total(&mut self, new_total: f64) {
         if self.progress > new_total {
-            debug!("You can't set the item's total value to less than the current progress. Adjust progress to be eq to new total");
+            debug!("You can't set the item's total value to be less than the current progress. Adjust progress to be eq to new total");
             self.set_progress(new_total);
         }
         self.total = new_total;
     }
 
-    pub fn percentage_completed(&self) -> f32 {
-        if self.total == 0 {
+    pub fn percentage_completed(&self) -> f64 {
+        if self.total == 0.0 {
             100.0
         } else {
-            (self.progress as f32 * 100.0) / self.total as f32
+            (self.progress * 100.0) / self.total
         }
     }
 
@@ -108,7 +110,7 @@ impl Progress {
     //     self.progress as isize - self.starting_position as isize
     // }
     pub fn none(&self) -> bool {
-        self.progress == 0
+        self.progress == 0.0
     }
 }
 
@@ -329,7 +331,7 @@ pub mod components {
             Percentage { progress }
         }
 
-        pub fn percentage(&self) -> f32 {
+        pub fn percentage(&self) -> f64 {
             self.progress.lock().unwrap().percentage_completed()
         }
 
@@ -547,7 +549,7 @@ pub mod components {
             if elapsed <= 0.0 || projector_progress == 0.0 {
                 return None;
             }
-            let total = progress.total as f64;
+            let total = progress.total;
             let remaining = elapsed * ((total / projector_progress) - 1.0);
             Some(remaining.round() as u64)
         }
@@ -607,17 +609,17 @@ impl Base {
 
         if base.autostart {
             // Start with the given starting_at value.
-            let start_at = opts.starting_at.unwrap_or(0);
+            let start_at = opts.starting_at.unwrap_or(0.0);
             base.start(Some(start_at));
         }
 
         base
     }
 
-    pub fn start(&self, at: Option<usize>) {
+    pub fn start(&self, at: Option<f64>) {
         self.timer.lock().unwrap().start();
         self.progress.lock().unwrap().start(at);
-        let val = self.progress.lock().unwrap().progress as f64;
+        let val = self.progress.lock().unwrap().progress;
         self.projector.lock().unwrap().start(Some(val));
     }
 
@@ -710,14 +712,14 @@ impl Base {
     ///
     /// Example:
     /// ```text
-    /// tracker.set_progress(42); // Set progress to 42
+    /// tracker.set_progress(42.0); // Set progress to 42.0
     /// ```
-    pub fn set_progress(&self, new_progress: usize) {
+    pub fn set_progress(&self, new_progress: f64) {
         self.progress.lock().unwrap().set_progress(new_progress);
         self.projector
             .lock()
             .unwrap()
-            .set_progress(new_progress as f64);
+            .set_progress(new_progress);
         if self.finished() {
             self.timer.lock().unwrap().stop();
         }
@@ -735,10 +737,9 @@ impl Base {
     /// - Can be called before or during progress updates.
     ///
     /// Example:
-    /// ```text
-    /// tracker.set_total(100); // Set total to 100
+    /// tracker.set_total(100.0); // Set total to 100.0
     /// ```
-    pub fn set_total(&self, new_total: usize) {
+    pub fn set_total(&self, new_total: f64) {
         self.progress.lock().unwrap().set_total(new_total);
         if self.finished() {
             self.timer.lock().unwrap().stop();
@@ -749,10 +750,10 @@ impl Base {
 // Options for initializing a Base instance.
 #[derive(Default)]
 pub struct ProgressOptions {
-    pub total: Option<usize>,
+    pub total: Option<f64>,
     pub autostart: bool,
     pub autofinish: bool,
-    pub starting_at: Option<usize>,
+    pub starting_at: Option<f64>,
     pub projector_type: Option<String>,
     pub projector_strength: Option<f64>,
     pub projector_at: Option<f64>,

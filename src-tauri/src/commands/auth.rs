@@ -49,7 +49,6 @@ fn start_device_auth_inner(
 ) -> Result<String, templates::Error> {
     match reelix_manager::authorize_device(host) {
         Ok(resp) => {
-            // Store device_code in state so poll_auth_token can use it
             state.set_pending_device_code(Some(resp.device_code.clone()));
             if let Err(e) = state.save(app_handle) {
                 return templates::render_error(&format!("Failed to save device code: {e}"));

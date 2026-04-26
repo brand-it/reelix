@@ -12,4 +12,6 @@ pub mod reelix_manager;
 pub mod semantic_version;
 pub mod upload_recovery;
 pub mod version_checker;
+pub mod tus_uploader;
 pub mod zip_directory;
+pub mod upload_info;
