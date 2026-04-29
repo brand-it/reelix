@@ -75,7 +75,7 @@ pub fn assign_episode_to_title(
     let title_video = job
         .read()
         .unwrap()
-        .find_tv_title_video(tv.id, season.id, episode.id, part);
+        .find_tv_title_video(tv.id, season.season_number, episode.id, part);
     if let Some(title_id) = title_id {
         let title = match optical_disk.read().unwrap().find_title_by_id(title_id) {
             Some(title) => title,
@@ -869,80 +869,48 @@ pub fn spawn_rip(app_handle: tauri::AppHandle, job: Arc<RwLock<Job>>) {
 #[cfg(test)]
 mod tests {
     use crate::state::title_video::TvSeasonEpisode;
-    use crate::the_movie_db::{SeasonEpisode, SeasonResponse, TvId, TvResponse};
+    use crate::reelix_manager::{SeasonEpisode, SeasonResponse, TvId, TvResponse};
 
     fn create_mock_tv_episode(id: u32, episode_number: u32) -> SeasonEpisode {
         SeasonEpisode {
             id,
             episode_number,
-            episode_type: "standard".to_string(),
             name: format!("Episode {episode_number}"),
             overview: "Test episode".to_string(),
             air_date: Some("2020-01-01".to_string()),
-            production_code: None,
             runtime: Some(45),
             season_number: 1,
             show_id: 100,
             still_path: None,
             vote_average: 8.0,
-            vote_count: 100,
-            crew: vec![],
-            guest_stars: vec![],
+            video_blobs: vec![],
         }
     }
 
     fn create_mock_season() -> SeasonResponse {
         SeasonResponse {
-            _id: "test_season".to_string(),
-            id: 1,
             season_number: 1,
             name: "Season 1".to_string(),
-            overview: "Test season".to_string(),
             poster_path: None,
-            air_date: Some("2020-01-01".to_string()),
             episodes: vec![
                 create_mock_tv_episode(1, 1),
                 create_mock_tv_episode(2, 2),
                 create_mock_tv_episode(3, 3),
             ],
-            vote_average: 8.5,
         }
     }
 
     fn create_mock_tv() -> TvResponse {
         TvResponse {
-            adult: false,
-            backdrop_path: None,
-            created_by: vec![],
             episode_run_time: vec![45],
             first_air_date: Some("2020-01-01".to_string()),
             genres: vec![],
-            homepage: None,
             id: TvId::from(100),
-            in_production: false,
-            languages: vec!["en".to_string()],
-            last_air_date: None,
-            last_episode_to_air: None,
             name: "Test Show".to_string(),
-            networks: vec![],
-            next_episode_to_air: None,
-            number_of_episodes: 20,
-            number_of_seasons: 2,
-            origin_country: vec!["US".to_string()],
-            original_language: "en".to_string(),
-            original_name: "Test Show".to_string(),
             overview: "Test overview".to_string(),
-            popularity: 100.0,
             poster_path: None,
-            production_companies: vec![],
-            production_countries: vec![],
             seasons: vec![],
-            spoken_languages: vec![],
-            status: "Returning Series".to_string(),
-            tagline: "Test tagline".to_string(),
-            type_: "Scripted".to_string(),
-            vote_average: 8.5,
-            vote_count: 1000,
+            show_type: "Scripted".to_string(),
         }
     }
 

@@ -13,14 +13,15 @@ mod finalize_upload;
 mod oauth;
 mod search;
 mod session_by_id;
+mod types;
 mod tus_create;
 mod tus_offset;
 mod tus_upload;
-
 pub use error::{Error, PollError, DeviceCodeResponse, TokenResponse};
-pub use oauth::{authorize_device, poll_token, check_health};
+pub use oauth::{poll_token, check_health, start_device_auth_flow};
 pub use finalize_upload::FinalizeResponse;
 pub use tus_types::UploadSession;
+pub use types::*;
 
 use crate::state::AppState;
 use tauri_plugin_http::reqwest::blocking::Client;
@@ -207,7 +208,3 @@ mod tus_types {
         }
     }
 }
-
-// Re-export types from the_movie_db for public API
-use crate::the_movie_db::models::SearchResponse;
-use crate::the_movie_db::{MovieResponse, SeasonResponse, TvResponse};

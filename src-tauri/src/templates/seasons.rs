@@ -4,7 +4,7 @@ use crate::state::job_state::{Job, JobStatus};
 use crate::state::AppState;
 use crate::templates::disks::DisksOptions;
 use crate::templates::InlineTemplate;
-use crate::the_movie_db::{SeasonEpisode, SeasonResponse, TvResponse};
+use crate::reelix_manager::{SeasonEpisode, SeasonResponse, TvResponse};
 use askama::Template;
 use std::collections::HashSet;
 use tauri::Manager;
@@ -248,7 +248,7 @@ fn get_job(app_handle: &tauri::AppHandle, selected_disk: &Option<OpticalDiskInfo
 mod tests {
     use super::*;
     use crate::state::title_video::{TitleVideo, TvSeasonEpisode, Video};
-    use crate::the_movie_db::{SeasonEpisode, SeasonResponse, TvId, TvResponse};
+    use crate::reelix_manager::{SeasonEpisode, SeasonResponse, TvId, TvResponse};
     use std::sync::{Arc, RwLock};
 
     /// Helper function to create a minimal mock SeasonEpisode for testing
@@ -256,72 +256,40 @@ mod tests {
         SeasonEpisode {
             id,
             episode_number,
-            episode_type: "standard".to_string(),
             name: name.to_string(),
             overview: "Test episode".to_string(),
             air_date: Some("2020-01-01".to_string()),
-            production_code: None,
             runtime: Some(45),
             season_number: 1,
             show_id: 1,
             still_path: None,
             vote_average: 8.0,
-            vote_count: 100,
-            crew: vec![],
-            guest_stars: vec![],
+            video_blobs: vec![],
         }
     }
 
     /// Helper function to create a minimal mock SeasonResponse for testing
     fn create_mock_season_response() -> SeasonResponse {
         SeasonResponse {
-            _id: "test_id".to_string(),
-            id: 100,
             season_number: 1,
             name: "Season 1".to_string(),
-            overview: "Test season".to_string(),
             poster_path: None,
-            air_date: Some("2020-01-01".to_string()),
             episodes: vec![],
-            vote_average: 8.5,
         }
     }
 
     /// Helper function to create a minimal mock TvResponse for testing
     fn create_mock_tv_response() -> TvResponse {
         TvResponse {
-            adult: false,
-            backdrop_path: None,
-            created_by: vec![],
             episode_run_time: vec![45],
             first_air_date: Some("2020-01-01".to_string()),
             genres: vec![],
-            homepage: None,
             id: TvId::from(1),
-            in_production: false,
-            languages: vec!["en".to_string()],
-            last_air_date: None,
-            last_episode_to_air: None,
             name: "Test Show".to_string(),
-            networks: vec![],
-            next_episode_to_air: None,
-            number_of_episodes: 20,
-            number_of_seasons: 2,
-            origin_country: vec!["US".to_string()],
-            original_language: "en".to_string(),
-            original_name: "Test Show".to_string(),
             overview: "Test overview".to_string(),
-            popularity: 100.0,
             poster_path: None,
-            production_companies: vec![],
-            production_countries: vec![],
             seasons: vec![],
-            spoken_languages: vec![],
-            status: "Returning Series".to_string(),
-            tagline: "Test tagline".to_string(),
-            type_: "Scripted".to_string(),
-            vote_average: 8.5,
-            vote_count: 1000,
+            show_type: "Scripted".to_string(),
         }
     }
 

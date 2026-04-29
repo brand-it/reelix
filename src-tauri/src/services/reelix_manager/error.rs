@@ -60,9 +60,4 @@ impl Error {
             message: "unauthorized".to_string(),
         }
     }
-
-    /// Check if this is an unauthorized error
-    pub fn is_unauthorized(&self) -> bool {
-        self.message == "unauthorized"
-    }
 }

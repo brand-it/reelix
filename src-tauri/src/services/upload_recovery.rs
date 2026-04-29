@@ -6,7 +6,7 @@ use crate::state::title_video::{self, TitleVideo};
 use crate::state::upload_state::{PendingUpload, UploadType};
 use crate::state::uploaded_state::UploadedState;
 use crate::state::AppState;
-use crate::the_movie_db;
+use crate::reelix_manager;
 use log::{error, info, warn};
 use std::path::Path;
 use std::sync::{Arc, RwLock};
@@ -427,23 +427,15 @@ fn reconstruct_movie_video(path: &Path) -> Result<Arc<RwLock<TitleVideo>>, Strin
 
     // We need to create a minimal MovieResponse for upload
     // Since we're only reconstructing for upload, we don't need full metadata
-    let movie_response = the_movie_db::MovieResponse {
-        adult: false,
-        backdrop_path: None,
+    let movie_response = reelix_manager::MovieResponse {
         genres: vec![],
-        homepage: String::new(),
         id: 0,
-        imdb_id: String::new(),
-        origin_country: vec![],
-        original_language: String::new(),
-        original_title: title.clone(),
         overview: String::new(),
-        popularity: 0.0,
         poster_path: None,
         release_date: Some(format!("{year}-01-01")),
-        revenue: 0,
         runtime: 0,
         title: title.clone(),
+        video_blobs: vec![],
     };
 
     let movie = title_video::MoviePartEdition {
@@ -515,69 +507,37 @@ fn reconstruct_tv_video(path: &Path) -> Result<Arc<RwLock<TitleVideo>>, String> 
     let (show_name, season, episode) = parse_tv_filename(&filename)?;
 
     // Create minimal TV show structures for upload
-    let tv_response = the_movie_db::TvResponse {
-        adult: false,
-        backdrop_path: None,
-        created_by: vec![],
+    let tv_response = reelix_manager::TvResponse {
         episode_run_time: vec![],
         first_air_date: None,
         genres: vec![],
-        homepage: None,
-        id: the_movie_db::TvId::from(0),
-        in_production: false,
-        languages: vec![],
-        last_air_date: None,
-        last_episode_to_air: None,
+        id: reelix_manager::TvId::from(0),
         name: show_name.clone(),
-        networks: vec![],
-        next_episode_to_air: None,
-        number_of_episodes: 0,
-        number_of_seasons: 0,
-        origin_country: vec![],
-        original_language: String::new(),
-        original_name: show_name.clone(),
         overview: String::new(),
-        popularity: 0.0,
         poster_path: None,
-        production_companies: vec![],
-        production_countries: vec![],
         seasons: vec![],
-        spoken_languages: vec![],
-        status: String::new(),
-        tagline: String::new(),
-        type_: String::new(),
-        vote_average: 0.0,
-        vote_count: 0,
+        show_type: String::new(),
     };
 
-    let season_response = the_movie_db::SeasonResponse {
-        _id: String::new(),
-        air_date: None,
+    let season_response = reelix_manager::SeasonResponse {
         episodes: vec![],
         name: format!("Season {season}"),
-        overview: String::new(),
-        id: 0,
         poster_path: None,
         season_number: season,
-        vote_average: 0.0,
     };
 
-    let episode_obj = the_movie_db::SeasonEpisode {
+    let episode_obj = reelix_manager::SeasonEpisode {
         air_date: None,
         episode_number: episode,
-        episode_type: String::new(),
         id: 0,
         name: format!("Episode {episode}"),
         overview: String::new(),
-        production_code: None,
         runtime: None,
         season_number: season,
         show_id: 0,
         still_path: None,
         vote_average: 0.0,
-        vote_count: 0,
-        crew: vec![],
-        guest_stars: vec![],
+        video_blobs: vec![],
     };
 
     let tv_show = title_video::TvSeasonEpisode {

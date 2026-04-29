@@ -1,5 +1,8 @@
+use crate::services::reelix_manager::{self, Error as ReelixManagerError};
+use crate::state::AppState;
 use super::{render, Error, InlineTemplate};
 use askama::Template;
+use tauri::State;
 
 const AUTH_DOM_ID: &str = "body";
 
@@ -82,4 +85,21 @@ pub fn render_device_code(
     let device_code = DeviceCode { host, user_code, verification_uri, error_message };
     let template = DeviceCodeTurbo { device_code: &device_code };
     render(template)
+}
+
+/// Centralized error handler for Reelix Manager API errors.
+///
+/// Clears the authentication token, persists state, and initiates the
+/// device authorization flow. Any Reelix Manager error (unauthorized,
+/// network timeout, server error, etc.) is treated the same way:
+/// redirect to auth.
+pub fn render_on_error(
+    _error: &ReelixManagerError,
+    state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<String, Error> {
+    state.set_manager_token(None);
+    let _ = state.save(&app_handle);
+    let host = state.get_manager_host().unwrap_or_default();
+    reelix_manager::start_device_auth_flow(&host, &state, &app_handle)
 }

@@ -7,8 +7,7 @@ use std::collections::HashSet;
 
 use super::error::Error;
 use super::ReelixManager;
-use crate::the_movie_db::models::GqlSeasonResponse;
-use crate::the_movie_db::SeasonResponse;
+use super::types::SeasonResponse;
 
 /// Execute a season lookup by TV show ID and season number
 ///
@@ -21,7 +20,7 @@ pub fn execute(
 ) -> Result<(SeasonResponse, HashSet<u32>), Error> {
     let url = format!("{}/graphql", manager.host);
 
-    const GQL_QUERY: &str = r#"{{ season(tvId: $tvId, seasonNumber: $seasonNumber) {{ airDate episodes {{ airDate episodeNumber episodeType id name overview productionCode runtime seasonNumber showId stillPath videoBlobs {{ id }} voteAverage voteCount }} id name overview posterPath seasonNumber voteAverage }} }}"#;
+    const GQL_QUERY: &str = r#"{ season(tvId: $tvId, seasonNumber: $seasonNumber) { episodes { airDate episodeNumber id name overview runtime seasonNumber showId stillPath voteAverage videoBlobs { id } } name posterPath seasonNumber } }"#;
 
     let body = serde_json::json!({
         "query": GQL_QUERY,
@@ -49,20 +48,24 @@ pub fn execute(
 
     #[derive(Deserialize)]
     struct Wrapper {
-        data: GqlSeasonResponse,
+        data: Data,
+    }
+
+    #[derive(Deserialize)]
+    struct Data {
+        season: SeasonResponse,
     }
 
     let wrapper: Wrapper = resp
         .json()
         .map_err(|e| Error::new(format!("Failed to parse season response: {e}")))?;
 
-    let gql_season = wrapper.data.season;
-    let ripped_episodes: HashSet<u32> = gql_season
+    let season = wrapper.data.season;
+    let ripped_episodes: HashSet<u32> = season
         .episodes
         .iter()
         .filter(|e| !e.video_blobs.is_empty())
         .map(|e| e.episode_number)
         .collect();
-
-    Ok((SeasonResponse::from(gql_season), ripped_episodes))
+    Ok((season, ripped_episodes))
 }

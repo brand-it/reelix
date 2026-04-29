@@ -1,7 +1,7 @@
 use crate::{
     models::title_info::TitleInfo,
     state::{job_state::Job, AppState},
-    the_movie_db::{MovieResponse, SeasonEpisode, SeasonResponse, TvResponse},
+    reelix_manager::{MovieResponse, SeasonEpisode, SeasonResponse, TvResponse},
 };
 use serde::Serialize;
 use std::{
@@ -682,80 +682,44 @@ impl TvSeasonEpisode {
 
 #[cfg(test)]
 mod tests {
-    use crate::the_movie_db::TvId;
+    use crate::reelix_manager::TvId;
 
     use super::*;
 
     // Helper function to create a minimal test MovieResponse
     fn create_test_movie(title: &str, year: i32, runtime_minutes: u64) -> MovieResponse {
         MovieResponse {
-            adult: false,
-            backdrop_path: None,
             genres: vec![],
-            homepage: String::new(),
             id: 1,
-            imdb_id: String::new(),
-            origin_country: vec![],
-            original_language: String::new(),
-            original_title: title.to_string(),
             overview: "Test movie".to_string(),
-            popularity: 0.0,
             poster_path: None,
             release_date: Some(format!("{year}-01-01")),
-            revenue: 0,
             runtime: runtime_minutes,
             title: title.to_string(),
+            video_blobs: vec![],
         }
     }
 
     fn create_test_tv(title: &str, year: i32) -> TvResponse {
         TvResponse {
-            adult: false,
-            backdrop_path: None,
-            created_by: vec![],
             episode_run_time: vec![],
             first_air_date: Some(format!("{year}-01-01")),
             genres: vec![],
-            homepage: None,
             id: TvId::from(1),
-            in_production: false,
-            languages: vec![],
-            last_air_date: None,
-            last_episode_to_air: None,
             name: title.to_string(),
-            networks: vec![],
-            next_episode_to_air: None,
-            number_of_episodes: 1,
-            number_of_seasons: 1,
-            origin_country: vec![],
-            original_language: "en".to_string(),
-            original_name: title.to_string(),
             overview: "Test show".to_string(),
-            popularity: 0.0,
             poster_path: None,
-            production_companies: vec![],
-            production_countries: vec![],
             seasons: vec![],
-            spoken_languages: vec![],
-            status: "Ended".to_string(),
-            tagline: String::new(),
-            type_: "Scripted".to_string(),
-            vote_average: 0.0,
-            vote_count: 0,
+            show_type: "Scripted".to_string(),
         }
     }
 
     fn create_test_season(season_number: u32) -> SeasonResponse {
         SeasonResponse {
-            _id: String::new(),
-            air_date: Some("2023-01-01".to_string()),
             episodes: vec![],
             name: format!("Season {season_number}"),
-            overview: String::new(),
-            id: 1,
             poster_path: None,
             season_number,
-            vote_average: 0.0,
         }
     }
 
@@ -763,19 +727,15 @@ mod tests {
         SeasonEpisode {
             air_date: Some("2023-01-01".to_string()),
             episode_number,
-            episode_type: "standard".to_string(),
             id: 1,
             name: name.to_string(),
             overview: "Test episode".to_string(),
-            production_code: None,
             runtime: Some(42),
             season_number: 1,
             show_id: 1,
             still_path: None,
             vote_average: 0.0,
-            vote_count: 0,
-            crew: vec![],
-            guest_stars: vec![],
+            video_blobs: vec![],
         }
     }
 

@@ -1,7 +1,7 @@
 use crate::models::title_info::TitleInfo;
 use crate::standard_error::StandardError;
 use crate::state::title_video::{TitleVideo, Video};
-use crate::the_movie_db::TvId;
+use crate::reelix_manager::TvId;
 use crate::{
     models::optical_disk_info::OpticalDiskInfo,
     progress_tracker::{self, components::TimeComponent},
@@ -78,7 +78,7 @@ impl Job {
             if let Ok(guard) = tv.read() {
                 if let Video::Tv(tv_ep) = &guard.video {
                     return tv_ep.tv.id == tv_id
-                        && tv_ep.season.id == season_number
+                        && tv_ep.season.season_number == season_number
                         && tv_ep.episode.id == episode_number;
                 }
             }
@@ -96,7 +96,7 @@ impl Job {
         let (tv_id, season_number, episode_number) = match &title_video.video {
             Video::Tv(tv_season_episode) => (
                 tv_season_episode.tv.id,
-                tv_season_episode.season.id,
+                tv_season_episode.season.season_number,
                 tv_season_episode.episode.id,
             ),
             _ => return false,
@@ -131,7 +131,7 @@ impl Job {
 
                 if let Video::Tv(tv_season_episode) = &title_video.video {
                     tv_season_episode.tv.id == tv_id
-                        && tv_season_episode.season.id == season_number
+                        && tv_season_episode.season.season_number == season_number
                         && tv_season_episode.episode.id == episode_number
                         && tv_season_episode.part == part
                 } else {
@@ -511,42 +511,19 @@ pub fn emit_progress(app_handle: &AppHandle, job: &Arc<RwLock<Job>>, now: bool) 
 mod tests {
     use super::*;
     use crate::state::title_video::{MoviePartEdition, TitleVideoId, TvSeasonEpisode};
-    use crate::the_movie_db::{MovieResponse, SeasonEpisode, SeasonResponse, TvResponse};
+    use crate::reelix_manager::{MovieResponse, SeasonEpisode, SeasonResponse, TvResponse};
 
     fn create_mock_tv(show_id: u32, name: &str) -> TvResponse {
         TvResponse {
-            adult: false,
-            backdrop_path: None,
-            created_by: vec![],
             episode_run_time: vec![45],
             first_air_date: Some("2020-01-01".to_string()),
             genres: vec![],
-            homepage: None,
             id: TvId::from(show_id),
-            in_production: false,
-            languages: vec!["en".to_string()],
-            last_air_date: None,
-            last_episode_to_air: None,
             name: name.to_string(),
-            networks: vec![],
-            next_episode_to_air: None,
-            number_of_episodes: 10,
-            number_of_seasons: 1,
-            origin_country: vec!["US".to_string()],
-            original_language: "en".to_string(),
-            original_name: name.to_string(),
             overview: "Test show".to_string(),
-            popularity: 1.0,
             poster_path: None,
-            production_companies: vec![],
-            production_countries: vec![],
             seasons: vec![],
-            spoken_languages: vec![],
-            status: "Ended".to_string(),
-            tagline: "".to_string(),
-            type_: "Scripted".to_string(),
-            vote_average: 8.0,
-            vote_count: 100,
+            show_type: "Scripted".to_string(),
         }
     }
 
@@ -554,43 +531,34 @@ mod tests {
         SeasonEpisode {
             air_date: Some("2020-01-01".to_string()),
             episode_number,
-            episode_type: "standard".to_string(),
             id: episode_number,
             name: format!("Episode {episode_number}"),
             overview: "Test episode".to_string(),
-            production_code: None,
             runtime: Some(45),
             season_number,
             show_id,
             still_path: None,
             vote_average: 7.0,
-            vote_count: 10,
-            crew: vec![],
-            guest_stars: vec![],
+            video_blobs: vec![],
         }
     }
 
     fn create_mock_season(
-        season_id: u32,
+        _season_id: u32,
         season_number: u32,
         episodes: Vec<SeasonEpisode>,
     ) -> SeasonResponse {
         SeasonResponse {
-            _id: format!("season-{season_id}"),
-            air_date: Some("2020-01-01".to_string()),
             episodes,
             name: format!("Season {season_number}"),
-            overview: "Test season".to_string(),
-            id: season_id,
             poster_path: None,
             season_number,
-            vote_average: 8.0,
         }
     }
 
     fn create_tv_title_video(
         show_id: u32,
-        season_id: u32,
+        _season_id: u32,
         season_number: u32,
         episode_number: u32,
         part: u16,
@@ -617,22 +585,14 @@ mod tests {
             title: None,
             video: Video::Movie(Box::new(MoviePartEdition {
                 movie: MovieResponse {
-                    adult: false,
-                    backdrop_path: None,
                     genres: vec![],
-                    homepage: String::new(),
                     id: movie_id,
-                    imdb_id: String::new(),
-                    origin_country: vec![],
-                    original_language: String::new(),
-                    original_title: "Test Movie".to_string(),
                     overview: String::new(),
-                    popularity: 0.0,
                     poster_path: None,
                     release_date: Some("2020-01-01".to_string()),
-                    revenue: 0,
                     runtime: 90,
                     title: "Test Movie".to_string(),
+                    video_blobs: vec![],
                 },
                 part: None,
                 edition: None,

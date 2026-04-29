@@ -4,7 +4,7 @@ use crate::state::background_process_state::{copy_job_state, BackgroundProcessSt
 use crate::state::job_state::{Job, JobStatus};
 use crate::state::title_video::Video;
 use crate::state::{background_process_state, AppState};
-use crate::the_movie_db;
+use crate::reelix_manager;
 use askama::Template;
 use log::debug;
 use tauri::{Manager, State};
@@ -38,7 +38,7 @@ pub struct MoviesShowTurbo<'a> {
 #[derive(Template)]
 #[template(path = "movies/show.html")]
 pub struct MoviesShow<'a> {
-    pub movie: &'a the_movie_db::MovieResponse,
+    pub movie: &'a crate::reelix_manager::MovieResponse,
     pub certification: &'a Option<String>,
     pub ripped: &'a bool,
     pub movies_cards: &'a MoviesCards<'a>,
@@ -53,7 +53,7 @@ impl MoviesShow<'_> {
 pub fn render_show(
     app_state: &State<'_, AppState>,
     background_process_state: &State<'_, background_process_state::BackgroundProcessState>,
-    movie: &the_movie_db::MovieResponse,
+    movie: &reelix_manager::MovieResponse,
     certification: &Option<String>,
     ripped: bool,
 ) -> Result<String, super::Error> {

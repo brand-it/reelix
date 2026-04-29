@@ -6,14 +6,13 @@ use serde::Deserialize;
 
 use super::error::Error;
 use super::ReelixManager;
-use crate::the_movie_db::models::GqlTvResponse;
-use crate::the_movie_db::TvResponse;
+use super::types::TvResponse;
 
 /// Execute a TV show lookup by ID
 pub fn execute(manager: &ReelixManager, id: u32) -> Result<TvResponse, Error> {
     let url = format!("{}/graphql", manager.host);
 
-    const GQL_QUERY: &str = r#"{{ tv(id: $id) {{ adult backdropPath episodeRunTime firstAirDate genres {{ id name }} homepage id inProduction languages lastAirDate name numberOfEpisodes numberOfSeasons originCountry originalLanguage originalName overview popularity posterPath seasons {{ airDate episodeCount id name overview posterPath seasonNumber voteAverage }} showType status tagline voteAverage voteCount }} }}"#;
+    const GQL_QUERY: &str = r#"{ tv(id: $id) { episodeRunTime firstAirDate genres { id name } id name overview posterPath seasons { name posterPath seasonNumber } showType } }"#;
 
     let body = serde_json::json!({
         "query": GQL_QUERY,
@@ -40,12 +39,17 @@ pub fn execute(manager: &ReelixManager, id: u32) -> Result<TvResponse, Error> {
 
     #[derive(Deserialize)]
     struct Wrapper {
-        data: GqlTvResponse,
+        data: Data,
+    }
+
+    #[derive(Deserialize)]
+    struct Data {
+        tv: TvResponse,
     }
 
     let wrapper: Wrapper = resp
         .json()
         .map_err(|e| Error::new(format!("Failed to parse tv response: {e}")))?;
 
-    Ok(TvResponse::from(wrapper.data.tv))
+    Ok(wrapper.data.tv)
 }

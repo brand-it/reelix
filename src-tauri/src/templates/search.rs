@@ -11,7 +11,7 @@ use crate::templates::jobs::{
 use crate::templates::{
     ftp_status, update_indicator::UpdateIndicator, GenericError, InlineTemplate,
 };
-use crate::the_movie_db::SearchResponse;
+use crate::reelix_manager::SearchResponse;
 use askama::Template;
 use tauri::Manager;
 

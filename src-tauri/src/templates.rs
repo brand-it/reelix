@@ -25,7 +25,6 @@ pub mod jobs;
 pub mod movies;
 pub mod search;
 pub mod seasons;
-pub mod the_movie_db;
 pub mod toast;
 pub mod tvs;
 pub mod update_indicator;

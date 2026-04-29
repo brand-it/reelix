@@ -19,7 +19,11 @@ pub fn index(
     }
 
     if !app_state.is_authenticated() {
-        return crate::commands::auth::start_device_auth(app_state, app_handle);
+        return templates::auth::render_on_error(
+            &crate::services::reelix_manager::Error::unauthorized(),
+            app_state,
+            app_handle,
+        );
     }
 
     let host = app_state.get_manager_host().unwrap_or_default();
@@ -31,23 +35,18 @@ pub fn index(
     let manager = ReelixManager::new(&app_state);
 
     if let Ok(false) = manager.verify_token() {
-        app_state.set_manager_token(None);
-        let _ = app_state.save(&app_handle);
-        return crate::commands::auth::start_device_auth(app_state, app_handle);
+        return templates::auth::render_on_error(
+            &crate::services::reelix_manager::Error::unauthorized(),
+            app_state,
+            app_handle,
+        );
     }
 
     let query = app_state.query.lock().unwrap().to_string();
-    let search = if query.is_empty() {
-        crate::the_movie_db::SearchResponse::default()
-    } else {
-        match manager.search(&query, 1) {
-            Ok(resp) => resp,
-            Err(e) if e.is_unauthorized() => {
-                app_state.set_manager_token(None);
-                let _ = app_state.save(&app_handle);
-                return crate::commands::auth::start_device_auth(app_state, app_handle);
-            }
-            Err(_) => crate::the_movie_db::SearchResponse::default(),
+    let search = match manager.search(&query, 1) {
+        Ok(resp) => resp,
+        Err(e) => {
+            return templates::auth::render_on_error(&e, app_state, app_handle);
         }
     };
 
@@ -73,12 +72,16 @@ pub fn movie(
 ) -> Result<String, templates::Error> {
     let (movie, ripped) = match find_movie(&app_handle, id) {
         Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_index(&app_state, &e.message),
+        Err(e) => {
+            return templates::auth::render_on_error(&e, app_state, app_handle);
+        }
     };
 
     let certification = match get_movie_certification(&app_handle, &id) {
         Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_index(&app_state, &e.message),
+        Err(e) => {
+            return templates::auth::render_on_error(&e, app_state, app_handle);
+        }
     };
     templates::movies::render_show(
         &app_state,
@@ -97,7 +100,7 @@ pub fn tv(
 ) -> Result<String, templates::Error> {
     let tv = match find_tv(&app_handle, id) {
         Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_index(&state, &e.message),
+        Err(e) => return templates::auth::render_on_error(&e, state, app_handle),
     };
 
     templates::tvs::render_show(&tv)
@@ -112,12 +115,12 @@ pub fn season(
 ) -> Result<String, templates::Error> {
     let tv = match find_tv(&app_handle, tv_id) {
         Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_index(&state, &e.message),
+        Err(e) => return templates::auth::render_on_error(&e, state, app_handle),
     };
 
     let (season, ripped_episodes) = match find_season(&app_handle, tv_id, season_number) {
         Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_index(&state, &e.message),
+        Err(e) => return templates::auth::render_on_error(&e, state, app_handle),
     };
 
     templates::seasons::render_show(&app_handle, &tv, &season, &ripped_episodes)
@@ -137,19 +140,20 @@ pub fn search(
     };
     let token = match state.get_manager_token() {
         Some(t) => t,
-        None => return crate::commands::auth::start_device_auth(state, app_handle),
+        None => {
+            return templates::auth::render_on_error(
+                &crate::services::reelix_manager::Error::unauthorized(),
+                state,
+                app_handle,
+            );
+        }
     };
 
     let manager = ReelixManager::with_credentials(&host, &token);
 
     let response = match manager.search(search, 1) {
         Ok(resp) => resp,
-        Err(e) if e.is_unauthorized() => {
-            state.set_manager_token(None);
-            let _ = state.save(&app_handle);
-            return crate::commands::auth::start_device_auth(state, app_handle);
-        }
-        Err(e) => return templates::render_error(&e.message),
+        Err(e) => return templates::auth::render_on_error(&e, state, app_handle),
     };
 
     templates::search::render_results(&app_handle, search, &response)

@@ -6,13 +6,16 @@ use serde::Deserialize;
 
 use super::error::Error;
 use super::ReelixManager;
-use crate::the_movie_db::models::{GqlSearchResponse, SearchResponse};
+use super::types::SearchResponse;
 
 /// Execute a search query for movies and TV shows
 pub fn execute(manager: &ReelixManager, query: &str, page: u32) -> Result<SearchResponse, Error> {
     let url = format!("{}/graphql", manager.host);
+    if query.trim().is_empty() {
+        return Ok(SearchResponse::default());
+    }
 
-    const GQL_QUERY: &str = r#"{{ searchMulti(query: $query, page: $page) {{ page totalPages totalResults results {{ id mediaType displayTitle title name posterPath backdropPath releaseDate firstAirDate overview voteAverage popularity adult voteCount originalLanguage originalTitle originalName genreIds }} }} }}"#;
+    const GQL_QUERY: &str = r#"{ searchMulti(query: $query, page: $page) { page results { firstAirDate id mediaType name posterPath releaseDate title } totalPages totalResults } }"#;
 
     let body = serde_json::json!({
         "query": GQL_QUERY,
@@ -40,13 +43,19 @@ pub fn execute(manager: &ReelixManager, query: &str, page: u32) -> Result<Search
     }
 
     #[derive(Deserialize)]
-    struct GqlResponseWrapper {
-        data: GqlSearchResponse,
+    struct Wrapper {
+        data: Data,
     }
 
-    let wrapper: GqlResponseWrapper = resp
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Data {
+        search_multi: SearchResponse,
+    }
+
+    let wrapper: Wrapper = resp
         .json()
         .map_err(|e| Error::new(format!("Failed to parse GraphQL response: {e}")))?;
 
-    Ok(SearchResponse::from(wrapper.data.search_multi))
+    Ok(wrapper.data.search_multi)
 }

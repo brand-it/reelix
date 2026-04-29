@@ -1,5 +1,5 @@
 use crate::state::AppState;
-use crate::the_movie_db::{SeasonResponse, TvResponse};
+use crate::reelix_manager::{SeasonResponse, TvResponse};
 use log::debug;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -123,7 +123,7 @@ fn parse_part_suffix(lower_name: &str) -> Option<u16> {
 fn build_tv_episode_filename(
     tv: &TvResponse,
     season: &SeasonResponse,
-    episode: &crate::the_movie_db::SeasonEpisode,
+    episode: &crate::reelix_manager::SeasonEpisode,
     part: Option<u16>,
     extension: &str,
 ) -> String {

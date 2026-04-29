@@ -27,7 +27,7 @@ pub fn set_host(
         return auth::render_host_setup(&host, &format!("Failed to save: {e}"));
     }
 
-    start_device_auth_inner(&host, &state, &app_handle)
+    reelix_manager::start_device_auth_flow(&host, &state, &app_handle)
 }
 
 #[tauri::command]
@@ -39,24 +39,7 @@ pub fn start_device_auth(
         Some(h) => h,
         None => return auth::render_host_setup("", ""),
     };
-    start_device_auth_inner(&host, &state, &app_handle)
-}
-
-fn start_device_auth_inner(
-    host: &str,
-    state: &State<'_, AppState>,
-    app_handle: &tauri::AppHandle,
-) -> Result<String, templates::Error> {
-    match reelix_manager::authorize_device(host) {
-        Ok(resp) => {
-            state.set_pending_device_code(Some(resp.device_code.clone()));
-            if let Err(e) = state.save(app_handle) {
-                return templates::render_error(&format!("Failed to save device code: {e}"));
-            }
-            auth::render_device_code(host, &resp.user_code, &resp.verification_uri, "")
-        }
-        Err(e) => auth::render_host_setup(host, &format!("Failed to connect: {}", e.message)),
-    }
+    reelix_manager::start_device_auth_flow(&host, &state, &app_handle)
 }
 
 #[tauri::command]
@@ -81,7 +64,7 @@ pub fn poll_auth_token(
             if let Err(e) = state.save(&app_handle) {
                 return templates::render_error(&format!("Failed to save token: {e}"));
             }
-            search::render_index(&app_handle, &crate::the_movie_db::SearchResponse::default())
+            search::render_index(&app_handle, &crate::reelix_manager::SearchResponse::default())
         }
         Err(PollError::Pending) | Err(PollError::SlowDown) => Ok(String::new()),
         Err(PollError::AccessDenied) => {

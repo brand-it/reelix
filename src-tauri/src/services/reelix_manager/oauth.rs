@@ -3,6 +3,8 @@
 //! These methods do not require an existing token - they are used to
 //! obtain the initial access token through the OAuth2 device flow.
 
+use crate::state::AppState;
+use crate::templates;
 use serde::Deserialize;
 use tauri_plugin_http::reqwest::blocking::Client;
 
@@ -13,6 +15,40 @@ use super::{DeviceCodeResponse, Error, PollError, TokenResponse};
 #[derive(Debug, Deserialize)]
 struct OAuthError {
     error: String,
+}
+
+/// Start the OAuth2 device authorization flow.
+///
+/// This performs the authorize_device call, stores the device code in state,
+/// saves state, and renders the device code UI.
+///
+/// Shared between `commands::auth` and `templates::auth::render_on_error`
+/// to avoid circular module dependencies.
+pub fn start_device_auth_flow(
+    host: &str,
+    state: &tauri::State<'_, AppState>,
+    app_handle: &tauri::AppHandle,
+) -> Result<String, templates::Error> {
+    match authorize_device(host) {
+        Ok(resp) => {
+            state.set_pending_device_code(Some(resp.device_code.clone()));
+            if let Err(e) = state.save(app_handle) {
+                return crate::templates::render_error(&format!(
+                    "Failed to save device code: {e}"
+                ));
+            }
+            crate::templates::auth::render_device_code(
+                host,
+                &resp.user_code,
+                &resp.verification_uri,
+                "",
+            )
+        }
+        Err(e) => crate::templates::auth::render_host_setup(
+            host,
+            &format!("Failed to connect: {}", e.message),
+        ),
+    }
 }
 
 /// Authorize a device for OAuth2 device flow

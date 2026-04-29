@@ -6,8 +6,7 @@ use serde::Deserialize;
 
 use super::error::Error;
 use super::ReelixManager;
-use crate::the_movie_db::models::GqlMovieResponse;
-use crate::the_movie_db::MovieResponse;
+use super::types::MovieResponse;
 
 /// Execute a movie lookup by ID
 ///
@@ -16,7 +15,7 @@ use crate::the_movie_db::MovieResponse;
 pub fn execute(manager: &ReelixManager, id: u32) -> Result<(MovieResponse, bool), Error> {
     let url = format!("{}/graphql", manager.host);
 
-    const GQL_QUERY: &str = r#"{{ movie(id: $id) {{ adult backdropPath genres {{ id name }} homepage id imdbId originCountry originalLanguage originalTitle overview popularity posterPath releaseDate revenue runtime title videoBlobs {{ id }} }} }}"#;
+    const GQL_QUERY: &str = r#"{ movie(id: $id) { genres { id name } id overview posterPath releaseDate runtime title videoBlobs { id } } }"#;
 
     let body = serde_json::json!({
         "query": GQL_QUERY,
@@ -43,14 +42,19 @@ pub fn execute(manager: &ReelixManager, id: u32) -> Result<(MovieResponse, bool)
 
     #[derive(Deserialize)]
     struct Wrapper {
-        data: GqlMovieResponse,
+        data: Data,
+    }
+
+    #[derive(Deserialize)]
+    struct Data {
+        movie: MovieResponse,
     }
 
     let wrapper: Wrapper = resp
         .json()
         .map_err(|e| Error::new(format!("Failed to parse movie response: {e}")))?;
 
-    let gql_movie = wrapper.data.movie;
-    let exists = !gql_movie.video_blobs.is_empty();
-    Ok((MovieResponse::from(gql_movie), exists))
+    let movie = wrapper.data.movie;
+    let exists = !movie.video_blobs.is_empty();
+    Ok((movie, exists))
 }

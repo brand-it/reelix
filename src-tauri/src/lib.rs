@@ -21,8 +21,9 @@ mod services;
 mod standard_error;
 mod state;
 mod templates;
-mod the_movie_db;
 
+
+pub use crate::services::reelix_manager;
 // only on macOS:
 #[cfg(target_os = "macos")]
 use tauri::TitleBarStyle;
