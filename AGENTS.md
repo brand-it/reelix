@@ -145,6 +145,9 @@ cargo test --manifest-path src-tauri/Cargo.toml
 # Linting
 cargo clippy --manifest-path src-tauri/Cargo.toml
 
+# Auto-fix clippy suggestions (run before commit to catch issues clippy can fix)
+make style
+
 # All validation
 make validate   # Runs check + test + clippy
 ```

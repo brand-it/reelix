@@ -31,6 +31,10 @@ window.turboInvoke = async function turboInvoke(command, commandArgs) {
     window.processTurboResponse(tauriResponse);
     return new Response(tauriResponse, { status: 200 });
   } catch (e) {
+    if (e && typeof e === "object" && e.template) {
+      window.processTurboResponse(e.template);
+    }
+
     const errorElem = document.getElementById("error");
     error(
       `turboInvoke failed: command=${command} args=${JSON.stringify(commandArgs)} error=${e}`,

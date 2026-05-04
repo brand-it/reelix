@@ -1,6 +1,7 @@
-use crate::services::reelix_manager::{self, PollError};
+use crate::reelix_manager::ReelixManager;
+use crate::services::reelix_manager;
 use crate::state::AppState;
-use crate::templates::{self, auth, search};
+use crate::templates::{self, auth};
 use tauri::State;
 
 #[tauri::command]
@@ -16,18 +17,18 @@ pub fn set_host(
     }
 
     state.set_manager_host(Some(host.clone()));
-    state.set_manager_token(None);
 
-    if !crate::services::reelix_manager::check_health(&host) {
+    if !crate::services::reelix_manager::oauth::check_health(&host) {
         let _ = state.save(&app_handle);
         return templates::auth::render_host_unreachable(&host);
     }
 
-    if let Err(e) = state.save(&app_handle) {
-        return auth::render_host_setup(&host, &format!("Failed to save: {e}"));
-    }
+    let manager = ReelixManager::new(&state);
+    let query = state.query.lock().unwrap().to_string();
 
-    reelix_manager::start_device_auth_flow(&host, &state, &app_handle)
+    let search = templates::auth::response_or_error(manager.search(&query, 1), state, &app_handle)?;
+
+    templates::search::render_index(&app_handle, &search)
 }
 
 #[tauri::command]
@@ -39,44 +40,15 @@ pub fn start_device_auth(
         Some(h) => h,
         None => return auth::render_host_setup("", ""),
     };
-    reelix_manager::start_device_auth_flow(&host, &state, &app_handle)
+    reelix_manager::oauth::start_device_auth_flow(&host, &state, &app_handle)
 }
 
 #[tauri::command]
-pub fn poll_auth_token(
-    state: State<'_, AppState>,
-    app_handle: tauri::AppHandle,
-) -> Result<String, templates::Error> {
-    let host = match state.get_manager_host() {
-        Some(h) => h,
-        None => return auth::render_host_setup("", ""),
+pub fn edit_host(state: State<'_, AppState>) -> Result<String, templates::Error> {
+    let host = &state.get_manager_host().unwrap_or_default();
+    let error_message = match reelix_manager::oauth::authorize_device(host) {
+        Ok(_) => "",
+        Err(e) => &format!("Failed to connect: {}", e.message),
     };
-
-    let device_code = match state.get_pending_device_code() {
-        Some(c) => c,
-        None => return auth::render_host_setup(&host, "Device auth session lost. Please reconnect."),
-    };
-
-    match reelix_manager::poll_token(&host, &device_code) {
-        Ok(token_resp) => {
-            state.set_manager_token(Some(token_resp.access_token));
-            state.set_pending_device_code(None);
-            if let Err(e) = state.save(&app_handle) {
-                return templates::render_error(&format!("Failed to save token: {e}"));
-            }
-            search::render_index(&app_handle, &crate::reelix_manager::SearchResponse::default())
-        }
-        Err(PollError::Pending) | Err(PollError::SlowDown) => Ok(String::new()),
-        Err(PollError::AccessDenied) => {
-            state.set_pending_device_code(None);
-            let _ = state.save(&app_handle);
-            auth::render_device_code(&host, "", "", "Access was denied. Please try again.")
-        }
-        Err(PollError::ExpiredToken) => {
-            state.set_pending_device_code(None);
-            let _ = state.save(&app_handle);
-            auth::render_device_code(&host, "", "", "Code expired. Please reconnect.")
-        }
-        Err(PollError::Http(msg)) => templates::render_error(&msg),
-    }
+    templates::auth::render_host_setup(host, error_message)
 }

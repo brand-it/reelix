@@ -140,7 +140,7 @@ fn reconstruct_movie_with_tmdb_blocking(
 
     // Get full movie details
     let movie_id = movie_result.id;
-    let (movie_response, _) = manager.find_movie(movie_id)
+    let movie_response = manager.find_movie(movie_id)
         .map_err(|e| format!("Failed to get movie details: {}", e.message))?;
 
     // Parse edition and part from filename if present
@@ -227,7 +227,7 @@ fn reconstruct_tv_with_tmdb_blocking(
     }
 
     // Get season details with episodes
-    let (season_response, _) =
+    let season_response =
         manager.find_season(tv_id, season_number)
             .map_err(|e| format!("Failed to get season details: {}", e.message))?;
 

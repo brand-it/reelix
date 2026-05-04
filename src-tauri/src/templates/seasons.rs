@@ -6,7 +6,6 @@ use crate::templates::disks::DisksOptions;
 use crate::templates::InlineTemplate;
 use crate::reelix_manager::{SeasonEpisode, SeasonResponse, TvResponse};
 use askama::Template;
-use std::collections::HashSet;
 use tauri::Manager;
 
 #[derive(Template)]
@@ -121,7 +120,6 @@ pub fn render_show(
     app_handle: &tauri::AppHandle,
     tv: &TvResponse,
     season: &SeasonResponse,
-    ripped_episodes: &HashSet<u32>,
 ) -> Result<String, super::Error> {
     let app_state = app_handle.state::<AppState>();
     let selected_disk = match app_state.selected_disk() {
@@ -152,7 +150,7 @@ pub fn render_show(
         .map(|(parts, ep)| SeasonsEpisode {
             episode: ep,
             seasons_parts: parts,
-            ripped: ripped_episodes.contains(&ep.episode_number),
+            ripped: ep.is_ripped(),
             season,
         })
         .collect();
@@ -174,7 +172,6 @@ pub fn render_title_selected(
     app_handle: &tauri::AppHandle,
     _tv: &TvResponse,
     season: SeasonResponse,
-    ripped_episodes: &HashSet<u32>,
 ) -> Result<String, super::Error> {
     let app_state = app_handle.state::<AppState>();
 
@@ -207,7 +204,7 @@ pub fn render_title_selected(
         .map(|(parts, ep)| SeasonsEpisode {
             episode: ep,
             seasons_parts: parts,
-            ripped: ripped_episodes.contains(&ep.episode_number),
+            ripped: ep.is_ripped(),
             season: &season,
         })
         .collect::<Vec<SeasonsEpisode>>();

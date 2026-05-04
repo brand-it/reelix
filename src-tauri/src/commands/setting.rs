@@ -46,7 +46,6 @@ pub fn update_ftp_settings(
         state.set_manager_host(None);
     } else {
         state.set_manager_host(Some(manager_host.to_string()));
-        state.set_manager_token(None);
     }
 
     if let Err(message) = state.save(&app_handle) {

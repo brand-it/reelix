@@ -10,12 +10,11 @@ use super::types::SearchResponse;
 
 /// Execute a search query for movies and TV shows
 pub fn execute(manager: &ReelixManager, query: &str, page: u32) -> Result<SearchResponse, Error> {
-    let url = format!("{}/graphql", manager.host);
     if query.trim().is_empty() {
         return Ok(SearchResponse::default());
     }
 
-    const GQL_QUERY: &str = r#"{ searchMulti(query: $query, page: $page) { page results { firstAirDate id mediaType name posterPath releaseDate title } totalPages totalResults } }"#;
+    const GQL_QUERY: &str = r#"query($query: String!, $page: Int!) { searchMulti(query: $query, page: $page) { page results { firstAirDate id mediaType name posterPath releaseDate title } totalPages totalResults } }"#;
 
     let body = serde_json::json!({
         "query": GQL_QUERY,
@@ -24,23 +23,12 @@ pub fn execute(manager: &ReelixManager, query: &str, page: u32) -> Result<Search
             "page": page,
         },
     });
+
     let resp = manager
-        .client
-        .post(&url)
-        .header("Authorization", format!("Bearer {}", manager.token))
-        .header("Content-Type", "application/json")
-        .json(&body)
-        .send()
-        .map_err(|e| Error::new(format!("GraphQL request failed: {e}")))?;
-
-    if resp.status() == 401 || resp.status() == 422 {
-        return Err(Error::unauthorized());
-    }
-
-    if !resp.status().is_success() {
-        let status = resp.status();
-        return Err(Error::new(format!("GraphQL server error: {status}")));
-    }
+        .sync_request()
+        .path("/graphql")
+        .json(body)
+        .send()?;
 
     #[derive(Deserialize)]
     struct Wrapper {
@@ -53,9 +41,6 @@ pub fn execute(manager: &ReelixManager, query: &str, page: u32) -> Result<Search
         search_multi: SearchResponse,
     }
 
-    let wrapper: Wrapper = resp
-        .json()
-        .map_err(|e| Error::new(format!("Failed to parse GraphQL response: {e}")))?;
-
+    let wrapper: Wrapper = resp.parse_json()?;
     Ok(wrapper.data.search_multi)
 }

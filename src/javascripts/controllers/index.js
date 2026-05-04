@@ -29,6 +29,3 @@ application.register("inline-autocomplete", InlineAutocompleteController);
 
 import ToastController from "./toast_controller.js";
 application.register("toast", ToastController);
-
-import PollController from "./poll_controller.js";
-application.register("poll", PollController);

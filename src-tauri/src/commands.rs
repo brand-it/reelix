@@ -9,8 +9,8 @@ macro_rules! all_commands {
     () => {
         tauri::generate_handler!(
             $crate::commands::auth::set_host,
+            $crate::commands::auth::edit_host,
             $crate::commands::auth::start_device_auth,
-            $crate::commands::auth::poll_auth_token,
             $crate::commands::general::index,
             $crate::commands::general::movie,
             $crate::commands::general::open_url,

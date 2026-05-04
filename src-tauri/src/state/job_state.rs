@@ -1,7 +1,7 @@
 use crate::models::title_info::TitleInfo;
+use crate::reelix_manager::TvId;
 use crate::standard_error::StandardError;
 use crate::state::title_video::{TitleVideo, Video};
-use crate::reelix_manager::TvId;
 use crate::{
     models::optical_disk_info::OpticalDiskInfo,
     progress_tracker::{self, components::TimeComponent},
@@ -510,8 +510,8 @@ pub fn emit_progress(app_handle: &AppHandle, job: &Arc<RwLock<Job>>, now: bool) 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::title_video::{MoviePartEdition, TitleVideoId, TvSeasonEpisode};
     use crate::reelix_manager::{MovieResponse, SeasonEpisode, SeasonResponse, TvResponse};
+    use crate::state::title_video::{MoviePartEdition, TitleVideoId, TvSeasonEpisode};
 
     fn create_mock_tv(show_id: u32, name: &str) -> TvResponse {
         TvResponse {
@@ -543,11 +543,7 @@ mod tests {
         }
     }
 
-    fn create_mock_season(
-        _season_id: u32,
-        season_number: u32,
-        episodes: Vec<SeasonEpisode>,
-    ) -> SeasonResponse {
+    fn create_mock_season(season_number: u32, episodes: Vec<SeasonEpisode>) -> SeasonResponse {
         SeasonResponse {
             episodes,
             name: format!("Season {season_number}"),
@@ -564,7 +560,7 @@ mod tests {
         part: u16,
     ) -> Arc<RwLock<TitleVideo>> {
         let episode = create_mock_episode(show_id, season_number, episode_number);
-        let season = create_mock_season(season_id, season_number, vec![episode.clone()]);
+        let season = create_mock_season(season_number, vec![episode.clone()]);
         let tv = create_mock_tv(show_id, "Test Show");
 
         Arc::new(RwLock::new(TitleVideo {

@@ -21,30 +21,20 @@ const GQL_QUERY: &str = r#"
 "#;
 
 /// Get all active upload sessions
+/// GraphQL query: `uploadSessions`
 pub async fn execute(manager: &ReelixManager) -> Result<Vec<UploadSession>, Error> {
-    let url = format!("{}/graphql", manager.host);
-
     let body = serde_json::json!({
         "query": GQL_QUERY
     });
 
     let resp = manager
-        .async_client
-        .post(&url)
-        .header("Authorization", format!("Bearer {}", manager.token))
-        .header("Content-Type", "application/json")
-        .json(&body)
+        .async_request()
+        .path("/graphql")
+        .json(body)
         .send()
-        .await
-        .map_err(|e| Error::new(format!("GraphQL upload sessions request failed: {e}")))?;
+        .await?;
 
-    let status = resp.status();
-    if !status.is_success() {
-        let body = resp.text().await.unwrap_or_default();
-        return Err(Error::new(format!(
-            "GraphQL upload sessions failed with status {status}: {body}"
-        )));
-    }
+    debug!("get_active_uploads raw response: {}", resp.body);
 
     #[derive(Deserialize)]
     struct Wrapper {
@@ -57,16 +47,10 @@ pub async fn execute(manager: &ReelixManager) -> Result<Vec<UploadSession>, Erro
         upload_sessions: Vec<UploadSession>,
     }
 
-    let raw_body = resp
-        .text()
-        .await
-        .map_err(|e| Error::new(format!("Failed to read response body: {e}")))?;
-
-    debug!("get_active_uploads raw response: {raw_body}");
-
-    let wrapper: Wrapper = serde_json::from_str(&raw_body).map_err(|e| {
+    let wrapper: Wrapper = serde_json::from_str(&resp.body).map_err(|e| {
         Error::new(format!(
-            "Failed to parse upload sessions response: {e}. Raw: {raw_body}"
+            "Failed to parse upload sessions response: {e}. Raw: {}",
+            resp.body
         ))
     })?;
     Ok(wrapper.data.upload_sessions)

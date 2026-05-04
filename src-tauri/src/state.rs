@@ -2,6 +2,7 @@ use crate::models::optical_disk_info::{DiskId, OpticalDiskInfo};
 use crate::services::ftp_validator;
 use log::debug;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
 use tauri_plugin_store::StoreExt;
 
@@ -19,6 +20,12 @@ pub struct FtpConfig {
     pub pass: Option<String>,
     pub user: Option<String>,
     pub checker: ftp_validator::FtpChecker,
+}
+
+impl Default for FtpConfig {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl FtpConfig {
@@ -143,6 +150,13 @@ pub struct AppState {
     pub tv_shows_dir: Arc<RwLock<PathBuf>>,
     pub current_video: Arc<Mutex<Option<title_video::Video>>>,
     pub latest_version: Arc<Mutex<Option<String>>>,
+    pub device_auth_generation: Arc<AtomicU32>,
+
+}
+impl Default for AppState {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AppState {
@@ -161,7 +175,8 @@ impl AppState {
             query: Arc::new(Mutex::new(String::new())),
             selected_optical_disk_id: Arc::new(RwLock::new(None)),
             tv_shows_dir: Arc::new(RwLock::new(Self::default_tv_shows_dir())),
-        }
+            device_auth_generation: Arc::new(AtomicU32::new(0)),
+            }
     }
 
     /// Load state from the persistent store file
@@ -393,9 +408,20 @@ impl AppState {
 
     pub fn set_manager_token(&self, token: Option<String>) {
         let mut guard = self.manager_token.lock().expect("failed to lock manager_token");
+        if token.is_none() {
+            debug!("Manager Token Updated to None");
+        }
         *guard = token;
     }
 
+
+    pub fn next_device_auth_generation(&self) -> u32 {
+        self.device_auth_generation.fetch_add(1, Ordering::SeqCst) + 1
+    }
+
+    pub fn current_device_auth_generation(&self) -> u32 {
+        self.device_auth_generation.load(Ordering::SeqCst)
+    }
     pub fn is_authenticated(&self) -> bool {
         self.get_manager_host().is_some() && self.get_manager_token().is_some()
     }

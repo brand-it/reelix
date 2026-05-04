@@ -39,7 +39,6 @@ pub struct MoviesShowTurbo<'a> {
 #[template(path = "movies/show.html")]
 pub struct MoviesShow<'a> {
     pub movie: &'a crate::reelix_manager::MovieResponse,
-    pub certification: &'a Option<String>,
     pub ripped: &'a bool,
     pub movies_cards: &'a MoviesCards<'a>,
 }
@@ -54,8 +53,6 @@ pub fn render_show(
     app_state: &State<'_, AppState>,
     background_process_state: &State<'_, background_process_state::BackgroundProcessState>,
     movie: &reelix_manager::MovieResponse,
-    certification: &Option<String>,
-    ripped: bool,
 ) -> Result<String, super::Error> {
     let selected_disk = match app_state.selected_disk() {
         Some(disk) => {
@@ -86,8 +83,7 @@ pub fn render_show(
     let template = MoviesShowTurbo {
         movies_show: &MoviesShow {
             movie,
-            certification,
-            ripped: &ripped,
+            ripped: &movie.is_ripped(),
             movies_cards: &MoviesCards {
                 selected_disk: &selected_disk,
                 in_progress_job: &in_progress_job,

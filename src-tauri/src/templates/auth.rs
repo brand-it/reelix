@@ -89,17 +89,55 @@ pub fn render_device_code(
 
 /// Centralized error handler for Reelix Manager API errors.
 ///
-/// Clears the authentication token, persists state, and initiates the
-/// device authorization flow. Any Reelix Manager error (unauthorized,
-/// network timeout, server error, etc.) is treated the same way:
-/// redirect to auth.
+/// Auth failures (401/422) clear the token and initiate the device
+/// authorization flow. Non-auth errors (network failures, server errors,
+/// etc.) show the host setup screen to let the user check the server
+/// connection without clearing a potentially valid token.
 pub fn render_on_error(
-    _error: &ReelixManagerError,
+    error: &ReelixManagerError,
     state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, Error> {
-    state.set_manager_token(None);
-    let _ = state.save(&app_handle);
     let host = state.get_manager_host().unwrap_or_default();
-    reelix_manager::start_device_auth_flow(&host, &state, &app_handle)
+
+    if error.is_auth_failure() {
+        // Token is invalid — clear it and start device auth flow.
+        state.set_manager_token(None);
+        let _ = state.save(&app_handle);
+        reelix_manager::oauth::start_device_auth_flow(&host, &state, &app_handle)
+    } else {
+        // Network error, server error, or other non-auth failure.
+        // Preserve the token — the server may just be temporarily down.
+        render_host_setup(&host, &error.message)
+    }
+}
+
+/// Handle a Reelix Manager API result. On success, returns the value.
+/// On error, delegates to `render_on_error` for classification-based
+/// handling (auth vs non-auth errors) and returns `Err(templates::Error)`
+/// with the HTML in the `template` field.
+///
+/// The JS `turboInvoke` catch block detects `error.template` and pipes
+/// it through `processTurboResponse` instead of logging.
+///
+/// Usage:
+/// ```ignore
+/// let search = auth::response_or_error(manager.search(&query, 1), app_state, app_handle)?;
+/// ```
+pub fn response_or_error<T>(
+    result: Result<T, ReelixManagerError>,
+    state: State<'_, AppState>,
+    app_handle: &tauri::AppHandle,
+) -> Result<T, Error> {
+    match result {
+        Ok(resp) => Ok(resp),
+        Err(e) => {
+            let auth_html = render_on_error(&e, state, app_handle.clone())
+                .unwrap_or_else(|err| err.message);
+            Err(Error {
+                message: format!("Reelix Manager error: {}", e.message),
+                template: Some(auth_html),
+            })
+        }
+    }
 }

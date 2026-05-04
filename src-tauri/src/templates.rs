@@ -73,6 +73,8 @@ pub struct GenericErrorTurbo<'a> {
 #[derive(Serialize, Debug)]
 pub struct Error {
     pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub template: Option<String>,
 }
 
 impl std::fmt::Display for Error {
@@ -82,6 +84,12 @@ impl std::fmt::Display for Error {
 }
 impl std::error::Error for Error {}
 
+impl From<crate::services::reelix_manager::Error> for Error {
+    fn from(e: crate::services::reelix_manager::Error) -> Self {
+        Self { message: e.message, template: None }
+    }
+}
+
 pub fn render<T: Template>(template: T) -> Result<String, Error> {
     match template.render() {
         Ok(result) => Ok(result),
@@ -89,6 +97,7 @@ pub fn render<T: Template>(template: T) -> Result<String, Error> {
             debug!("Template rendering error: {e:#?}");
             let error = Error {
                 message: format!("An error occurred during template rendering: {e}"),
+                template: None,
             };
             Err(error)
         }

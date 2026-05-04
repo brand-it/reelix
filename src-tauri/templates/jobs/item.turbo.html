@@ -1,10 +1,10 @@
-<turbo-stream action="replace" method="morph" target="{{ summary.dom_id() }}">
+<turbo-stream action="replace" target="{{ summary.dom_id() }}">
   <template>
     {{ summary.render_html() | safe }}
   </template>
 </turbo-stream>
 
-<turbo-stream action="replace" method="morph" target="{{ details.dom_id() }}">
+<turbo-stream action="replace" target="{{ details.dom_id() }}">
   <template>
     {{ details.render_html() | safe }}
   </template>

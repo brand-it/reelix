@@ -22,8 +22,6 @@ const GQL_QUERY: &str = r#"
 
 /// Get a specific upload session by ID
 pub async fn execute(manager: &ReelixManager, upload_id: &str) -> Result<Option<UploadSession>, Error> {
-    let url = format!("{}/graphql", manager.host);
-
     let variables = serde_json::json!({
         "id": upload_id
     });
@@ -34,22 +32,13 @@ pub async fn execute(manager: &ReelixManager, upload_id: &str) -> Result<Option<
     });
 
     let resp = manager
-        .async_client
-        .post(&url)
-        .header("Authorization", format!("Bearer {}", manager.token))
-        .header("Content-Type", "application/json")
-        .json(&body)
+        .async_request()
+        .path("/graphql")
+        .json(body)
         .send()
-        .await
-        .map_err(|e| Error::new(format!("GraphQL upload session request failed: {e}")))?;
+        .await?;
 
-    let status = resp.status();
-    if !status.is_success() {
-        let body = resp.text().await.unwrap_or_default();
-        return Err(Error::new(format!(
-            "GraphQL upload session failed with status {status}: {body}"
-        )));
-    }
+    debug!("get_upload_session_by_id raw response for {upload_id}: {}", resp.body);
 
     #[derive(Deserialize)]
     struct Wrapper {
@@ -61,16 +50,10 @@ pub async fn execute(manager: &ReelixManager, upload_id: &str) -> Result<Option<
         upload_session: Option<UploadSession>,
     }
 
-    let raw_body = resp
-        .text()
-        .await
-        .map_err(|e| Error::new(format!("Failed to read response body: {e}")))?;
-
-    debug!("get_upload_session_by_id raw response for {upload_id}: {raw_body}");
-
-    let wrapper: Wrapper = serde_json::from_str(&raw_body).map_err(|e| {
+    let wrapper: Wrapper = serde_json::from_str(&resp.body).map_err(|e| {
         Error::new(format!(
-            "Failed to parse upload session response: {e}. Raw: {raw_body}"
+            "Failed to parse upload session response: {e}. Raw: {}",
+            resp.body
         ))
     })?;
     Ok(wrapper.data.upload_session)

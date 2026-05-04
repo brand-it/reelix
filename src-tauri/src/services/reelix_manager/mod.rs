@@ -5,20 +5,21 @@
 //! and resumable file uploads via the tus protocol.
 
 mod active_uploads;
+mod client;
 mod error;
+mod finalize_upload;
 mod find_movie;
 mod find_season;
 mod find_tv;
-mod finalize_upload;
-mod oauth;
+pub mod oauth;
 mod search;
 mod session_by_id;
-mod types;
 mod tus_create;
 mod tus_offset;
 mod tus_upload;
-pub use error::{Error, PollError, DeviceCodeResponse, TokenResponse};
-pub use oauth::{poll_token, check_health, start_device_auth_flow};
+mod types;
+pub use client::{ApiRequest, AsyncApiRequest};
+pub use error::{DeviceCodeResponse, Error, PollError, TokenResponse};
 pub use finalize_upload::FinalizeResponse;
 pub use tus_types::UploadSession;
 pub use types::*;
@@ -65,23 +66,26 @@ impl ReelixManager {
 
     /// Verify that the current token is valid
     pub fn verify_token(&self) -> Result<bool, Error> {
-        let url = format!("{}/graphql", self.host);
         let body = serde_json::json!({ "query": "{ __typename }" });
 
-        let resp = self
-            .client
-            .post(&url)
-            .header("Authorization", format!("Bearer {}", self.token))
-            .header("Content-Type", "application/json")
-            .json(&body)
-            .send()
-            .map_err(|e| Error::new(format!("Network error: {e}")))?;
-
-        if resp.status() == 401 || resp.status() == 422 {
-            return Ok(false);
+        match self.sync_request().path("/graphql").json(body).send() {
+            Ok(_) => Ok(true),
+            Err(e) if e.message == "unauthorized" => Ok(false),
+            Err(e) => Err(e),
         }
+    }
+    /// Create a sync request builder for authenticated API calls.
+    pub fn sync_request(&self) -> ApiRequest {
+        ApiRequest::new(self.client.clone(), self.host.clone(), self.token.clone())
+    }
 
-        Ok(true)
+    /// Create an async request builder for authenticated API calls.
+    pub fn async_request(&self) -> AsyncApiRequest {
+        AsyncApiRequest::new(
+            self.async_client.clone(),
+            self.host.clone(),
+            self.token.clone(),
+        )
     }
 
     /// Search for movies and TV shows
@@ -91,9 +95,8 @@ impl ReelixManager {
     }
 
     /// Find a movie by ID
-    /// Returns the movie data and a boolean indicating if it already exists in the library
     /// GraphQL query: `movie(id: Int)`
-    pub fn find_movie(&self, id: u32) -> Result<(MovieResponse, bool), Error> {
+    pub fn find_movie(&self, id: u32) -> Result<MovieResponse, Error> {
         find_movie::execute(self, id)
     }
 
@@ -104,13 +107,8 @@ impl ReelixManager {
     }
 
     /// Find a season by TV show ID and season number
-    /// Returns the season data and a set of episode numbers that have already been ripped
     /// GraphQL query: `season(tvId: Int, seasonNumber: Int)`
-    pub fn find_season(
-        &self,
-        tv_id: u32,
-        season_number: u32,
-    ) -> Result<(SeasonResponse, std::collections::HashSet<u32>), Error> {
+    pub fn find_season(&self, tv_id: u32, season_number: u32) -> Result<SeasonResponse, Error> {
         find_season::execute(self, tv_id, season_number)
     }
 

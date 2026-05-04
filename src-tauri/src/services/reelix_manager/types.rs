@@ -73,6 +73,10 @@ impl MovieResponse {
         let duration = Duration::from_secs(self.runtime_seconds());
         format!("{}", format_duration(duration))
     }
+
+    pub fn is_ripped(&self) -> bool {
+        !self.video_blobs.is_empty()
+    }
 }
 
 // -------------------------
@@ -97,7 +101,7 @@ pub struct SearchResult {
     #[serde(default)]
     pub media_type: String,
     #[serde(default)]
-    pub name: String,
+    pub name: Option<String>,
     #[serde(default)]
     pub poster_path: Option<String>,
     #[serde(default)]
@@ -108,9 +112,7 @@ pub struct SearchResult {
 
 impl SearchResult {
     pub fn get_title(&self) -> String {
-        self.title
-            .clone()
-            .or_else(|| Some(self.name.clone()))
+        self.title.clone().or(self.name.clone())
             .unwrap_or_else(|| "Unknown".to_string())
     }
 
@@ -294,6 +296,13 @@ pub struct SeasonResponse {
     pub season_number: u32,
 }
 
+impl SeasonResponse {
+    /// Finds an episode by its episode number.
+    pub fn find_episode(&self, episode_number: u32) -> Option<&SeasonEpisode> {
+        self.episodes.iter().find(|e| e.episode_number == episode_number)
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct SeasonEpisode {
@@ -353,5 +362,9 @@ impl SeasonEpisode {
         } else {
             format!("{minutes}m")
         }
+    }
+
+    pub fn is_ripped(&self) -> bool {
+        !self.video_blobs.is_empty()
     }
 }

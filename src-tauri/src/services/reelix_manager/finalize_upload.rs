@@ -58,8 +58,6 @@ pub async fn execute(
     season_number: Option<u32>,
     episode_number: Option<u32>,
 ) -> Result<FinalizeResponse, Error> {
-    let url = format!("{}/graphql", manager.host);
-
     let input = FinalizeUploadInput {
         upload_id: upload_id.to_string(),
         tmdb_id,
@@ -80,28 +78,14 @@ pub async fn execute(
 
     loop {
         let resp_result = manager
-            .async_client
-            .post(&url)
-            .header("Authorization", format!("Bearer {}", manager.token))
-            .header("Content-Type", "application/json")
-            .json(&body)
+            .async_request()
+            .path("/graphql")
+            .json(body.clone())
             .send()
             .await;
 
         match resp_result {
             Ok(resp) => {
-                let status = resp.status();
-                if !status.is_success() {
-                    let body_text = resp.text().await.unwrap_or_default();
-                    return Err(Error::new(format!(
-                        "GraphQL finalize failed with status {status}: {body_text}"
-                    )));
-                }
-
-                let raw_body = resp
-                    .text()
-                    .await
-                    .map_err(|e| Error::new(format!("Failed to read response body: {e}")))?;
 
                 #[derive(Deserialize)]
                 struct Wrapper {
@@ -114,9 +98,10 @@ pub async fn execute(
                     finalize_upload: FinalizeResponse,
                 }
 
-                let wrapper: Wrapper = serde_json::from_str(&raw_body).map_err(|e| {
+                let wrapper: Wrapper = serde_json::from_str(&resp.body).map_err(|e| {
                     Error::new(format!(
-                        "Failed to parse finalize response: {e}. Raw: {raw_body}"
+                        "Failed to parse finalize response: {e}. Raw: {}",
+                        resp.body
                     ))
                 })?;
 
@@ -126,19 +111,17 @@ pub async fn execute(
                 retry_count += 1;
                 if retry_count >= max_retries {
                     return Err(Error::new(format!(
-                        "GraphQL finalize request failed to {url} after {max_retries} retries: {e} (debug: {e:?})"
+                        "GraphQL finalize request failed after {max_retries} retries: {} (debug: {:?})", e.message, e
                     )));
                 }
-
-                let error_msg = e.to_string();
-                let is_retryable = error_msg.contains("IncompleteMessage")
-                    || error_msg.contains("connection reset")
-                    || error_msg.contains("unexpected eof")
-                    || error_msg.contains("broken pipe");
+                let is_retryable = e.message.contains("IncompleteMessage")
+                    || e.message.contains("connection reset")
+                    || e.message.contains("unexpected eof")
+                    || e.message.contains("broken pipe");
 
                 if !is_retryable {
                     return Err(Error::new(format!(
-                        "GraphQL finalize request failed to {url}: {e}"
+                        "GraphQL finalize request failed: {}", e.message
                     )));
                 }
 

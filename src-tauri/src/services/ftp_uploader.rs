@@ -35,6 +35,12 @@ pub enum FtpErrorType {
     Other,
 }
 
+impl Default for FtpValidationError {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FtpValidationError {
     pub fn new() -> Self {
         Self { errors: Vec::new() }

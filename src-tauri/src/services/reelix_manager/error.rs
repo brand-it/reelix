@@ -60,4 +60,12 @@ impl Error {
             message: "unauthorized".to_string(),
         }
     }
+
+    /// Returns `true` if this error indicates an authentication failure (401/422).
+    ///
+    /// `Error::unauthorized()` is the only constructor that produces auth
+    /// errors, and it sets `message` to `"unauthorized"`.
+    pub fn is_auth_failure(&self) -> bool {
+        self.message == "unauthorized"
+    }
 }

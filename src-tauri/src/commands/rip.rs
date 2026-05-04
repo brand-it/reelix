@@ -1,18 +1,15 @@
 use crate::models::optical_disk_info::DiskId;
 use crate::services::ftp_uploader;
 use crate::services::upload_info::{self, UploadInfo};
-use crate::services::plex::find_tv;
-use crate::services::{self, disk_manager};
-use crate::services::{
-    makemkvcon,
-    plex::{find_movie, find_season},
-};
+use crate::services::reelix_manager::ReelixManager;
+use crate::services::{self, disk_manager, makemkvcon};
 use crate::standard_error::StandardError;
 use crate::state::background_process_state::BackgroundProcessState;
 use crate::state::job_state::{emit_progress, Job, JobStatus, JobType};
 use crate::state::title_video::{self, TitleVideo, Video};
 use crate::state::{background_process_state, AppState};
 use crate::templates::toast::{Toast, ToastVariant};
+use crate::templates::auth;
 use crate::templates::{self};
 use log::{debug, error, warn};
 use serde::Deserialize;
@@ -23,6 +20,7 @@ use tauri::{Emitter, Manager, State};
 use tauri_plugin_notification::NotificationExt;
 use templates::render_error;
 
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub fn assign_episode_to_title(
     mvdb_id: u32,
@@ -31,29 +29,24 @@ pub fn assign_episode_to_title(
     title_id: Option<u32>,
     part: u16,
     background_process_state: State<'_, background_process_state::BackgroundProcessState>,
+    app_state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, templates::Error> {
-    let app_state = app_handle.state::<AppState>();
+    let manager = ReelixManager::new(&app_state);
     let optical_disk = match app_state.selected_disk() {
         Some(disk) => disk,
         None => return render_error("No current selected disk"),
     };
-    let tv = match find_tv(&app_handle, mvdb_id) {
-        Ok(tv) => tv,
-        Err(e) => return render_error(&e.message),
-    };
+    let tv = auth::response_or_error(
+        manager.find_tv(mvdb_id), app_state.clone(), &app_handle
+    )?;
 
-    let (season, ripped_episodes) = match find_season(&app_handle, mvdb_id, season_number) {
-        Ok(season) => season,
-        Err(e) => return render_error(&e.message),
-    };
+    let season = auth::response_or_error(
+        manager.find_season(mvdb_id, season_number), app_state.clone(), &app_handle
+    )?;
 
-    let episode = match season
-        .episodes
-        .iter()
-        .find(|e| e.episode_number == episode_number)
-    {
-        Some(episode) => episode,
+    let episode = match season.find_episode(episode_number) {
+        Some(ep) => ep,
         None => return templates::render_error("Could not find episode to assign"),
     };
     let disk_id = optical_disk.read().expect("failed to lock optical_disk").id;
@@ -146,8 +139,7 @@ pub fn assign_episode_to_title(
     }
 
     background_process_state.emit_jobs_changed(&app_handle);
-
-    templates::seasons::render_title_selected(&app_handle, &tv, season, &ripped_episodes)
+    templates::seasons::render_title_selected(&app_handle, &tv, season)
 }
 
 // pub fn withdraw_episode_from_title(
@@ -211,15 +203,14 @@ pub fn reorder_tv_episodes_on_ftp(
     app_state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, templates::Error> {
-    let tv = match find_tv(&app_handle, mvdb_id) {
-        Ok(tv) => tv,
-        Err(e) => return render_error(&e.message),
-    };
+    let manager = ReelixManager::new(&app_state);
+    let tv = auth::response_or_error(
+        manager.find_tv(mvdb_id), app_state.clone(), &app_handle
+    )?;
 
-    let (season, ripped_episodes) = match find_season(&app_handle, mvdb_id, season_number) {
-        Ok(season) => season,
-        Err(e) => return render_error(&e.message),
-    };
+    let season = auth::response_or_error(
+        manager.find_season(mvdb_id, season_number), app_state.clone(), &app_handle
+    )?;
 
     let filtered_swaps: Vec<(u32, u32)> = swaps
         .into_iter()
@@ -259,7 +250,7 @@ pub fn reorder_tv_episodes_on_ftp(
         format!("Renamed {renamed_count} file(s) on FTP."),
     );
     let toast_stream = templates::toast::render_toast_append(toast)?;
-    let season_stream = templates::seasons::render_show(&app_handle, &tv, &season, &ripped_episodes)?;
+    let season_stream = templates::seasons::render_show(&app_handle, &tv, &season)?;
 
     Ok(format!("{toast_stream}{season_stream}"))
 }
@@ -316,7 +307,7 @@ pub fn rip_season(
         });
 
         match tv_and_season {
-            Some((tv, season)) => templates::seasons::render_show(&app_handle, &tv, &season, &std::collections::HashSet::new())?,
+            Some((tv, season)) => templates::seasons::render_show(&app_handle, &tv, &season)?,
             None => String::new(),
         }
     };
@@ -337,6 +328,7 @@ pub fn rip_movie(
     background_process_state: State<'_, background_process_state::BackgroundProcessState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, templates::Error> {
+    let manager = ReelixManager::new(&app_state);
     let disk_id = DiskId::from(disk_id);
     let optical_disk = match app_state.find_optical_disk_by_id(&disk_id) {
         Some(optical_disk) => optical_disk,
@@ -361,10 +353,9 @@ pub fn rip_movie(
         background_process_state.emit_jobs_changed(&app_handle);
     }
 
-    let (movie, _ripped) = match find_movie(&app_handle, mvdb_id) {
-        Ok(movie) => movie,
-        Err(e) => return render_error(&e.message),
-    };
+    let movie = auth::response_or_error(
+        manager.find_movie(mvdb_id), app_state.clone(), &app_handle
+    )?;
 
     let movie_part_edition = crate::state::title_video::MoviePartEdition {
         movie: movie.clone(),
@@ -398,6 +389,7 @@ pub fn set_auto_rip(
     background_process_state: State<'_, background_process_state::BackgroundProcessState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, templates::Error> {
+    let manager = ReelixManager::new(&app_state);
     let disk_id = DiskId::from(disk_id);
 
     if enable {
@@ -422,10 +414,9 @@ pub fn set_auto_rip(
             );
         }
 
-        let (movie, _ripped) = match find_movie(&app_handle, mvdb_id) {
-            Ok(movie) => movie,
-            Err(e) => return render_error(&e.message),
-        };
+        let movie = auth::response_or_error(
+            manager.find_movie(mvdb_id), app_state.clone(), &app_handle
+        )?;
 
         let movie_part_edition = crate::state::title_video::MoviePartEdition {
             movie: movie.clone(),
