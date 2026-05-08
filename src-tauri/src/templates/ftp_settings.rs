@@ -16,6 +16,8 @@ pub struct FtpSettingsIndex<'a> {
     pub ftp_config: &'a FtpConfig,
     pub ftp_status_container: &'a FtpStatusContainer<'a>,
     pub status_message: &'a FtpSettingsStatusMessage<'a>,
+    pub current_manager_host: &'a str,
+    pub is_authenticated: bool,
 }
 
 impl FtpSettingsIndex<'_> {
@@ -45,10 +47,16 @@ pub fn render_show(state: &crate::state::AppState) -> Result<String, crate::temp
     let status_message = FtpSettingsStatusMessage {
         ftp_checker: &ftp_checker,
     };
+
+    let current_manager_host = state.get_manager_host().unwrap_or_default();
+    let is_authenticated = state.get_manager_token().is_some();
+
     let ftp_settings_index = FtpSettingsIndex {
         ftp_config: &state.ftp_config.lock().unwrap(),
         ftp_status_container: &ftp_status_container,
         status_message: &status_message,
+        current_manager_host: &current_manager_host,
+        is_authenticated,
     };
     let template = FtpSettingsIndexTurbo {
         ftp_settings_index: &ftp_settings_index,

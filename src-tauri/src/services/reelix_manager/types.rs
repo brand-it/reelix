@@ -4,27 +4,35 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 // -------------------------
+// -------- Common ---------
+// -------------------------
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Genre {
+    pub id: u32,
+    pub name: String,
+}
+
+#[derive(Deserialize, Clone)]
+pub struct GqlVideoBlob {}
+
+// -------------------------
 // -------- Movies ---------
 // -------------------------
 
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct MovieResponse {
-    pub adult: bool,
-    pub backdrop_path: Option<String>,
-    pub genres: Vec<MovieGenre>,
-    pub homepage: String,
+    pub genres: Vec<Genre>,
     pub id: u32,
-    pub imdb_id: String,
-    pub origin_country: Vec<String>,
-    pub original_language: String,
-    pub original_title: String,
     pub overview: String,
-    pub popularity: f32,
     pub poster_path: Option<String>,
     pub release_date: Option<String>,
-    pub revenue: u64,
+    #[serde(default)]
     pub runtime: u64,
     pub title: String,
+    #[serde(default, skip_serializing)]
+    pub video_blobs: Vec<GqlVideoBlob>,
 }
 
 impl MovieResponse {
@@ -66,92 +74,45 @@ impl MovieResponse {
         format!("{}", format_duration(duration))
     }
 
-    // returns a basic file path for example Alien (1979)/Alien (1979).mkv
-    pub fn to_file_path(&self) -> String {
-        format!("{}/{}.mkv", self.title_year(), self.title_year())
+    pub fn is_ripped(&self) -> bool {
+        !self.video_blobs.is_empty()
     }
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct MovieGenre {
-    pub id: u32,
-    pub name: String,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct MovieReleaseDatesResponse {
-    pub id: u32,
-    pub results: Vec<CountryReleaseDates>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct CountryReleaseDates {
-    pub iso_3166_1: String,
-    pub release_dates: Vec<ReleaseDate>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct ReleaseDate {
-    pub certification: String,
-    pub descriptors: Vec<String>,
-    pub iso_639_1: String,
-    pub note: String,
-    pub release_date: String,
-    #[serde(rename = "type")]
-    pub release_type: u32,
 }
 
 // -------------------------
 // -------- Search ---------
 // -------------------------
 
-// Struct to represent the full response
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct SearchResponse {
-    page: u32,
+    pub page: u32,
     pub results: Vec<SearchResult>,
-    total_pages: u32,
-    total_results: u32,
+    pub total_pages: u32,
+    pub total_results: u32,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct SearchResult {
     #[serde(default)]
-    name: String,
-    #[serde(default)]
-    original_name: String,
-    adult: bool,
-    backdrop_path: Option<String>,
-    #[serde(default)]
-    genre_ids: Vec<u32>,
+    pub first_air_date: Option<String>,
     pub id: u32,
     #[serde(default)]
     pub media_type: String,
     #[serde(default)]
-    original_language: String,
-    original_title: Option<String>,
+    pub name: Option<String>,
     #[serde(default)]
-    overview: String,
-    #[serde(default)]
-    popularity: Option<f64>,
-    profile_path: Option<String>,
     pub poster_path: Option<String>,
-    release_date: Option<String>,
-    first_air_date: Option<String>,
-    title: Option<String>,
     #[serde(default)]
-    video: bool,
+    pub release_date: Option<String>,
     #[serde(default)]
-    vote_average: f64,
-    #[serde(default)]
-    vote_count: u32,
+    pub title: Option<String>,
 }
 
 impl SearchResult {
     pub fn get_title(&self) -> String {
-        self.title
-            .clone()
-            .or_else(|| Some(self.name.clone()))
+        self.title.clone().or(self.name.clone())
             .unwrap_or_else(|| "Unknown".to_string())
     }
 
@@ -174,8 +135,7 @@ impl SearchResult {
 // ---------- TV -----------
 // -------------------------
 
-#[derive(Serialize, Clone, PartialEq, Eq, Copy, PartialOrd, Ord, Deserialize, Debug)]
-
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Copy, PartialOrd, Ord, Debug)]
 pub struct TvId(u32);
 
 impl std::fmt::Display for TvId {
@@ -274,41 +234,18 @@ impl TryFrom<&str> for TvId {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct TvResponse {
-    pub adult: bool,
-    pub backdrop_path: Option<String>,
-    pub created_by: Vec<TvCreatedBy>,
     pub episode_run_time: Vec<u32>,
     pub first_air_date: Option<String>,
-    pub genres: Vec<TvGenre>,
-    pub homepage: Option<String>,
+    pub genres: Vec<Genre>,
     pub id: TvId,
-    pub in_production: bool,
-    pub languages: Vec<String>,
-    pub last_air_date: Option<String>,
-    pub last_episode_to_air: Option<TvEpisode>,
     pub name: String,
-    pub networks: Vec<TvNetwork>,
-    pub next_episode_to_air: Option<TvEpisode>,
-    pub number_of_episodes: u32,
-    pub number_of_seasons: u32,
-    pub origin_country: Vec<String>,
-    pub original_language: String,
-    pub original_name: String,
     pub overview: String,
-    pub popularity: f64,
     pub poster_path: Option<String>,
-    pub production_companies: Vec<TvProductionCompany>,
-    pub production_countries: Vec<TvProductionCountry>,
     pub seasons: Vec<TvSeason>,
-    pub spoken_languages: Vec<TvSpokenLanguage>,
-    pub status: String,
-    pub tagline: String,
-    // Since "type" is a reserved word in Rust, we rename the field to "type_"
-    #[serde(rename = "type")]
-    pub type_: String,
-    pub vote_average: f64,
-    pub vote_count: u32,
+    #[serde(rename = "showType")]
+    pub show_type: String,
 }
 
 impl TvResponse {
@@ -339,77 +276,11 @@ impl TvResponse {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct TvCreatedBy {
-    pub id: u32,
-    pub credit_id: String,
-    pub name: String,
-    pub original_name: String,
-    pub gender: u8,
-    pub profile_path: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct TvGenre {
-    pub id: u32,
-    pub name: String,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct TvEpisode {
-    pub id: u32,
-    pub name: String,
-    pub overview: String,
-    pub vote_average: f64,
-    pub vote_count: u32,
-    pub air_date: String,
-    pub episode_number: u32,
-    pub episode_type: String,
-    pub production_code: String,
-    pub runtime: u32,
-    pub season_number: u32,
-    pub show_id: u32,
-    pub still_path: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct TvNetwork {
-    pub id: u32,
-    pub logo_path: Option<String>,
-    pub name: String,
-    pub origin_country: String,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct TvProductionCompany {
-    pub id: u32,
-    pub logo_path: Option<String>,
-    pub name: String,
-    pub origin_country: String,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct TvProductionCountry {
-    pub iso_3166_1: String,
-    pub name: String,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct TvSeason {
-    pub air_date: Option<String>,
-    pub episode_count: u32,
-    pub id: u32,
     pub name: String,
-    pub overview: String,
     pub poster_path: Option<String>,
     pub season_number: u32,
-    pub vote_average: f64,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct TvSpokenLanguage {
-    pub english_name: String,
-    pub iso_639_1: String,
-    pub name: String,
 }
 
 // ------------------------------------
@@ -417,35 +288,39 @@ pub struct TvSpokenLanguage {
 // ------------------------------------
 
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct SeasonResponse {
-    pub _id: String,
-    pub air_date: Option<String>,
     pub episodes: Vec<SeasonEpisode>,
     pub name: String,
-    pub overview: String,
-    pub id: u32,
     pub poster_path: Option<String>,
     pub season_number: u32,
-    pub vote_average: f32,
+}
+
+impl SeasonResponse {
+    /// Finds an episode by its episode number.
+    pub fn find_episode(&self, episode_number: u32) -> Option<&SeasonEpisode> {
+        self.episodes.iter().find(|e| e.episode_number == episode_number)
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct SeasonEpisode {
+    #[serde(default)]
     pub air_date: Option<String>,
     pub episode_number: u32,
-    pub episode_type: String,
     pub id: u32,
     pub name: String,
     pub overview: String,
-    pub production_code: Option<String>,
+    #[serde(default)]
     pub runtime: Option<u32>,
     pub season_number: u32,
     pub show_id: u32,
+    #[serde(default)]
     pub still_path: Option<String>,
-    pub vote_average: f32,
-    pub vote_count: u32,
-    pub crew: Vec<SeasonCrewMember>,
-    pub guest_stars: Vec<SeasonGuestStar>,
+    pub vote_average: f64,
+    #[serde(default, skip_serializing)]
+    pub video_blobs: Vec<GqlVideoBlob>,
 }
 
 impl SeasonEpisode {
@@ -488,34 +363,8 @@ impl SeasonEpisode {
             format!("{minutes}m")
         }
     }
-}
 
-#[derive(Serialize, Deserialize, Clone)]
-pub struct SeasonCrewMember {
-    pub job: String,
-    pub department: String,
-    pub credit_id: String,
-    pub adult: bool,
-    pub gender: Option<u8>,
-    pub id: u32,
-    pub known_for_department: String,
-    pub name: String,
-    pub original_name: String,
-    pub popularity: f32,
-    pub profile_path: Option<String>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct SeasonGuestStar {
-    pub character: String,
-    pub credit_id: String,
-    pub order: u32,
-    pub adult: bool,
-    pub gender: Option<u8>,
-    pub id: u32,
-    pub known_for_department: String,
-    pub name: String,
-    pub original_name: String,
-    pub popularity: f32,
-    pub profile_path: Option<String>,
+    pub fn is_ripped(&self) -> bool {
+        !self.video_blobs.is_empty()
+    }
 }

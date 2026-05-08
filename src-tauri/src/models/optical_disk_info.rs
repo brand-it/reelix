@@ -158,6 +158,12 @@ static NEXT_DISK_ID: AtomicU64 = AtomicU64::new(1);
 #[derive(Serialize, Clone, PartialEq, Copy)]
 pub struct DiskId(u64);
 
+impl Default for DiskId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DiskId {
     pub fn new() -> Self {
         DiskId(NEXT_DISK_ID.fetch_add(1, Ordering::Relaxed))

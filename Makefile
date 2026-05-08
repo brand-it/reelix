@@ -1,6 +1,6 @@
 SHELL := /usr/bin/env bash
 
-.PHONY: help install watch dev build tauri tauri-dev tauri-dev-linux tauri-build check test clippy validate bump bump-major bump-minor bump-bug
+.PHONY: help install watch dev build tauri tauri-dev tauri-dev-linux tauri-build check test clippy validate style bump bump-major bump-minor bump-bug
 
 help:
 	@echo "Available targets:"
@@ -15,6 +15,7 @@ help:
 	@echo "  make check             # cargo check"
 	@echo "  make test              # cargo test"
 	@echo "  make clippy            # cargo clippy"
+	@echo "  make style             # cargo clippy --fix --allow-dirty"
 	@echo "  make validate          # check + test + clippy"
 	@echo "  make bump TYPE=...     # TYPE=major|minor|bug"
 	@echo "  make bump-major        # bump major"
@@ -36,7 +37,7 @@ tauri:
 	npm run tauri -- $(ARGS)
 
 tauri-dev:
-	cargo tauri dev --config src-tauri/tauri.linux.dev.conf.json
+	[[ -f .env ]] && . .env && true; cargo tauri dev --config src-tauri/tauri.linux.dev.conf.json
 
 tauri-dev-linux: tauri-dev
 
@@ -51,6 +52,10 @@ test:
 
 clippy:
 	cargo clippy --manifest-path src-tauri/Cargo.toml
+
+style:
+	cargo clippy --fix --allow-dirty --manifest-path src-tauri/Cargo.toml
+
 
 validate: check test clippy
 

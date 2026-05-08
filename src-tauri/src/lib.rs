@@ -21,8 +21,9 @@ mod services;
 mod standard_error;
 mod state;
 mod templates;
-mod the_movie_db;
 
+
+pub use crate::services::reelix_manager;
 // only on macOS:
 #[cfg(target_os = "macos")]
 use tauri::TitleBarStyle;
@@ -63,22 +64,7 @@ fn setup_uploaded_state(app: &mut App) {
         services::upload_recovery::resume_pending_uploads(app_handle).await;
     });
 }
-/// Custom filter that formats a datetime string into "YYYY"
-// pub fn to_year(value: &Value, _args: &HashMap<String, Value>) -> TeraResult<Value> {
-//     let date_str = value
-//         .as_str()
-//         .ok_or("format_date filter: expected a string")?;
-//     // Try parsing the string as an RFC3339 datetime.
-//     let formatted = if let Ok(dt) = DateTime::parse_from_rfc3339(date_str) {
-//         dt.format("%Y").to_string()
-//     } else if let Ok(date) = NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
-//         // Fallback: if it's already just a date, use it.
-//         date.format("%Y").to_string()
-//     } else {
-//         return Err(format!("format_date filter: failed to parse date: {}", date_str).into());
-//     };
-//     to_value(formatted).map_err(Into::into)
-// }
+
 fn setup_tray_icon(app: &mut App) {
     let version_label = format!("Version {}", app.package_info().version);
     let version_i = MenuItem::with_id(app, "version", version_label, true, None::<&str>)

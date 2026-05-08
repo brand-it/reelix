@@ -45,20 +45,30 @@ impl UploadedState {
     }
 
     /// Add a video to the upload queue and persist to store
+#[allow(clippy::too_many_arguments)]
     pub fn add_upload(
         &self,
         app_handle: &AppHandle,
         video_path: String,
         upload_type: UploadType,
+        upload_id: Option<String>,
+        tmdb_id: Option<u32>,
+        season_number: Option<u32>,
+        episode_number: Option<u32>,
     ) -> Result<(), String> {
         // Add to queue
-        self.queue.add(video_path.clone(), upload_type)?;
+        self.queue.add(
+            video_path.clone(),
+            upload_type,
+            upload_id,
+            tmdb_id,
+            season_number,
+            episode_number,
+        )?;
 
         // Persist to store
         self.persist_to_store(app_handle)?;
-        debug!(
-            "Added {video_path} to upload queue and persisted to store"
-        );
+        debug!("Added {video_path} to upload queue and persisted to store");
 
         Ok(())
     }
@@ -70,9 +80,7 @@ impl UploadedState {
 
         // Persist to store
         self.persist_to_store(app_handle)?;
-        debug!(
-            "Removed {video_path} from upload queue and persisted to store"
-        );
+        debug!("Removed {video_path} from upload queue and persisted to store");
 
         Ok(())
     }
