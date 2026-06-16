@@ -1,12 +1,9 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use crate::services::auto_complete;
-use crate::services::plex::{
-    find_movie, find_season, find_tv, get_movie_certification, search_multi,
-};
+use crate::services::reelix_manager::ReelixManager;
 use crate::state::background_process_state::BackgroundProcessState;
 use crate::state::AppState;
 use crate::templates::{self, render_error};
-use crate::the_movie_db;
 use tauri::State;
 use tauri_plugin_opener::OpenerExt;
 
@@ -16,11 +13,13 @@ pub fn index(
     app_handle: tauri::AppHandle,
     app_state: State<'_, AppState>,
 ) -> Result<String, templates::Error> {
-    match search_multi(&app_state, "Martian") {
-        Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_index(&app_state, &e.message),
-    };
-    templates::search::render_index(&app_handle)
+    let manager = ReelixManager::new(&app_state);
+    let query = app_state.query.lock().unwrap().to_string();
+
+    let search =
+        templates::auth::response_or_error(manager.search(&query, 1), app_state, &app_handle)?;
+
+    templates::search::render_index(&app_handle, &search)
 }
 
 #[tauri::command]
@@ -40,21 +39,10 @@ pub fn movie(
     app_state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, templates::Error> {
-    let movie = match find_movie(&app_handle, id) {
-        Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_index(&app_state, &e.message),
-    };
-
-    let certification = match get_movie_certification(&app_handle, &id) {
-        Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_index(&app_state, &e.message),
-    };
-    templates::movies::render_show(
-        &app_state,
-        &background_process_state,
-        &movie,
-        &certification,
-    )
+    let manager = ReelixManager::new(&app_state);
+    let movie =
+        templates::auth::response_or_error(manager.find_movie(id), app_state.clone(), &app_handle)?;
+    templates::movies::render_show(&app_state, &background_process_state, &movie)
 }
 
 #[tauri::command]
@@ -63,10 +51,8 @@ pub fn tv(
     app_handle: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<String, templates::Error> {
-    let tv = match find_tv(&app_handle, id) {
-        Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_index(&state, &e.message),
-    };
+    let manager = ReelixManager::new(&state);
+    let tv = templates::auth::response_or_error(manager.find_tv(id), state, &app_handle)?;
 
     templates::tvs::render_show(&tv)
 }
@@ -78,15 +64,15 @@ pub fn season(
     app_handle: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<String, templates::Error> {
-    let tv = match find_tv(&app_handle, tv_id) {
-        Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_index(&state, &e.message),
-    };
+    let manager = ReelixManager::new(&state);
+    let tv =
+        templates::auth::response_or_error(manager.find_tv(tv_id), state.clone(), &app_handle)?;
 
-    let season = match find_season(&app_handle, tv_id, season_number) {
-        Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_index(&state, &e.message),
-    };
+    let season = templates::auth::response_or_error(
+        manager.find_season(tv_id, season_number),
+        state,
+        &app_handle,
+    )?;
 
     templates::seasons::render_show(&app_handle, &tv, &season)
 }
@@ -99,13 +85,25 @@ pub fn search(
 ) -> Result<String, templates::Error> {
     state.save_query(search);
 
-    let api_key = &state.lock_the_movie_db_key();
-    let language = "en-US";
-    let movie_db = the_movie_db::TheMovieDb::new(api_key, language);
-    let response = match movie_db.search_multi(search, 1) {
-        Ok(resp) => resp,
-        Err(e) => return templates::the_movie_db::render_index(&state, &e.message),
+    let host = match state.get_manager_host() {
+        Some(h) => h,
+        None => return templates::auth::render_host_setup("", ""),
     };
+    let token = match state.get_manager_token() {
+        Some(t) => t,
+        None => {
+            return templates::auth::render_on_error(
+                &crate::services::reelix_manager::Error::unauthorized(),
+                state,
+                app_handle,
+            );
+        }
+    };
+
+    let manager = ReelixManager::with_credentials(&host, &token);
+
+    let response =
+        templates::auth::response_or_error(manager.search(search, 1), state, &app_handle)?;
 
     templates::search::render_results(&app_handle, search, &response)
 }

@@ -25,9 +25,6 @@
     </h3>
     <div class='movie-facts'>
 
-      {% if let Some(certification) = certification %}
-      <span class="certification-rating">{{ certification }}</span>
-      {% endif %}
       <span>{{ movie.human_runtime() }}</span>
       <span>
         {% if let Some(release_date) = movie.release_date %}

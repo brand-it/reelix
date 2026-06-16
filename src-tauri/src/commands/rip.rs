@@ -1,18 +1,15 @@
 use crate::models::optical_disk_info::DiskId;
 use crate::services::ftp_uploader;
-use crate::services::plex::find_tv;
-use crate::services::{self, disk_manager};
-use crate::services::{
-    makemkvcon,
-    plex::{find_movie, find_season},
-};
+use crate::services::upload_info::{self, UploadInfo};
+use crate::services::reelix_manager::ReelixManager;
+use crate::services::{self, disk_manager, makemkvcon};
 use crate::standard_error::StandardError;
 use crate::state::background_process_state::BackgroundProcessState;
 use crate::state::job_state::{emit_progress, Job, JobStatus, JobType};
 use crate::state::title_video::{self, TitleVideo, Video};
-use crate::state::uploaded_state::UploadedState;
 use crate::state::{background_process_state, AppState};
 use crate::templates::toast::{Toast, ToastVariant};
+use crate::templates::auth;
 use crate::templates::{self};
 use log::{debug, error, warn};
 use serde::Deserialize;
@@ -23,6 +20,7 @@ use tauri::{Emitter, Manager, State};
 use tauri_plugin_notification::NotificationExt;
 use templates::render_error;
 
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub fn assign_episode_to_title(
     mvdb_id: u32,
@@ -31,29 +29,24 @@ pub fn assign_episode_to_title(
     title_id: Option<u32>,
     part: u16,
     background_process_state: State<'_, background_process_state::BackgroundProcessState>,
+    app_state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, templates::Error> {
-    let app_state = app_handle.state::<AppState>();
+    let manager = ReelixManager::new(&app_state);
     let optical_disk = match app_state.selected_disk() {
         Some(disk) => disk,
         None => return render_error("No current selected disk"),
     };
-    let tv = match find_tv(&app_handle, mvdb_id) {
-        Ok(tv) => tv,
-        Err(e) => return render_error(&e.message),
-    };
+    let tv = auth::response_or_error(
+        manager.find_tv(mvdb_id), app_state.clone(), &app_handle
+    )?;
 
-    let season = match find_season(&app_handle, mvdb_id, season_number) {
-        Ok(season) => season,
-        Err(e) => return render_error(&e.message),
-    };
+    let season = auth::response_or_error(
+        manager.find_season(mvdb_id, season_number), app_state.clone(), &app_handle
+    )?;
 
-    let episode = match season
-        .episodes
-        .iter()
-        .find(|e| e.episode_number == episode_number)
-    {
-        Some(episode) => episode,
+    let episode = match season.find_episode(episode_number) {
+        Some(ep) => ep,
         None => return templates::render_error("Could not find episode to assign"),
     };
     let disk_id = optical_disk.read().expect("failed to lock optical_disk").id;
@@ -75,7 +68,7 @@ pub fn assign_episode_to_title(
     let title_video = job
         .read()
         .unwrap()
-        .find_tv_title_video(tv.id, season.id, episode.id, part);
+        .find_tv_title_video(tv.id, season.season_number, episode.id, part);
     if let Some(title_id) = title_id {
         let title = match optical_disk.read().unwrap().find_title_by_id(title_id) {
             Some(title) => title,
@@ -146,7 +139,6 @@ pub fn assign_episode_to_title(
     }
 
     background_process_state.emit_jobs_changed(&app_handle);
-
     templates::seasons::render_title_selected(&app_handle, &tv, season)
 }
 
@@ -211,15 +203,14 @@ pub fn reorder_tv_episodes_on_ftp(
     app_state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, templates::Error> {
-    let tv = match find_tv(&app_handle, mvdb_id) {
-        Ok(tv) => tv,
-        Err(e) => return render_error(&e.message),
-    };
+    let manager = ReelixManager::new(&app_state);
+    let tv = auth::response_or_error(
+        manager.find_tv(mvdb_id), app_state.clone(), &app_handle
+    )?;
 
-    let season = match find_season(&app_handle, mvdb_id, season_number) {
-        Ok(season) => season,
-        Err(e) => return render_error(&e.message),
-    };
+    let season = auth::response_or_error(
+        manager.find_season(mvdb_id, season_number), app_state.clone(), &app_handle
+    )?;
 
     let filtered_swaps: Vec<(u32, u32)> = swaps
         .into_iter()
@@ -337,6 +328,7 @@ pub fn rip_movie(
     background_process_state: State<'_, background_process_state::BackgroundProcessState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, templates::Error> {
+    let manager = ReelixManager::new(&app_state);
     let disk_id = DiskId::from(disk_id);
     let optical_disk = match app_state.find_optical_disk_by_id(&disk_id) {
         Some(optical_disk) => optical_disk,
@@ -361,10 +353,9 @@ pub fn rip_movie(
         background_process_state.emit_jobs_changed(&app_handle);
     }
 
-    let movie = match find_movie(&app_handle, mvdb_id) {
-        Ok(movie) => movie,
-        Err(e) => return render_error(&e.message),
-    };
+    let movie = auth::response_or_error(
+        manager.find_movie(mvdb_id), app_state.clone(), &app_handle
+    )?;
 
     let movie_part_edition = crate::state::title_video::MoviePartEdition {
         movie: movie.clone(),
@@ -398,6 +389,7 @@ pub fn set_auto_rip(
     background_process_state: State<'_, background_process_state::BackgroundProcessState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, templates::Error> {
+    let manager = ReelixManager::new(&app_state);
     let disk_id = DiskId::from(disk_id);
 
     if enable {
@@ -422,10 +414,9 @@ pub fn set_auto_rip(
             );
         }
 
-        let movie = match find_movie(&app_handle, mvdb_id) {
-            Ok(movie) => movie,
-            Err(e) => return render_error(&e.message),
-        };
+        let movie = auth::response_or_error(
+            manager.find_movie(mvdb_id), app_state.clone(), &app_handle
+        )?;
 
         let movie_part_edition = crate::state::title_video::MoviePartEdition {
             movie: movie.clone(),
@@ -516,56 +507,6 @@ fn notify_movie_upload_failure(app_handle: &tauri::AppHandle, file_path: &Path, 
         .unwrap();
 }
 
-/// Extract upload preparation data from a title_video
-fn extract_upload_info(
-    app_handle: &tauri::AppHandle,
-    title_video: &Arc<RwLock<TitleVideo>>,
-    rip_job: &Arc<RwLock<Job>>,
-) -> Option<(
-    UploadedState,
-    PathBuf,
-    crate::state::upload_state::UploadType,
-)> {
-    let uploaded_state = match app_handle.try_state::<UploadedState>() {
-        Some(state) => {
-            let state_ref = state.inner();
-            UploadedState {
-                queue: Arc::clone(&state_ref.queue),
-            }
-        }
-        None => {
-            error!("Failed to get UploadedState");
-            return None;
-        }
-    };
-
-    let multiple_parts = rip_job
-        .read()
-        .expect("Failed to get rip_job reader")
-        .has_multiple_parts(
-            &title_video
-                .read()
-                .expect("To get title_video read lock for multiple_parts check"),
-        );
-
-    let path = title_video
-        .read()
-        .expect("Failed to get title_video reader")
-        .video_path(&app_handle.state::<AppState>(), multiple_parts);
-
-    let upload_type = {
-        let video_guard = title_video
-            .read()
-            .expect("Failed to get title_video reader");
-        match &video_guard.video {
-            Video::Movie(_) => crate::state::upload_state::UploadType::Movie,
-            Video::Tv(_) => crate::state::upload_state::UploadType::TvShow,
-        }
-    };
-
-    Some((uploaded_state, path, upload_type))
-}
-
 fn spawn_upload(
     app_handle: &tauri::AppHandle,
     rip_job: &Arc<RwLock<Job>>,
@@ -575,16 +516,28 @@ fn spawn_upload(
     let rip_job = rip_job.clone();
     let title_video = title_video.clone();
     tauri::async_runtime::spawn(async move {
-        let (uploaded_state, path, upload_type) =
-            match extract_upload_info(&app_handle, &title_video, &rip_job) {
-                Some(info) => info,
-                None => return,
-            };
-
+        let UploadInfo {
+            uploaded_state,
+            path,
+            upload_type,
+            upload_id,
+            tmdb_id,
+            season_number,
+            episode_number,
+        } = match upload_info::extract_upload_info(&app_handle, &title_video, &rip_job) {
+            Some(info) => info,
+            None => return,
+        };
         // Add to persistent upload queue before starting
-        if let Err(e) =
-            uploaded_state.add_upload(&app_handle, path.to_string_lossy().to_string(), upload_type)
-        {
+        if let Err(e) = uploaded_state.add_upload(
+            &app_handle,
+            path.to_string_lossy().to_string(),
+            upload_type,
+            upload_id,
+            tmdb_id,
+            season_number,
+            episode_number,
+        ) {
             error!("Failed to add video to upload queue: {e}");
             return;
         }
@@ -614,7 +567,9 @@ fn spawn_upload(
             .expect("Failed to get job reader")
             .emit_progress_change(&app_handle);
 
-        match services::ftp_uploader::upload(&app_handle, &job, &title_video).await {
+        // Note: upload_id is always None for new uploads spawned here
+        // The tus_uploader will create a new upload session or resume existing one by filename
+        match services::tus_uploader::upload(&app_handle, &job, &title_video, None).await {
             Ok(_m) => {
                 notify_movie_upload_success(&app_handle, &path);
                 job.write()
@@ -905,80 +860,48 @@ pub fn spawn_rip(app_handle: tauri::AppHandle, job: Arc<RwLock<Job>>) {
 #[cfg(test)]
 mod tests {
     use crate::state::title_video::TvSeasonEpisode;
-    use crate::the_movie_db::{SeasonEpisode, SeasonResponse, TvId, TvResponse};
+    use crate::reelix_manager::{SeasonEpisode, SeasonResponse, TvId, TvResponse};
 
     fn create_mock_tv_episode(id: u32, episode_number: u32) -> SeasonEpisode {
         SeasonEpisode {
             id,
             episode_number,
-            episode_type: "standard".to_string(),
             name: format!("Episode {episode_number}"),
             overview: "Test episode".to_string(),
             air_date: Some("2020-01-01".to_string()),
-            production_code: None,
             runtime: Some(45),
             season_number: 1,
             show_id: 100,
             still_path: None,
             vote_average: 8.0,
-            vote_count: 100,
-            crew: vec![],
-            guest_stars: vec![],
+            video_blobs: vec![],
         }
     }
 
     fn create_mock_season() -> SeasonResponse {
         SeasonResponse {
-            _id: "test_season".to_string(),
-            id: 1,
             season_number: 1,
             name: "Season 1".to_string(),
-            overview: "Test season".to_string(),
             poster_path: None,
-            air_date: Some("2020-01-01".to_string()),
             episodes: vec![
                 create_mock_tv_episode(1, 1),
                 create_mock_tv_episode(2, 2),
                 create_mock_tv_episode(3, 3),
             ],
-            vote_average: 8.5,
         }
     }
 
     fn create_mock_tv() -> TvResponse {
         TvResponse {
-            adult: false,
-            backdrop_path: None,
-            created_by: vec![],
             episode_run_time: vec![45],
             first_air_date: Some("2020-01-01".to_string()),
             genres: vec![],
-            homepage: None,
             id: TvId::from(100),
-            in_production: false,
-            languages: vec!["en".to_string()],
-            last_air_date: None,
-            last_episode_to_air: None,
             name: "Test Show".to_string(),
-            networks: vec![],
-            next_episode_to_air: None,
-            number_of_episodes: 20,
-            number_of_seasons: 2,
-            origin_country: vec!["US".to_string()],
-            original_language: "en".to_string(),
-            original_name: "Test Show".to_string(),
             overview: "Test overview".to_string(),
-            popularity: 100.0,
             poster_path: None,
-            production_companies: vec![],
-            production_countries: vec![],
             seasons: vec![],
-            spoken_languages: vec![],
-            status: "Returning Series".to_string(),
-            tagline: "Test tagline".to_string(),
-            type_: "Scripted".to_string(),
-            vote_average: 8.5,
-            vote_count: 1000,
+            show_type: "Scripted".to_string(),
         }
     }
 

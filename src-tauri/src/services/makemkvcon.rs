@@ -280,10 +280,10 @@ fn convert_to_run_result(
 
 fn create_tracker(tracker: &mut Option<progress_tracker::Base>) {
     let options = ProgressOptions {
-        total: Some(1_usize),
+        total: Some(1.0),
         autostart: true,
         autofinish: true,
-        starting_at: Some(0),
+        starting_at: Some(0.0),
         projector_type: Some("smoothed".to_string()),
         projector_strength: Some(0.1),
         projector_at: Some(0.0),
@@ -311,10 +311,10 @@ fn set_title_info_field(tinfo: &mkv::TINFO, run_results: &mut RunResults) {
 fn update_tracker(tracker: &mut Option<progress_tracker::Base>, prgv: PRGV) {
     if tracker.is_none() {
         let options = ProgressOptions {
-            total: Some(prgv.pmax as usize),
+            total: Some(prgv.pmax as f64),
             autostart: true,
             autofinish: true,
-            starting_at: Some(0),
+            starting_at: Some(prgv.total as f64),
             projector_type: Some("smoothed".to_string()),
             projector_strength: Some(0.1),
             projector_at: Some(0.0),
@@ -324,8 +324,8 @@ fn update_tracker(tracker: &mut Option<progress_tracker::Base>, prgv: PRGV) {
     }
 
     if let Some(ref mut base) = tracker {
-        base.set_total(prgv.pmax as usize);
-        base.set_progress(prgv.current as usize);
+        base.set_total(prgv.pmax as f64);
+        base.set_progress(prgv.current as f64);
     }
 }
 

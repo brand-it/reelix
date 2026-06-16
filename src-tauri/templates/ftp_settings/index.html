@@ -6,6 +6,32 @@
     <form id="ftp-settings-form" action="/update_ftp_settings" method="post"
       data-controller="submit-on-keyup" class="mb-3"
       data-submit-on-keyup-target="form">
+      <div class="mb-4">
+        <h5 class="text-muted text-uppercase small mb-3">
+          <i class="fas fa-server me-2"></i>Reelix Manager
+        </h5>
+        <div class="mb-3">
+          <label for="managerHost" class="form-label">Manager Server URL</label>
+          <input type="text" name="managerHost" class="form-control" id="manager_host"
+            value="{{ current_manager_host }}"
+            placeholder="http://192.168.1.100:8081"
+            data-submit-on-keyup-target="input">
+          <div class="form-text">Reelix Manager for metadata and upload tracking.</div>
+        </div>
+        <div class="mb-3">
+          {% if is_authenticated %}
+          <span class="badge bg-success"><i class="fas fa-check"></i> Connected</span>
+          {% else %}
+          <span class="badge bg-warning"><i class="fas fa-exclamation"></i> Not Authenticated</span>
+          {% endif %}
+        </div>
+      </div>
+      <hr class="my-4">
+      <div class="mb-4">
+        <h5 class="text-muted text-uppercase small mb-3">
+          <i class="fas fa-upload me-2"></i>FTP Upload
+        </h5>
+      </div>
       <div class="mb-3">
         <label for="ftpHost" class="form-label">FTP Host</label>
         <input type="text" name="ftpHost" class="form-control" id="ftp_host"
@@ -51,7 +77,7 @@
         style="color: #ffffff; margin-bottom: 1rem; font-size: 1.1rem; font-weight: 600;">
         <i class="fas fa-info-circle"
           style="margin-right: 0.5rem; color: #6495ff;"></i>
-        About FTP Upload
+        About Manager Upload
       </h5>
 
       <div style="color: #d0d0d0; line-height: 1.6; font-size: 0.9rem;">
